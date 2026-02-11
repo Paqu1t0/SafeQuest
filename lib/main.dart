@@ -1,8 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart'; // 1. Importa o motor do Firebase
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 
-void main() {
+void main() async {
+  // 2. Adiciona o 'async' aqui
+  // 3. Garante que o Flutter carregou tudo antes de tentar ligar ao Firebase
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // 4. Inicializa o Firebase
+  await Firebase.initializeApp();
+
   runApp(const SafeQuest());
 }
 
@@ -17,9 +25,9 @@ class SafeQuest extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1A56DB)),
         useMaterial3: true,
-        scaffoldBackgroundColor: Colors.transparent,
+        // Dica: scaffoldBackgroundColor transparente pode mostrar um fundo preto
+        // se não houver um Stack com imagem por trás!
       ),
-
       home: const LoginPage(),
       routes: {
         '/login': (context) => const LoginPage(),

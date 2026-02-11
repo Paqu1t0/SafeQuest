@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -105,10 +107,12 @@ class _RegisterPageState extends State<RegisterPage> {
                           Icons.email_outlined,
                         ),
                         validator: (value) {
-                          if (value == null || value.isEmpty)
+                          if (value == null || value.isEmpty) {
                             return 'Insira o seu email';
-                          if (!value.contains('@') || !value.contains('.'))
+                          }
+                          if (!value.contains('@') || !value.contains('.')) {
                             return 'Email inválido';
+                          }
                           return null;
                         },
                       ),
@@ -124,8 +128,9 @@ class _RegisterPageState extends State<RegisterPage> {
                           Icons.lock_outline,
                         ),
                         validator: (value) {
-                          if (value == null || value.isEmpty)
+                          if (value == null || value.isEmpty) {
                             return 'Crie uma palavra-passe';
+                          }
                           if (value.length < 8) return 'Mínimo de 8 caracteres';
                           return null;
                         },
@@ -142,10 +147,12 @@ class _RegisterPageState extends State<RegisterPage> {
                           Icons.lock_outline,
                         ),
                         validator: (value) {
-                          if (value == null || value.isEmpty)
+                          if (value == null || value.isEmpty) {
                             return 'Confirme a palavra-passe';
-                          if (value != _passwordController.text)
+                          }
+                          if (value != _passwordController.text) {
                             return 'As palavras-passe não coincidem';
+                          }
                           return null;
                         },
                       ),
@@ -162,14 +169,66 @@ class _RegisterPageState extends State<RegisterPage> {
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          onPressed: () {
+                          onPressed: () async {
                             if (_formKey.currentState!.validate()) {
-                              // Se for válido, executa a lógica de registo
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('A criar conta...'),
-                                ),
-                              );
+                              try {
+                                // 1. Mostrar um círculo de carregamento (opcional mas bom)
+                                showDialog(
+                                  context: context,
+                                  barrierDismissible: false,
+                                  builder: (context) => const Center(
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                );
+
+                                // 2. Criar utilizador no Firebase Authentication
+                                UserCredential userCredential =
+                                    await FirebaseAuth.instance
+                                        .createUserWithEmailAndPassword(
+                                          email: _emailController.text.trim(),
+                                          password: _passwordController.text
+                                              .trim(),
+                                        );
+
+                                // 3. Guardar o Nome Completo no Firestore Database
+                                await FirebaseFirestore.instance
+                                    .collection('users')
+                                    .doc(userCredential.user!.uid)
+                                    .set({
+                                      'name': _nameController.text.trim(),
+                                      'email': _emailController.text.trim(),
+                                      'createdAt': DateTime.now(),
+                                    });
+
+                                // 4. Fechar o loading e sair da página
+                                Navigator.pop(context); // Fecha o dialog
+                                Navigator.pop(context); // Volta para o Login
+
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Conta criada com sucesso!'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              } on FirebaseAuthException catch (e) {
+                                Navigator.pop(context); // Fecha o loading
+                                String errorMsg = "Erro ao criar conta";
+
+                                if (e.code == 'email-already-in-password')
+                                  errorMsg = "Este email já está em uso.";
+                                if (e.code == 'weak-password')
+                                  errorMsg = "A palavra-passe é muito fraca.";
+
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(errorMsg),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              } catch (e) {
+                                Navigator.pop(context);
+                                print(e);
+                              }
                             }
                           },
                           child: const Text(

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "434644951500",
+    "project_id": "safequest-4358c",
+    "storage_bucket": "safequest-4358c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:434644951500:android:8f1a9982db198253297d69",
+        "android_client_info": {
+          "package_name": "com.example.projeto_safequest"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBi6lDlziUF-HZCSTCn-6MOIEn4q39dEKs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

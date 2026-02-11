@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:projeto_safequest/screens/register_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -154,15 +155,38 @@ class _LoginPageState extends State<LoginPage> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                             ),
-                            onPressed: () {
-                              // Executa a validação de todos os campos do Form
+                            onPressed: () async {
+                              // Adiciona o async aqui
                               if (_formKey.currentState!.validate()) {
-                                // Se for válido, podes avançar para a lógica de login
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('A processar Login...'),
-                                  ),
-                                );
+                                try {
+                                  await FirebaseAuth.instance
+                                      .signInWithEmailAndPassword(
+                                        email: _emailController.text.trim(),
+                                        password: _passwordController.text
+                                            .trim(),
+                                      );
+
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'Login efetuado com sucesso!',
+                                      ),
+                                    ),
+                                  );
+                                } on FirebaseAuthException catch (e) {
+                                  String mensagem = 'Ocorreu um erro';
+                                  if (e.code == 'user-not-found')
+                                    mensagem = 'Utilizador não encontrado.';
+                                  else if (e.code == 'wrong-password')
+                                    mensagem = 'Palavra-passe errada.';
+
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(mensagem),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
                               }
                             },
                             child: const Text(
