@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:projeto_safequest/screens/register_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:projeto_safequest/screens/home_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -156,7 +157,6 @@ class _LoginPageState extends State<LoginPage> {
                               ),
                             ),
                             onPressed: () async {
-                              // Adiciona o async aqui
                               if (_formKey.currentState!.validate()) {
                                 try {
                                   await FirebaseAuth.instance
@@ -166,11 +166,15 @@ class _LoginPageState extends State<LoginPage> {
                                             .trim(),
                                       );
 
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Login efetuado com sucesso!',
-                                      ),
+                                  ScaffoldMessenger.of(
+                                    context,
+                                  ).hideCurrentSnackBar();
+
+                                  if (!mounted) return;
+                                  Navigator.pushReplacement(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => const HomePage(),
                                     ),
                                   );
                                 } on FirebaseAuthException catch (e) {

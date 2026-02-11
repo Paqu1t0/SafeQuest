@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart'; // 1. Importa o motor do Firebase
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
+import 'package:projeto_safequest/screens/home_page.dart';
 
 void main() async {
   // 2. Adiciona o 'async' aqui
@@ -32,6 +33,7 @@ class SafeQuest extends StatelessWidget {
       routes: {
         '/login': (context) => const LoginPage(),
         '/register': (context) => const RegisterPage(),
+        '/home': (context) => const HomePage(),
       },
     );
   }

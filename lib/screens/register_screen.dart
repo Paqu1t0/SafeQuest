@@ -158,7 +158,6 @@ class _RegisterPageState extends State<RegisterPage> {
                       ),
                       const SizedBox(height: 25),
 
-                      // BOTÃO CRIAR CONTA
                       SizedBox(
                         width: double.infinity,
                         height: 50,
@@ -172,7 +171,6 @@ class _RegisterPageState extends State<RegisterPage> {
                           onPressed: () async {
                             if (_formKey.currentState!.validate()) {
                               try {
-                                // 1. Mostrar um círculo de carregamento (opcional mas bom)
                                 showDialog(
                                   context: context,
                                   barrierDismissible: false,
@@ -180,8 +178,6 @@ class _RegisterPageState extends State<RegisterPage> {
                                     child: CircularProgressIndicator(),
                                   ),
                                 );
-
-                                // 2. Criar utilizador no Firebase Authentication
                                 UserCredential userCredential =
                                     await FirebaseAuth.instance
                                         .createUserWithEmailAndPassword(
@@ -189,8 +185,16 @@ class _RegisterPageState extends State<RegisterPage> {
                                           password: _passwordController.text
                                               .trim(),
                                         );
-
-                                // 3. Guardar o Nome Completo no Firestore Database
+                                await FirebaseFirestore.instance
+                                    .collection('users')
+                                    .doc(userCredential.user!.uid)
+                                    .set({
+                                      'nome': _nameController.text.trim(),
+                                      'email': _emailController.text.trim(),
+                                      'pontos': 0,
+                                      'createdAt': DateTime.now(),
+                                    });
+                                // 3. Guarda o nome na firestore
                                 await FirebaseFirestore.instance
                                     .collection('users')
                                     .doc(userCredential.user!.uid)
