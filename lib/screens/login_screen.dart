@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:projeto_safequest/screens/register_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:projeto_safequest/screens/home_page.dart';
+import 'package:projeto_safequest/screens/forgot_password_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -11,63 +12,72 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  // Chave global para identificar o formulário e validar
   final _formKey = GlobalKey<FormState>();
-
-  // Controladores para capturar o texto digitado
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
   @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // SingleChildScrollView evita que o teclado esconda os campos e cause erros de layout
-      body: SingleChildScrollView(
-        child: Container(
-          width: double.infinity,
-          height: MediaQuery.of(
-            context,
-          ).size.height, // Garante que o fundo cubra a tela toda
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0xFFE3F2FD), Color(0xFFD1E3F5)],
-            ),
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFFE3F2FD),
+              Color(0xFFD1E3F5),
+            ], // Gradiente padrão do projeto [cite: 60]
           ),
-          child: Padding(
+        ),
+        child: Center(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 30),
             child: Form(
-              key: _formKey, // Atribui a chave ao formulário
+              key: _formKey,
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.shield, size: 80, color: Color(0xFF1A56DB)),
+                  // Logo e Título alinhados com o protótipo [cite: 638]
+                  const Icon(Icons.shield, size: 90, color: Color(0xFF1A56DB)),
                   const SizedBox(height: 10),
                   const Text(
                     'SafeQuest',
                     style: TextStyle(
-                      fontSize: 28,
+                      fontSize: 32,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF1E3A8A),
                     ),
                   ),
                   const Text(
                     'Literacia Digital para Todos',
-                    style: TextStyle(fontSize: 14, color: Color(0xFF1A56DB)),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF1A56DB),
+                      letterSpacing: 1.1,
+                    ),
                   ),
                   const SizedBox(height: 40),
 
-                  // Cartão do Formulário
+                  // Cartão do Formulário Principal
                   Container(
-                    padding: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(28),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
+                      borderRadius: BorderRadius.circular(25),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 15,
+                          color: Colors.black.withOpacity(0.08),
+                          blurRadius: 20,
                           offset: const Offset(0, 10),
                         ),
                       ],
@@ -79,22 +89,15 @@ class _LoginPageState extends State<LoginPage> {
                           child: Text(
                             'Bem-vindo',
                             style: TextStyle(
-                              fontSize: 22,
+                              fontSize: 24,
                               fontWeight: FontWeight.bold,
                               color: Color(0xFF1E3A8A),
                             ),
                           ),
                         ),
-                        const SizedBox(height: 25),
+                        const SizedBox(height: 30),
 
-                        // Campo Email com Validação
-                        const Text(
-                          'Email',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1E3A8A),
-                          ),
-                        ),
+                        _buildLabel('Email'),
                         const SizedBox(height: 8),
                         TextFormField(
                           controller: _emailController,
@@ -103,27 +106,15 @@ class _LoginPageState extends State<LoginPage> {
                             'seu@email.com',
                             Icons.email_outlined,
                           ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Por favor, insira o seu email';
-                            }
-                            if (!value.contains('@') || !value.contains('.')) {
-                              return 'Insira um email válido (ex: nome@gmail.com)';
-                            }
-                            return null;
-                          },
+                          validator: (value) =>
+                              (value == null || !value.contains('@'))
+                              ? 'Insira um email válido'
+                              : null,
                         ),
 
                         const SizedBox(height: 20),
 
-                        // Campo Palavra-passe com Validação
-                        const Text(
-                          'Palavra-passe',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1E3A8A),
-                          ),
-                        ),
+                        _buildLabel('Palavra-passe'),
                         const SizedBox(height: 8),
                         TextFormField(
                           controller: _passwordController,
@@ -132,84 +123,54 @@ class _LoginPageState extends State<LoginPage> {
                             'Digite a sua palavra-passe',
                             Icons.lock_outline,
                           ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Por favor, insira a sua palavra-passe';
-                            }
-                            if (value.length < 8) {
-                              return 'A palavra-pass deve ter pelo menos 8 caracteres';
-                            }
-                            return null;
-                          },
+                          validator: (value) => (value == null || value.isEmpty)
+                              ? 'Insira a sua senha'
+                              : null,
                         ),
 
-                        const SizedBox(height: 25),
-
-                        // Botão Entrar
-                        SizedBox(
-                          width: double.infinity,
-                          height: 50,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF1A56DB),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
+                        // Link Esqueci a Senha alinhado à direita
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton(
+                            onPressed: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    const ForgotPasswordPage(),
                               ),
                             ),
-                            onPressed: () async {
-                              if (_formKey.currentState!.validate()) {
-                                try {
-                                  await FirebaseAuth.instance
-                                      .signInWithEmailAndPassword(
-                                        email: _emailController.text.trim(),
-                                        password: _passwordController.text
-                                            .trim(),
-                                      );
-
-                                  ScaffoldMessenger.of(
-                                    context,
-                                  ).hideCurrentSnackBar();
-
-                                  if (!mounted) return;
-                                  Navigator.pushReplacement(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => const HomePage(),
-                                    ),
-                                  );
-                                } on FirebaseAuthException catch (e) {
-                                  String mensagem = 'Ocorreu um erro';
-                                  if (e.code == 'user-not-found')
-                                    mensagem = 'Utilizador não encontrado.';
-                                  else if (e.code == 'wrong-password')
-                                    mensagem = 'Palavra-passe errada.';
-
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(mensagem),
-                                      backgroundColor: Colors.red,
-                                    ),
-                                  );
-                                }
-                              }
-                            },
                             child: const Text(
-                              'Entrar',
+                              'Esqueceu a senha?',
                               style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
+                                color: Color(0xFF1A56DB),
+                                fontSize: 13,
                               ),
                             ),
                           ),
                         ),
 
                         const SizedBox(height: 15),
-                        Center(
-                          child: TextButton(
-                            onPressed: () {},
+
+                        // Botão Entrar com estilo de "Pílula" [cite: 81]
+                        SizedBox(
+                          width: double.infinity,
+                          height: 55,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF1A56DB),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(15),
+                              ),
+                              elevation: 2,
+                            ),
+                            onPressed: _handleLogin,
                             child: const Text(
-                              'Esqueceu a palavra-passe?',
-                              style: TextStyle(color: Color(0xFF1A56DB)),
+                              'Entrar',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ),
@@ -219,25 +180,27 @@ class _LoginPageState extends State<LoginPage> {
 
                   const SizedBox(height: 30),
 
-                  // Footer
+                  // Navegação para Registo [cite: 74]
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text('Não tem conta? '),
+                      const Text(
+                        'Não tem conta? ',
+                        style: TextStyle(color: Color(0xFF1E3A8A)),
+                      ),
                       GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => const RegisterPage(),
-                            ),
-                          );
-                        },
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const RegisterPage(),
+                          ),
+                        ),
                         child: const Text(
                           'Criar Conta',
                           style: TextStyle(
                             color: Color(0xFF1A56DB),
                             fontWeight: FontWeight.bold,
+                            decoration: TextDecoration.underline,
                           ),
                         ),
                       ),
@@ -252,27 +215,59 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
+  // Lógica de Login centralizada [cite: 463]
+  Future<void> _handleLogin() async {
+    if (_formKey.currentState!.validate()) {
+      try {
+        await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+        );
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const HomePage()),
+        );
+      } on FirebaseAuthException catch (e) {
+        String msg = "Erro ao entrar. Verifique os seus dados.";
+        if (e.code == 'user-not-found') msg = "Utilizador não encontrado.";
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  Widget _buildLabel(String text) {
+    return Text(
+      text,
+      style: const TextStyle(
+        fontWeight: FontWeight.bold,
+        color: Color(0xFF1E3A8A),
+        fontSize: 15,
+      ),
+    );
+  }
+
   InputDecoration _buildInputDecoration(String hint, IconData icon) {
     return InputDecoration(
-      prefixIcon: Icon(icon, color: const Color(0xFF1A56DB), size: 20),
+      prefixIcon: Icon(icon, color: const Color(0xFF1A56DB), size: 22),
       hintText: hint,
-      hintStyle: const TextStyle(color: Colors.blueAccent, fontSize: 14),
       filled: true,
       fillColor: const Color(0xFFF0F7FF),
-      contentPadding: const EdgeInsets.symmetric(vertical: 15, horizontal: 10),
+      contentPadding: const EdgeInsets.symmetric(vertical: 18),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFD1E3F5)),
+        borderRadius: BorderRadius.circular(15),
+        borderSide: BorderSide.none,
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFFD1E3F5)),
+        borderRadius: BorderRadius.circular(15),
+        borderSide: BorderSide.none,
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Color(0xFF1A56DB), width: 2),
+        borderRadius: BorderRadius.circular(15),
+        borderSide: const BorderSide(color: Color(0xFF1A56DB), width: 1.5),
       ),
-      errorStyle: const TextStyle(color: Colors.redAccent),
     );
   }
 }
