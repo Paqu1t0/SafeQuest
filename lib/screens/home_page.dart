@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:projeto_safequest/screens/profile_page.dart'; // Verifica se o caminho está correto
+import 'package:projeto_safequest/screens/profile_page.dart';
+import 'package:projeto_safequest/screens/assistent_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -21,23 +22,21 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _pages = [
-      const QuizzesDashboard(), // Página 0: Dashboard de Quizzes
+      const QuizzesDashboard(),
       const Center(child: Text("Recompensas (Brevemente)")),
-      const Center(child: Text("IA (Brevemente)")),
+      const AssistantPage(),
       const Center(child: Text("Histórico (Brevemente)")),
-      const ProfilePage(), // Página 4: O teu Perfil (Alex Silva)
+      const ProfilePage(),
     ];
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // 3. O IndexedStack mantém o estado das páginas ao trocar
       body: IndexedStack(index: _currentIndex, children: _pages),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) {
-          // 4. Aqui é onde a magia acontece: muda o índice ao clicar
           setState(() {
             _currentIndex = index;
           });
@@ -72,7 +71,6 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-// --- CLASSE DA DASHBOARD (O CONTEÚDO ORIGINAL DA TUA HOME) ---
 class QuizzesDashboard extends StatelessWidget {
   const QuizzesDashboard({super.key});
 
@@ -203,7 +201,7 @@ class QuizzesDashboard extends StatelessWidget {
     );
   }
 
-  // --- MÉTODOS AUXILIARES DA DASHBOARD ---
+  //  DASHBOARD
 
   void _showDifficultySelector(BuildContext context, String tema) {
     showDialog(
