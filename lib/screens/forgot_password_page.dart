@@ -32,8 +32,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         );
       } on FirebaseAuthException catch (e) {
         String erro = "Ocorreu um erro. Tente novamente.";
-        if (e.code == 'user-not-found')
+        if (e.code == 'user-not-found') {
           erro = "Não existe nenhum utilizador com este email.";
+        }
 
         if (!mounted) return;
         _showDialog('Erro', erro, isError: true);

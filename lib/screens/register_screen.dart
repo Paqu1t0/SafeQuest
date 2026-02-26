@@ -218,10 +218,12 @@ class _RegisterPageState extends State<RegisterPage> {
                                 Navigator.pop(context); // Fecha o loading
                                 String errorMsg = "Erro ao criar conta";
 
-                                if (e.code == 'email-already-in-password')
+                                if (e.code == 'email-already-in-password') {
                                   errorMsg = "Este email já está em uso.";
-                                if (e.code == 'weak-password')
+                                }
+                                if (e.code == 'weak-password') {
                                   errorMsg = "A palavra-passe é muito fraca.";
+                                }
 
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(

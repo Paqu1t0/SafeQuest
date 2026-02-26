@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'login_screen.dart';
+import 'login_screen.dart'; // Garante que o nome do ficheiro está correto
 
 class ProfilePage extends StatelessWidget {
   const ProfilePage({super.key});
@@ -33,23 +33,17 @@ class ProfilePage extends StatelessWidget {
               children: [
                 _header(nome, email, pontos),
                 const SizedBox(height: 110),
-
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Column(
                     children: [
                       _streakBanner(),
                       const SizedBox(height: 25),
-                      _menu(),
-
+                      _menu(context), // Passagem do context corrigida
                       const SizedBox(height: 25),
-
                       _logoutButton(context),
-
                       const SizedBox(height: 12),
-
                       _deleteButton(context, user),
-
                       const SizedBox(height: 40),
                     ],
                   ),
@@ -90,15 +84,12 @@ class ProfilePage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 25),
-
                 const CircleAvatar(
                   radius: 48,
                   backgroundColor: Color(0xFFE5E7EB),
                   child: Icon(Icons.person, size: 60, color: Color(0xFF9CA3AF)),
                 ),
-
                 const SizedBox(height: 14),
-
                 Text(
                   nome,
                   style: const TextStyle(
@@ -107,16 +98,12 @@ class ProfilePage extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-
                 const SizedBox(height: 4),
-
                 Text(email, style: const TextStyle(color: Colors.white70)),
               ],
             ),
           ),
         ),
-
-        // cards
         Positioned(
           bottom: -90,
           left: 20,
@@ -125,12 +112,17 @@ class ProfilePage extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               _stat("7", "Dias", Icons.local_fire_department, Colors.orange),
-              _stat("$pontos", "Pontos", Icons.emoji_events, Color(0xFF2563EB)),
+              _stat(
+                "$pontos",
+                "Pontos",
+                Icons.emoji_events,
+                const Color(0xFF2563EB),
+              ),
               _stat(
                 "4",
                 "Emblemas",
                 Icons.workspace_premium,
-                Color(0xFF60A5FA),
+                const Color(0xFF60A5FA),
               ),
             ],
           ),
@@ -175,7 +167,6 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  // ================= STREAK =================
   Widget _streakBanner() {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -198,7 +189,7 @@ class ProfilePage extends StatelessWidget {
           SizedBox(width: 14),
           Expanded(
             child: Text(
-              "7 Dias Consecutivos!\nContinue assim! Complete um quiz hoje para manter a sequência.",
+              "7 Dias Consecutivos!\nComplete um quiz hoje para manter a sequência.",
               style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.bold,
@@ -210,32 +201,38 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  // ================= MENU =================
-  Widget _menu() {
+  Widget _menu(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(22),
       ),
-      child: const Column(
+      child: Column(
         children: [
           ListTile(
-            leading: Icon(Icons.person_outline),
-            title: Text("Editar Perfil"),
-            trailing: Icon(Icons.chevron_right),
+            leading: const Icon(Icons.person_outline),
+            title: const Text("Editar Perfil"),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const EditProfilePage()),
+            ),
           ),
-          Divider(height: 1),
+          const Divider(height: 1),
           ListTile(
-            leading: Icon(Icons.shield_outlined),
-            title: Text("Privacidade"),
-            trailing: Icon(Icons.chevron_right),
+            leading: const Icon(Icons.shield_outlined),
+            title: const Text("Privacidade"),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const PrivacyPage()),
+            ),
           ),
         ],
       ),
     );
   }
 
-  // ================= LOGOUT =================
   Widget _logoutButton(BuildContext context) {
     return OutlinedButton(
       style: OutlinedButton.styleFrom(
@@ -244,11 +241,10 @@ class ProfilePage extends StatelessWidget {
       ),
       onPressed: () async {
         await FirebaseAuth.instance.signOut();
-
         if (context.mounted) {
           Navigator.pushAndRemoveUntil(
             context,
-            MaterialPageRoute(builder: (_) => LoginPage()),
+            MaterialPageRoute(builder: (_) => const LoginPage()),
             (route) => false,
           );
         }
@@ -260,7 +256,6 @@ class ProfilePage extends StatelessWidget {
     );
   }
 
-  // ================= DELETE ACCOUNT =================
   Widget _deleteButton(BuildContext context, User? user) {
     return OutlinedButton(
       style: OutlinedButton.styleFrom(
@@ -270,7 +265,6 @@ class ProfilePage extends StatelessWidget {
       ),
       onPressed: () async {
         if (user == null) return;
-
         final confirm = await showDialog(
           context: context,
           builder: (_) => AlertDialog(
@@ -293,23 +287,17 @@ class ProfilePage extends StatelessWidget {
             ],
           ),
         );
-
         if (confirm != true) return;
-
         try {
-          // apagar firestore
           await FirebaseFirestore.instance
               .collection("users")
               .doc(user.uid)
               .delete();
-
-          // apagar auth
           await user.delete();
-
           if (context.mounted) {
             Navigator.pushAndRemoveUntil(
               context,
-              MaterialPageRoute(builder: (_) => LoginPage()),
+              MaterialPageRoute(builder: (_) => const LoginPage()),
               (route) => false,
             );
           }
@@ -326,6 +314,216 @@ class ProfilePage extends StatelessWidget {
       child: const Text(
         "Apagar Conta",
         style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+}
+
+// ================= PÁGINA EDITAR PERFIL =================
+
+class EditProfilePage extends StatefulWidget {
+  const EditProfilePage({super.key});
+  @override
+  State<EditProfilePage> createState() => _EditProfilePageState();
+}
+
+class _EditProfilePageState extends State<EditProfilePage> {
+  final user = FirebaseAuth.instance.currentUser;
+  final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _bioController = TextEditingController();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF9FAFB),
+      appBar: AppBar(
+        title: const Text("Editar Perfil"),
+        leading: TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text("Voltar"),
+        ),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            _box(
+              "Foto de Perfil",
+              Row(
+                children: [
+                  const CircleAvatar(
+                    radius: 35,
+                    backgroundColor: Color(0xFF2563EB),
+                    child: Icon(Icons.person, color: Colors.white),
+                  ),
+                  const SizedBox(width: 15),
+                  OutlinedButton(
+                    onPressed: () {},
+                    child: const Text("Alterar Foto"),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            _box(
+              "Informações Pessoais",
+              Column(
+                children: [
+                  _field("Nome Completo", _nameController),
+                  _field("Telemóvel", _phoneController),
+                  _field("Biografia", _bioController, maxLines: 3),
+                ],
+              ),
+            ),
+            const SizedBox(height: 30),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 55),
+                backgroundColor: const Color(0xFF1D4ED8),
+              ),
+              onPressed: () async {
+                await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(user?.uid)
+                    .update({
+                      'name': _nameController.text,
+                      'phone': _phoneController.text,
+                      'bio': _bioController.text,
+                    });
+                if (mounted) Navigator.pop(context);
+              },
+              child: const Text(
+                "Guardar Alterações",
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _box(String title, Widget child) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 15),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget _field(
+    String label,
+    TextEditingController controller, {
+    int maxLines = 1,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 15),
+      child: TextField(
+        controller: controller,
+        maxLines: maxLines,
+        decoration: InputDecoration(
+          labelText: label,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        ),
+      ),
+    );
+  }
+}
+
+// ================= PÁGINA PRIVACIDADE =================
+
+class PrivacyPage extends StatefulWidget {
+  const PrivacyPage({super.key});
+  @override
+  State<PrivacyPage> createState() => _PrivacyPageState();
+}
+
+class _PrivacyPageState extends State<PrivacyPage> {
+  String _visibility = "Público";
+  bool _showEmail = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF9FAFB),
+      appBar: AppBar(
+        title: const Text("Privacidade"),
+        leading: TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text("Voltar"),
+        ),
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          _box(
+            "Visibilidade do Perfil",
+            Column(
+              children: ["Público", "Amigos", "Privado"]
+                  .map(
+                    (opt) => RadioListTile(
+                      title: Text(opt),
+                      value: opt,
+                      groupValue: _visibility,
+                      onChanged: (v) =>
+                          setState(() => _visibility = v.toString()),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
+          const SizedBox(height: 20),
+          _box(
+            "Informações de Contacto",
+            SwitchListTile(
+              title: const Text("Mostrar Email"),
+              value: _showEmail,
+              onChanged: (v) => setState(() => _showEmail = v),
+            ),
+          ),
+          const SizedBox(height: 30),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 55),
+              backgroundColor: const Color(0xFF1D4ED8),
+            ),
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              "Guardar Alterações",
+              style: TextStyle(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _box(String title, Widget child) {
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+          child,
+        ],
       ),
     );
   }
