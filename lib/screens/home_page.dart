@@ -12,10 +12,10 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  // 1. Variável para controlar qual página está visível
+  
   int _currentIndex = 0;
 
-  // 2. Lista de páginas da aplicação
+ 
   late final List<Widget> _pages;
 
   @override
@@ -94,11 +94,14 @@ class QuizzesDashboard extends StatelessWidget {
               .doc(user?.uid)
               .snapshots(),
           builder: (context, snapshot) {
-            String nomeDisplay = "Utilizador";
+            String nomeDisplay = user?.displayName ?? "Utilizador";
+
             if (snapshot.hasData && snapshot.data!.exists) {
               var data = snapshot.data!.data() as Map<String, dynamic>?;
-              nomeDisplay = data?['name'] ?? "Utilizador";
+              
+              nomeDisplay = data?['name'] ?? nomeDisplay;
             }
+
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
