@@ -3,7 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:projeto_safequest/screens/profile_page.dart';
 import 'package:projeto_safequest/screens/assistent_page.dart';
-
+import 'package:projeto_safequest/screens/history_page.dart';
+import 'package:projeto_safequest/screens/recompensas_page.dart';
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -23,9 +24,9 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     _pages = [
       const QuizzesDashboard(),
-      const Center(child: Text("Recompensas (Brevemente)")),
+      RecompensasPage(),
       const AssistantPage(),
-      const Center(child: Text("Histórico (Brevemente)")),
+      HistoryPage(),
       const ProfilePage(),
     ];
   }
@@ -51,11 +52,11 @@ class _HomePageState extends State<HomePage> {
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.emoji_events_outlined),
-            label: 'Recompensas',
+            label:'Recompensas',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.chat_bubble_outline),
-            label: 'IA',
+            label:'IA',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.history),
