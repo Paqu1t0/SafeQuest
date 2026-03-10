@@ -25,7 +25,7 @@ class _HomePageState extends State<HomePage> {
     _pages = [
       const QuizzesDashboard(),
       RecompensasPage(),
-      const AssistantPage(),
+      AssistantPage(),
       HistoryPage(),
       const ProfilePage(),
     ];
