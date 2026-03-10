@@ -374,6 +374,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   final _nicknameController = TextEditingController();
   final _nameController = TextEditingController();
   final _bioController = TextEditingController();
+  bool _isSendingReset = false; // Novo: Controla o estado de loading do botão
 
   @override
   void initState() {
@@ -395,6 +396,34 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
+  // Novo: Função para enviar email de reset de password via Firebase
+  Future<void> _resetPassword() async {
+    if (user?.email == null) return;
+    
+    setState(() => _isSendingReset = true);
+    
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: user!.email!);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Email de recuperação enviado! Verifica a tua caixa de entrada."),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Erro ao enviar email: $e"),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isSendingReset = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -410,6 +439,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
               OutlinedButton(onPressed: widget.onPhotoTap, child: const Text("Alterar Foto")),
             ])),
             const SizedBox(height: 20),
+            
             _box("Informações Pessoais", Column(children: [
               _field("Nickname (Visível no jogo)", _nicknameController, Icons.sports_esports),
               _field("Nome Real", _nameController, Icons.person_outline),
@@ -419,6 +449,33 @@ class _EditProfilePageState extends State<EditProfilePage> {
               ),
               _field("Biografia", _bioController, Icons.history_edu, maxLines: 3),
             ])),
+            const SizedBox(height: 20),
+
+            // ====== NOVA CAIXA: SEGURANÇA ======
+            _box("Segurança", Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "Precisas de alterar a tua palavra-passe? Enviaremos um link seguro para o teu e-mail registado para redefinires a palavra-passe.",
+                  style: TextStyle(color: Colors.grey, fontSize: 13),
+                ),
+                const SizedBox(height: 15),
+                OutlinedButton.icon(
+                  onPressed: _isSendingReset ? null : _resetPassword,
+                  icon: _isSendingReset 
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.lock_reset, color: Color(0xFF1D4ED8)),
+                  label: Text(_isSendingReset ? "A enviar..." : "Redefinir Palavra-passe"),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF1D4ED8),
+                    side: const BorderSide(color: Color(0xFF1D4ED8)),
+                    minimumSize: const Size(double.infinity, 50),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ],
+            )),
+            
             const SizedBox(height: 30),
             ElevatedButton(
               style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 55), backgroundColor: const Color(0xFF1D4ED8), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
@@ -453,7 +510,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
   }
 }
-
 // ================= PÁGINA: PRIVACIDADE E NOTIFICAÇÕES (Estilo Novo) =================
 class PrivacyPage extends StatefulWidget {
   const PrivacyPage({super.key});
