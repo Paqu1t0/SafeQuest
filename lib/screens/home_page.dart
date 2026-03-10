@@ -99,7 +99,6 @@ class QuizzesDashboard extends StatelessWidget {
 
             if (snapshot.hasData && snapshot.data!.exists) {
               var data = snapshot.data!.data() as Map<String, dynamic>?;
-              
               nomeDisplay = data?['name'] ?? nomeDisplay;
             }
 
@@ -167,36 +166,13 @@ class QuizzesDashboard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 15),
-                _buildTopicCard(
-                  context,
-                  'Phishing',
-                  '12 lições',
-                  0.75,
-                  Icons.email_outlined,
-                ),
-                _buildTopicCard(
-                  context,
-                  'Palavras-passe',
-                  '8 lições',
-                  0.60,
-                  Icons.lock_outline,
-                ),
-                _buildTopicCard(
-                  context,
-                  'Redes Sociais',
-                  '10 lições',
-                  0.40,
-                  Icons.people_outline,
-                ),
-                _buildTopicCard(
-                  context,
-                  'Segurança Web',
-                  '15 lições',
-                  0.25,
-                  Icons.language,
-                ),
+                _buildTopicCard(context, 'Phishing', '12 lições', 0.75, Icons.email_outlined),
+                _buildTopicCard(context, 'Palavras-passe', '8 lições', 0.60, Icons.lock_outline),
+                _buildTopicCard(context, 'Redes Sociais', '10 lições', 0.40, Icons.people_outline),
+                _buildTopicCard(context, 'Segurança Web', '15 lições', 0.25, Icons.language),
                 const SizedBox(height: 25),
                 _buildAICard(),
+                const SizedBox(height: 40), // Espaço no fundo
               ],
             ),
           );
@@ -205,7 +181,7 @@ class QuizzesDashboard extends StatelessWidget {
     );
   }
 
-  //  DASHBOARD
+  // ===================== DASHBOARD =====================
 
   void _showDifficultySelector(BuildContext context, String tema) {
     showDialog(
@@ -217,51 +193,24 @@ class QuizzesDashboard extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
-                Icons.emoji_events_outlined,
-                size: 50,
-                color: Color(0xFF1A56DB),
-              ),
+              const Icon(Icons.emoji_events_outlined, size: 50, color: Color(0xFF1A56DB)),
               const SizedBox(height: 16),
               Text(
                 tema,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
               ),
-              const Text(
-                "Escolha o nível de dificuldade",
-                style: TextStyle(color: Colors.grey),
-              ),
+              const Text("Escolha o nível de dificuldade", style: TextStyle(color: Colors.grey)),
               const SizedBox(height: 24),
-              _difficultyButton(
-                context,
-                "Iniciante",
-                Colors.green,
-                Icons.bar_chart,
-                tema,
-              ),
+              _difficultyButton(context, "Iniciante", Colors.green, Icons.bar_chart, tema),
               const SizedBox(height: 12),
-              _difficultyButton(
-                context,
-                "Intermédio",
-                Colors.orange,
-                Icons.analytics,
-                tema,
-              ),
+              _difficultyButton(context, "Intermédio", Colors.orange, Icons.analytics, tema),
               const SizedBox(height: 12),
-              _difficultyButton(
-                context,
-                "Avançado",
-                Colors.red,
-                Icons.stacked_bar_chart,
-                tema,
-              ),
+              _difficultyButton(context, "Avançado", Colors.red, Icons.stacked_bar_chart, tema),
               const SizedBox(height: 16),
               TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text("Voltar"),
+                child: const Text("Voltar", style: TextStyle(color: Colors.grey)),
               ),
             ],
           ),
@@ -270,15 +219,14 @@ class QuizzesDashboard extends StatelessWidget {
     );
   }
 
-  Widget _difficultyButton(
-    BuildContext context,
-    String nivel,
-    Color cor,
-    IconData icon,
-    String tema,
-  ) {
+  Widget _difficultyButton(BuildContext context, String nivel, Color cor, IconData icon, String tema) {
     return InkWell(
-      onTap: () => Navigator.pop(context),
+      // === ALTERAÇÃO AQUI: Quando clica, fecha o popup atual e abre o dos Níveis! ===
+      onTap: () {
+        Navigator.pop(context); // Fecha popup de dificuldade
+        _showLevelSelector(context, tema, nivel, cor); // Abre popup de Níveis
+      },
+      borderRadius: BorderRadius.circular(16),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
         decoration: BoxDecoration(
@@ -293,11 +241,7 @@ class QuizzesDashboard extends StatelessWidget {
             Expanded(
               child: Text(
                 nivel,
-                style: TextStyle(
-                  color: cor,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                ),
+                style: TextStyle(color: cor, fontWeight: FontWeight.bold, fontSize: 18),
               ),
             ),
             Icon(Icons.play_arrow_rounded, color: cor),
@@ -307,13 +251,89 @@ class QuizzesDashboard extends StatelessWidget {
     );
   }
 
-  Widget _buildTopicCard(
-    BuildContext context,
-    String title,
-    String subtitle,
-    double progress,
-    IconData icon,
-  ) {
+  // ===================== NOVO: POPUP DOS NÍVEIS =====================
+  void _showLevelSelector(BuildContext context, String tema, String dificuldade, Color cor) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.flag_circle, size: 50, color: cor),
+              const SizedBox(height: 16),
+              Text(
+                "$tema\n$dificuldade",
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A)),
+              ),
+              const SizedBox(height: 8),
+              const Text("Selecione o Nível", style: TextStyle(color: Colors.grey)),
+              const SizedBox(height: 24),
+              
+              // === GRELHA DOS 5 NÍVEIS ===
+              Wrap(
+                spacing: 15,
+                runSpacing: 15,
+                alignment: WrapAlignment.center,
+                children: List.generate(5, (index) {
+                  int level = index + 1;
+                  // AQUI DEFINES QUANTOS ESTÃO DESBLOQUEADOS (níveis > 3 ficam bloqueados)
+                  bool isLocked = level > 3; 
+                  return _buildLevelBox(context, level, isLocked, cor);
+                }),
+              ),
+              
+              const SizedBox(height: 24),
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("Fechar", style: TextStyle(color: Colors.grey)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Desenha cada quadradinho de Nível (Aberto ou com Cadeado)
+  Widget _buildLevelBox(BuildContext context, int level, bool isLocked, Color cor) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: isLocked ? null : () {
+        
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("A abrir o Nível $level..."), backgroundColor: cor),
+        );
+      },
+      child: Container(
+        width: 65,
+        height: 65,
+        decoration: BoxDecoration(
+          color: isLocked ? Colors.grey.withOpacity(0.1) : cor.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isLocked ? Colors.grey.withOpacity(0.3) : cor.withOpacity(0.5),
+            width: 2,
+          ),
+        ),
+        alignment: Alignment.center,
+        child: isLocked
+            ? const Icon(Icons.lock, color: Colors.grey, size: 28) // Cadeado
+            : Text(
+                "$level", // Número do Nível
+                style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: cor),
+              ),
+      ),
+    );
+  }
+
+  // ===================== WIDGETS REUTILIZÁVEIS =====================
+
+  Widget _buildTopicCard(BuildContext context, String title, String subtitle, double progress, IconData icon) {
     return Container(
       margin: const EdgeInsets.only(bottom: 15),
       padding: const EdgeInsets.all(12),
@@ -321,21 +341,14 @@ class QuizzesDashboard extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
+          BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4)),
         ],
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF0F7FF),
-              borderRadius: BorderRadius.circular(12),
-            ),
+            decoration: BoxDecoration(color: const Color(0xFFF0F7FF), borderRadius: BorderRadius.circular(12)),
             child: Icon(icon, color: const Color(0xFF1A56DB), size: 28),
           ),
           const SizedBox(width: 15),
@@ -346,51 +359,27 @@ class QuizzesDashboard extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: Color(0xFF1E3A8A),
-                      ),
-                    ),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(fontSize: 11, color: Colors.grey),
-                    ),
+                    Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1E3A8A))),
+                    Text(subtitle, style: const TextStyle(fontSize: 11, color: Colors.grey)),
                   ],
                 ),
                 const SizedBox(height: 8),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(10),
                   child: LinearProgressIndicator(
-                    value: progress,
-                    minHeight: 6,
-                    backgroundColor: const Color(0xFFF1F5F9),
-                    color: const Color(0xFF1A56DB),
+                    value: progress, minHeight: 6, backgroundColor: const Color(0xFFF1F5F9), color: const Color(0xFF1A56DB),
                   ),
                 ),
                 const SizedBox(height: 4),
                 Align(
                   alignment: Alignment.centerRight,
-                  child: Text(
-                    '${(progress * 100).toInt()}%',
-                    style: const TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey,
-                    ),
-                  ),
+                  child: Text('${(progress * 100).toInt()}%', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey)),
                 ),
               ],
             ),
           ),
           IconButton(
-            icon: const Icon(
-              Icons.play_circle_fill,
-              color: Color(0xFF1A56DB),
-              size: 35,
-            ),
+            icon: const Icon(Icons.play_circle_fill, color: Color(0xFF1A56DB), size: 35),
             onPressed: () => _showDifficultySelector(context, title),
           ),
         ],
@@ -401,10 +390,7 @@ class QuizzesDashboard extends StatelessWidget {
   Widget _buildMainScoreCard(int pts, double prog) {
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A56DB),
-        borderRadius: BorderRadius.circular(24),
-      ),
+      decoration: BoxDecoration(color: const Color(0xFF1A56DB), borderRadius: BorderRadius.circular(24)),
       child: Column(
         children: [
           Row(
@@ -413,18 +399,8 @@ class QuizzesDashboard extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Total de Pontos',
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
-                  ),
-                  Text(
-                    '$pts',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 32,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  const Text('Total de Pontos', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                  Text('$pts', style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)),
                 ],
               ),
               const Icon(Icons.emoji_events, color: Colors.white24, size: 50),
@@ -434,26 +410,12 @@ class QuizzesDashboard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Progresso Geral',
-                style: TextStyle(color: Colors.white),
-              ),
-              Text(
-                '${(prog * 100).toInt()}%',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              const Text('Progresso Geral', style: TextStyle(color: Colors.white)),
+              Text('${(prog * 100).toInt()}%', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ],
           ),
           const SizedBox(height: 8),
-          LinearProgressIndicator(
-            value: prog,
-            minHeight: 10,
-            backgroundColor: Colors.white24,
-            color: Colors.white,
-          ),
+          LinearProgressIndicator(value: prog, minHeight: 10, backgroundColor: Colors.white24, color: Colors.white),
         ],
       ),
     );
@@ -463,9 +425,7 @@ class QuizzesDashboard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1A56DB), Color(0xFF1E40AF)],
-        ),
+        gradient: const LinearGradient(colors: [Color(0xFF1A56DB), Color(0xFF1E40AF)]),
         borderRadius: BorderRadius.circular(20),
       ),
       child: const Row(
@@ -473,10 +433,7 @@ class QuizzesDashboard extends StatelessWidget {
           Expanded(
             child: Text(
               'Precisa de Ajuda?\nConverse com o Assistente IA',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
             ),
           ),
           Icon(Icons.chat_bubble_outline, color: Colors.white, size: 28),
