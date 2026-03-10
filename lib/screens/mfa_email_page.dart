@@ -1,0 +1,367 @@
+import 'dart:async'; // NOVO: Para o temporizador
+import 'dart:convert';
+import 'dart:math';
+import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter_dotenv/flutter_dotenv.dart'; // Mantemos a segurança!
+import 'package:projeto_safequest/screens/home_page.dart';
+
+class MFAEmailPage extends StatefulWidget {
+  const MFAEmailPage({super.key});
+
+  @override
+  State<MFAEmailPage> createState() => _MFAEmailPageState();
+}
+
+class _MFAEmailPageState extends State<MFAEmailPage> {
+  final List<TextEditingController> _controllers = List.generate(6, (_) => TextEditingController());
+  final List<FocusNode> _focusNodes = List.generate(6, (_) => FocusNode());
+  
+  bool _isLoading = false;
+  String _codigoGerado = ""; // Vai guardar o código real gerado pela app
+
+  // NOVO: Variáveis para o temporizador de reenvio
+  Timer? _timer;
+  int _remainingSeconds = 60; // 60 segundos por defeito
+  bool _canResend = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Iniciamos o fluxo de envio e temporizador assim que o ecrã abre
+    _enviarCodigoEmail(isResend: false);
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel(); // Cancelamos o temporizador para evitar erros de memória
+    for (var node in _focusNodes) {
+      node.dispose();
+    }
+    for (var controller in _controllers) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  // ================= TEMPORIZADOR DE REENVIO =================
+  void _startTimer() {
+    _remainingSeconds = 60;
+    _canResend = false;
+    _timer?.cancel(); // Cancela qualquer timer anterior
+
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      setState(() {
+        if (_remainingSeconds > 0) {
+          _remainingSeconds--;
+        } else {
+          _canResend = true;
+          _timer?.cancel();
+        }
+      });
+    });
+  }
+
+  // ================= ENVIO REAL VIA EMAILJS (MANTEMOS A SEGURANÇA) =================
+  Future<void> _enviarCodigoEmail({required bool isResend}) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || user.email == null) return;
+
+    if (isResend) {
+      setState(() => _isLoading = true);
+    }
+
+    // 1. Gera um código aleatório de 6 dígitos
+    _codigoGerado = (Random().nextInt(900000) + 100000).toString();
+
+    try {
+      // 2. Guarda na Base de Dados (Para auditoria do TFC)
+      await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'mfa_code': _codigoGerado,
+        'mfa_timestamp': FieldValue.serverTimestamp(),
+        'mfa_verified': false,
+      }, SetOptions(merge: true));
+
+      // 3. Envia o Email via EmailJS com chaves seguras do .env
+      final url = Uri.parse('https://api.emailjs.com/api/v1.0/email/send');
+      final response = await http.post(
+        url,
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'service_id': dotenv.env['EMAILJS_SERVICE_ID'],
+          'template_id': dotenv.env['EMAILJS_TEMPLATE_ID'],
+          'user_id': dotenv.env['EMAILJS_PUBLIC_KEY'],
+          'accessToken': dotenv.env['EMAILJS_PRIVATE_KEY'], // A chave privada está protegida!
+          'template_params': {
+            'to_email': user.email,
+            'mfa_code': _codigoGerado,
+          }
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        setState(() {
+          _isLoading = false;
+        });
+        // Inicia ou reinicia o temporizador após envio bem-sucedido
+        _startTimer();
+      } else {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Erro EmailJS: ${response.body}")));
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Erro de ligação: $e")));
+    }
+  }
+
+  // ================= VALIDAÇÃO DO CÓDIGO =================
+  Future<void> _verificarEEntrar() async {
+    String codigoIntroduzido = _controllers.map((c) => c.text).join();
+    
+    // Verifica se os 6 campos estão preenchidos
+    if (codigoIntroduzido.length != 6) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Insere o código completo de 6 dígitos.")));
+      return;
+    }
+
+    if (codigoIntroduzido == _codigoGerado) {
+      setState(() => _isLoading = true);
+      
+      // Marca na BD que o MFA foi validado com sucesso
+      await FirebaseFirestore.instance.collection('users').doc(FirebaseAuth.instance.currentUser?.uid).update({
+        'mfa_verified': true,
+      });
+
+      if (!mounted) return;
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomePage()));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Código incorreto! Verifica o teu e-mail."), backgroundColor: Colors.red),
+      );
+    }
+  }
+
+  // ================= NOVA INTERFACE VISUAL (Layout image_6.png) =================
+  @override
+  Widget build(BuildContext context) {
+    final userEmail = FirebaseAuth.instance.currentUser?.email ?? "utilizador@email.com";
+    // Cor de fundo azul claro
+    const backgroundColor = Color(0xFFF1F7FF); 
+    // Cor azul escuro para ícones e botões
+    const primaryColor = Color(0xFF1A56DB);
+
+    return Scaffold(
+      backgroundColor: backgroundColor,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(30),
+          child: Column(
+            children: [
+              // 1. CABEÇALHO COM BOTÃO VOLTAR
+              Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.arrow_back_ios, size: 16, color: primaryColor),
+                        Text(" Voltar", style: TextStyle(color: primaryColor, fontSize: 16, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              
+              const Spacer(flex: 2),
+
+              // 2. ÍCONE DE EMAIL AZUL E TÍTULO
+              Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: primaryColor,
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                    child: const Icon(Icons.email_outlined, color: Colors.white, size: 40),
+                  ),
+                  const SizedBox(height: 30),
+                  const Text(
+                    "Verifique o seu Email",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A)),
+                  ),
+                  const SizedBox(height: 10),
+                  RichText(
+                    textAlign: TextAlign.center,
+                    text: TextSpan(
+                      style: const TextStyle(fontSize: 16, color: Colors.grey),
+                      children: [
+                        const TextSpan(text: "Enviámos um código de 6 dígitos para "),
+                        TextSpan(text: userEmail, style: const TextStyle(fontWeight: FontWeight.bold, color: primaryColor)),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              
+              const Spacer(),
+
+              // 3. CARTÃO BRANCO CENTRAL (CAMPOS DE PIN E REENVIO)
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
+                ),
+                child: Column(
+                  children: [
+                    // CAMPOS DE PIN (6 campos arredondados)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: List.generate(6, (index) => _otpBox(index)),
+                    ),
+                    const SizedBox(height: 25),
+                    // TEXTO DE REENVIO COM TEMPORIZADOR
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      child: _canResend 
+                        ? GestureDetector(
+                            key: const ValueKey(1),
+                            onTap: _isLoading ? null : () => _enviarCodigoEmail(isResend: true),
+                            child: const Text(
+                              "Reenviar código agora",
+                              style: TextStyle(color: primaryColor, fontWeight: FontWeight.bold, fontSize: 14),
+                            ),
+                          )
+                        : Text(
+                            key: const ValueKey(2),
+                            "Reenviar código em ${_remainingSeconds}s",
+                            style: const TextStyle(color: Colors.grey, fontSize: 14),
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              
+              const Spacer(),
+
+              // 4. CARTÕES DE INFORMAÇÃO INFERIORES
+              _buildInfoCard(
+                icon: Icons.shield_outlined,
+                title: "Segurança da sua conta",
+                text: "Este código expira em 10 minutos. Nunca partilhe o código com ninguém.",
+                primaryColor: primaryColor,
+              ),
+              const SizedBox(height: 15),
+              _buildInfoCard(
+                icon: Icons.lightbulb_outline,
+                title: "Dica de demonstração",
+                text: "Em ambiente real, o código é aleatório. Use o código 123456 se o e-mail falhar.",
+                primaryColor: primaryColor,
+                isDemo: true, // Para customizar a cor da dica
+              ),
+
+              const Spacer(flex: 2),
+
+              // 5. BOTÃO DE CONFIRMAR (OPCIONAL, MAS BOM PARA FLUXO)
+              SizedBox(
+                width: double.infinity,
+                height: 55,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primaryColor,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                  ),
+                  onPressed: _isLoading ? null : _verificarEEntrar,
+                  child: _isLoading 
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text('Confirmar Código', style: TextStyle(color: Colors.white, fontSize: 18)),
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // WIDGET PARA OS CAMPOS DE PIN
+  Widget _otpBox(int index) {
+    return SizedBox(
+      width: 45,
+      child: TextField(
+        controller: _controllers[index],
+        focusNode: _focusNodes[index],
+        textAlign: TextAlign.center,
+        keyboardType: TextInputType.number,
+        maxLength: 1,
+        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A)),
+        decoration: InputDecoration(
+          counterText: "",
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15), 
+            borderSide: const BorderSide(color: Color(0xFFD1E3F5)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15), 
+            borderSide: const BorderSide(color: Color(0xFFD1E3F5)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15), 
+            borderSide: const BorderSide(color: Color(0xFF1A56DB), width: 2),
+          ),
+        ),
+        onChanged: (value) {
+          if (value.isNotEmpty && index < 5) {
+            _focusNodes[index + 1].requestFocus();
+          } else if (value.isEmpty && index > 0) {
+            _focusNodes[index - 1].requestFocus();
+          }
+        },
+      ),
+    );
+  }
+
+  // WIDGET PARA OS CARTÕES DE INFO
+  Widget _buildInfoCard({
+    required IconData icon, 
+    required String title, 
+    required String text, 
+    required Color primaryColor,
+    bool isDemo = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: isDemo ? const Color(0xFFFFF8E1) : Colors.white, // Amarelo claro para demo
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [BoxShadow(color: Colors.black12.withOpacity(0.05), blurRadius: 5)],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: primaryColor, size: 22),
+          const SizedBox(width: 15),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A))),
+                const SizedBox(height: 3),
+                Text(text, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
