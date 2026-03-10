@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart'; // 1. Importa o motor do Firebase
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart'; // 1. NOVO: Importa o pacote dotenv
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'package:projeto_safequest/screens/home_page.dart';
 
 void main() async {
-  // 2. Adiciona o 'async' aqui
-  // 3. Garante que o Flutter carregou tudo antes de tentar ligar ao Firebase
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 4. Inicializa o Firebase
+  // 2. NOVO: Carrega as chaves secretas ANTES de a app arrancar
+  await dotenv.load(fileName: ".env");
+
+  // Inicializa o Firebase
   await Firebase.initializeApp();
 
   runApp(const SafeQuest());
@@ -26,8 +28,6 @@ class SafeQuest extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1A56DB)),
         useMaterial3: true,
-        // Dica: scaffoldBackgroundColor transparente pode mostrar um fundo preto
-        // se não houver um Stack com imagem por trás!
       ),
       home: const LoginPage(),
       routes: {

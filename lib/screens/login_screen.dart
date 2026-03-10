@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:projeto_safequest/screens/home_page.dart';
 import 'package:projeto_safequest/screens/forgot_password_page.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:projeto_safequest/screens/mfa_email_page.dart'; // Atualizado para a nova página de e-mail
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -24,19 +25,16 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  // ================= LÓGICA: LOGIN GOOGLE (FORÇANDO ESCOLHA DE CONTA) =================
+  // ================= LÓGICA: LOGIN GOOGLE =================
   Future<void> _handleGoogleSignIn() async {
     try {
       final GoogleSignIn googleSignIn = GoogleSignIn();
-
-      // Força o logout do Google para que a janela de seleção de conta apareça sempre
-      await googleSignIn.signOut();
+      await googleSignIn.signOut(); // Força escolha de conta
 
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
       if (googleUser == null) return; 
 
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
@@ -45,9 +43,10 @@ class _LoginPageState extends State<LoginPage> {
       await FirebaseAuth.instance.signInWithCredential(credential);
 
       if (!mounted) return;
+      
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const HomePage()),
+        MaterialPageRoute(builder: (context) => const MFAEmailPage()),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -56,7 +55,7 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // ================= LÓGICA: LOGIN EMAIL (RECUPERADA) =================
+  // ================= LÓGICA: LOGIN EMAIL =================
   Future<void> _handleLogin() async {
     if (_formKey.currentState!.validate()) {
       try {
@@ -64,10 +63,12 @@ class _LoginPageState extends State<LoginPage> {
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
+        
         if (!mounted) return;
+
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => const HomePage()),
+          MaterialPageRoute(builder: (context) => const MFAEmailPage()),
         );
       } on FirebaseAuthException catch (e) {
         String mensagem = "Email ou senha incorretos";
@@ -82,9 +83,9 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // Removi a altura fixa (height: double.infinity) que causava o Overflow
       body: Container(
         width: double.infinity,
-        height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
@@ -92,127 +93,130 @@ class _LoginPageState extends State<LoginPage> {
             colors: [Color(0xFFE3F2FD), Color(0xFFD1E3F5)],
           ),
         ),
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 30),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                children: [
-                  const Icon(Icons.shield, size: 90, color: Color(0xFF1A56DB)),
-                  const Text(
-                    'SafeQuest',
-                    style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A)),
-                  ),
-                  const SizedBox(height: 40),
-
-                  // CARTÃO BRANCO
-                  Container(
-                    padding: const EdgeInsets.all(28),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(25),
-                      boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 20)],
+        child: SafeArea( // Protege contra a barra de status e o fundo do ecrã
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 20),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.shield, size: 90, color: Color(0xFF1A56DB)),
+                    const Text(
+                      'SafeQuest',
+                      style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A)),
                     ),
-                    child: Column(
-                      children: [
-                        TextFormField(
-                          controller: _emailController,
-                          decoration: _buildInputDecoration('Email', Icons.email_outlined),
-                          validator: (value) => (value == null || value.isEmpty) ? "Insira o email" : null,
-                        ),
-                        const SizedBox(height: 20),
-                        TextFormField(
-                          controller: _passwordController,
-                          obscureText: true,
-                          decoration: _buildInputDecoration('Palavra-passe', Icons.lock_outline),
-                          validator: (value) => (value == null || value.isEmpty) ? "Insira a senha" : null,
-                        ),
-                        
-                        // NOVO: Link para Recuperar Palavra-passe
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (context) => const ForgotPasswordPage()),
-                              );
-                            },
-                            child: const Text(
-                              'Esqueceu a senha?',
-                              style: TextStyle(
-                                color: Color(0xFF1A56DB),
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
+                    const SizedBox(height: 40),
+
+                    // CARTÃO BRANCO
+                    Container(
+                      padding: const EdgeInsets.all(28),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(25),
+                        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 20)],
+                      ),
+                      child: Column(
+                        children: [
+                          TextFormField(
+                            controller: _emailController,
+                            decoration: _buildInputDecoration('Email', Icons.email_outlined),
+                            validator: (value) => (value == null || value.isEmpty) ? "Insira o email" : null,
+                          ),
+                          const SizedBox(height: 20),
+                          TextFormField(
+                            controller: _passwordController,
+                            obscureText: true,
+                            decoration: _buildInputDecoration('Palavra-passe', Icons.lock_outline),
+                            validator: (value) => (value == null || value.isEmpty) ? "Insira a senha" : null,
+                          ),
+                          
+                          Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (context) => const ForgotPasswordPage()),
+                                );
+                              },
+                              child: const Text(
+                                'Esqueceu a senha?',
+                                style: TextStyle(
+                                  color: Color(0xFF1A56DB),
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 13,
+                                ),
                               ),
                             ),
                           ),
-                        ),
 
-                        const SizedBox(height: 10),
+                          const SizedBox(height: 10),
 
-                        // BOTÃO ENTRAR
-                        SizedBox(
-                          width: double.infinity,
-                          height: 55,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF1A56DB),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                          // BOTÃO ENTRAR
+                          SizedBox(
+                            width: double.infinity,
+                            height: 55,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF1A56DB),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                              ),
+                              onPressed: _handleLogin, 
+                              child: const Text('Entrar', style: TextStyle(color: Colors.white, fontSize: 18)),
                             ),
-                            onPressed: _handleLogin, 
-                            child: const Text('Entrar', style: TextStyle(color: Colors.white, fontSize: 18)),
                           ),
-                        ),
 
-                        const SizedBox(height: 20),
-                        const Row(
-                          children: [
-                            Expanded(child: Divider()),
-                            Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 10),
-                              child: Text("ou", style: TextStyle(color: Colors.grey)),
-                            ),
-                            Expanded(child: Divider()),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-
-                        // BOTÃO GOOGLE
-                        SizedBox(
-                          width: double.infinity,
-                          height: 55,
-                          child: OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                              side: const BorderSide(color: Colors.grey),
-                            ),
-                            icon: Image.network(
-                              'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1024px-Google_%22G%22_logo.svg.png',
-                              height: 24,
-                            ),
-                            label: const Text('Entrar com Google', style: TextStyle(color: Colors.black87)),
-                            onPressed: _handleGoogleSignIn,
+                          const SizedBox(height: 20),
+                          const Row(
+                            children: [
+                              Expanded(child: Divider()),
+                              Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 10),
+                                child: Text("ou", style: TextStyle(color: Colors.grey)),
+                              ),
+                              Expanded(child: Divider()),
+                            ],
                           ),
+                          const SizedBox(height: 20),
+
+                          // BOTÃO GOOGLE CORRIGIDO
+                          SizedBox(
+                            width: double.infinity,
+                            height: 55,
+                            child: OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                                side: const BorderSide(color: Colors.grey),
+                              ),
+                              icon: Image.network(
+                                // Link atualizado e estável para a imagem do Google
+                                'https://cdn-icons-png.flaticon.com/512/300/300221.png',
+                                height: 24,
+                              ),
+                              label: const Text('Entrar com Google', style: TextStyle(color: Colors.black87)),
+                              onPressed: _handleGoogleSignIn,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 30),
+                    
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text('Não tem conta? '),
+                        GestureDetector(
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const RegisterPage())),
+                          child: const Text('Criar Conta', style: TextStyle(color: Color(0xFF1A56DB), fontWeight: FontWeight.bold)),
                         ),
                       ],
                     ),
-                  ),
-                  
-                  const SizedBox(height: 30),
-                  
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text('Não tem conta? '),
-                      GestureDetector(
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const RegisterPage())),
-                        child: const Text('Criar Conta', style: TextStyle(color: Color(0xFF1A56DB), fontWeight: FontWeight.bold)),
-                      ),
-                    ],
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
