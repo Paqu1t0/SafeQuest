@@ -257,15 +257,6 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
                 text: "Este código expira em 10 minutos. Nunca partilhe o código com ninguém.",
                 primaryColor: primaryColor,
               ),
-              const SizedBox(height: 15),
-              _buildInfoCard(
-                icon: Icons.lightbulb_outline,
-                title: "Dica de demonstração",
-                text: "Em ambiente real, o código é aleatório. Use o código 123456 se o e-mail falhar.",
-                primaryColor: primaryColor,
-                isDemo: true, // Para customizar a cor da dica
-              ),
-
               const Spacer(flex: 2),
 
               // 5. BOTÃO DE CONFIRMAR (OPCIONAL, MAS BOM PARA FLUXO)
