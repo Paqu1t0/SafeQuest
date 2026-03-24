@@ -5,7 +5,8 @@ import 'package:intl/intl.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
 class AssistantPage extends StatefulWidget {
-  const AssistantPage({super.key});
+  final String? initialPrompt;                            
+  const AssistantPage({super.key, this.initialPrompt});
 
   @override
   State<AssistantPage> createState() => _AssistantPageState();
@@ -13,34 +14,51 @@ class AssistantPage extends StatefulWidget {
 
 class _AssistantPageState extends State<AssistantPage> {
   final TextEditingController _controller = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   final List<Map<String, dynamic>> _messages = [];
   late GenerativeModel _model;
   late ChatSession _chat;
   bool _isLoading = false;
 
+  // ─── CORES (mantidas do original) ─────────────────────────────────────────
+  static const primary      = Color(0xFF2563EB);
+  static const primaryDark  = Color(0xFF1D4ED8);
+  static const bgPage       = Color(0xFFF3F4F6);
+  static const borderColor  = Color(0xFFE5E7EB);
+  static const textDark     = Color(0xFF111827);
+  static const textMuted    = Color(0xFF6B7280);
+
   @override
   void initState() {
     super.initState();
     _setupAI();
+    if (widget.initialPrompt != null && widget.initialPrompt!.isNotEmpty) {
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    _controller.text = widget.initialPrompt!;
+  });
+}
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
+    });
   }
 
   Future<void> _setupAI() async {
-    print("📚 A LER O MANUAL DA SAFEQUEST...");
-
     try {
-      // 1. Lê o ficheiro de texto dos assets
-      final String manualSafeQuest = await rootBundle.loadString('assets/conhecimento_safequest.txt');
-
-      // 2. Vai buscar a chave ao .env
+      final String manualSafeQuest =
+          await rootBundle.loadString('assets/conhecimento_safequest.txt');
       final String myKey = (dotenv.env['GEMINI_API_KEY'] ?? '').trim();
 
-      // 3. Inicia o modelo
-      _model = GenerativeModel(
-        model: 'gemini-2.5-flash', 
-        apiKey: myKey,
-      );
-      
-      // 4. Injeta a personalidade e o manual de uma só vez (RAG)
+      _model = GenerativeModel(model: 'gemini-2.5-flash', apiKey: myKey);
+
       final String instrucaoMestra = """
         A partir de agora, tu és o SafeQuest Mentor, um perito em cibersegurança.
         O teu objetivo é ensinar estudantes de forma didática e em Português de Portugal.
@@ -54,79 +72,78 @@ class _AssistantPageState extends State<AssistantPage> {
 
       _chat = _model.startChat(history: [
         Content.text(instrucaoMestra),
-        Content.model([TextPart("Entendido! Memorizei o Manual da SafeQuest. Estou pronto para ensinar os alunos com base nas regras que me deste. Aguardo a primeira pergunta!")]),
+        Content.model([
+          TextPart("Entendido! Memorizei o Manual da SafeQuest. Estou pronto para ensinar os alunos. Aguardo a primeira pergunta!")
+        ]),
       ]);
-      
-      // 5. Mostra a mensagem no ecrã quando estiver pronta
+
       if (mounted) {
         setState(() {
           _messages.add({
             "role": "ai",
-            "text": "Olá! Sou o Mentor SafeQuest. Acabei de rever os meus manuais. Qual é a tua dúvida de segurança de hoje?",
+            "text": "Olá! Sou o **Mentor SafeQuest** 👋\n\nEstou aqui para te ajudar com qualquer dúvida sobre segurança digital. Como posso ajudar-te hoje?",
             "time": DateFormat('HH:mm').format(DateTime.now()),
           });
         });
+        _scrollToBottom();
       }
-      
     } catch (e) {
-      print("🚨 ERRO AO CARREGAR IA OU MANUAL: $e");
+      debugPrint("🚨 ERRO: $e");
     }
   }
 
   Future<void> _handleSend() async {
-    if (_controller.text.trim().isEmpty) return;
+    final text = _controller.text.trim();
+    if (text.isEmpty || _isLoading) return;
 
-    final userText = _controller.text;
     final time = DateFormat('HH:mm').format(DateTime.now());
-
-    setState(() {
-      _messages.add({"role": "user", "text": userText, "time": time});
-      _isLoading = true;
-    });
     _controller.clear();
 
+    setState(() {
+      _messages.add({"role": "user", "text": text, "time": time});
+      _isLoading = true;
+    });
+    _scrollToBottom();
+
     try {
-      final response = await _chat.sendMessage(Content.text(userText));
-      
+      final response = await _chat.sendMessage(Content.text(text));
       if (mounted) {
         setState(() {
           _messages.add({
-            "role": "ai", 
+            "role": "ai",
             "text": response.text ?? "Não consegui processar isso.",
             "time": DateFormat('HH:mm').format(DateTime.now()),
           });
           _isLoading = false;
         });
+        _scrollToBottom();
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _messages.add({"role": "ai", "text": "Erro de ligação: $e", "time": time});
+          _messages.add({
+            "role": "ai",
+            "text": "Erro de ligação. Tenta novamente.",
+            "time": time,
+          });
           _isLoading = false;
         });
       }
     }
   }
 
+  // ─── BUILD ─────────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F4F6),
+      backgroundColor: bgPage,
       body: SafeArea(
         child: Column(
           children: [
             _header(context),
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.all(16),
-                itemCount: _messages.length,
-                itemBuilder: (context, index) {
-                  final msg = _messages[index];
-                  return _chatBubble(msg["role"] == "user", msg["text"], msg["time"]);
-                },
-              ),
-            ),
-            if (_isLoading) const LinearProgressIndicator(minHeight: 2),
+            Expanded(child: _messageList()),
+            if (_isLoading) _typingIndicator(),
             _inputBar(),
           ],
         ),
@@ -134,82 +151,349 @@ class _AssistantPageState extends State<AssistantPage> {
     );
   }
 
+  // ─── HEADER MELHORADO (mantém seta + ícone do original) ────────────────────
   Widget _header(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: borderColor, width: 1)),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x0D000000),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
       child: Row(
         children: [
+          // Botão voltar — igual ao original
           IconButton(
-            icon: const Icon(Icons.arrow_back),
+            icon: const Icon(Icons.arrow_back, color: textDark),
             onPressed: () => Navigator.pop(context),
           ),
-          const SizedBox(width: 10),
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: const Color(0xFF2563EB), borderRadius: BorderRadius.circular(12)),
-            child: const Icon(Icons.shield_outlined, color: Colors.white),
-          ),
-          const SizedBox(width: 12),
-          const Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+
+          // Ícone — mesmo ícone do original, versão melhorada
+          Stack(
+            clipBehavior: Clip.none,
             children: [
-              Text("Assistente IA", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              Text("Sempre disponível", style: TextStyle(fontSize: 12, color: Colors.grey)),
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [primary, primaryDark],
+                  ),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: primary.withOpacity(0.28),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Icon(Icons.shield_outlined,
+                    color: Colors.white, size: 22),
+              ),
+              // Badge "online"
+              Positioned(
+                right: -2,
+                bottom: -2,
+                child: Container(
+                  width: 13,
+                  height: 13,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF22C55E),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                ),
+              ),
             ],
+          ),
+
+          const SizedBox(width: 12),
+
+          // Título — igual ao original mas tipografia melhorada
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                RichText(
+                  text: const TextSpan(
+                    children: [
+                      TextSpan(
+                        text: "Assistente ",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: textDark,
+                        ),
+                      ),
+                      TextSpan(
+                        text: "IA",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 2),
+                const Text(
+                  "Sempre disponível · SafeQuest",
+                  style: TextStyle(fontSize: 12, color: textMuted),
+                ),
+              ],
+            ),
+          ),
+
+          // Chip "Seguro" — novo
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: primary.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: primary.withOpacity(0.2)),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.lock_rounded, color: primary, size: 12),
+                SizedBox(width: 4),
+                Text(
+                  "Seguro",
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _chatBubble(bool isUser, String text, String time) {
-    return Column(
-      crossAxisAlignment: isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-      children: [
-        Container(
-          margin: const EdgeInsets.symmetric(vertical: 5),
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: isUser ? const Color(0xFF2563EB) : Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: isUser ? null : Border.all(color: const Color(0xFFE5E7EB)),
-          ),
-          child: Text(
-            text,
-            style: TextStyle(color: isUser ? Colors.white : Colors.black, height: 1.4),
-          ),
-        ),
-        Text(time, style: const TextStyle(fontSize: 11, color: Colors.grey)),
-        const SizedBox(height: 10),
-      ],
+  // ─── LISTA DE MENSAGENS ────────────────────────────────────────────────────
+  Widget _messageList() {
+    return ListView.builder(
+      controller: _scrollController,
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+      itemCount: _messages.length,
+      itemBuilder: (context, index) {
+        final msg = _messages[index];
+        return _chatBubble(msg["role"] == "user", msg["text"], msg["time"]);
+      },
     );
   }
 
+  // ─── BALÃO DE CHAT MELHORADO ───────────────────────────────────────────────
+  Widget _chatBubble(bool isUser, String text, String time) {
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: 16,
+        left: isUser ? 52 : 0,
+        right: isUser ? 0 : 52,
+      ),
+      child: Column(
+        crossAxisAlignment:
+            isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        children: [
+          // Remetente
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4, left: 2, right: 2),
+            child: Text(
+              isUser ? "Tu" : "Mentor SafeQuest",
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: isUser ? primary : textMuted,
+              ),
+            ),
+          ),
+
+          // Balão
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+            decoration: BoxDecoration(
+              color: isUser ? primary : Colors.white,
+              borderRadius: BorderRadius.only(
+                topLeft: const Radius.circular(18),
+                topRight: const Radius.circular(18),
+                bottomLeft: Radius.circular(isUser ? 18 : 4),
+                bottomRight: Radius.circular(isUser ? 4 : 18),
+              ),
+              border: isUser ? null : Border.all(color: borderColor),
+              boxShadow: [
+                BoxShadow(
+                  color: isUser
+                      ? primary.withOpacity(0.22)
+                      : const Color(0x0A000000),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: _buildText(text, isUser),
+          ),
+
+          // Hora
+          Padding(
+            padding: const EdgeInsets.only(top: 4, left: 2, right: 2),
+            child: Text(
+              time,
+              style: const TextStyle(fontSize: 11, color: textMuted),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Suporte a **negrito** nas respostas da IA
+  Widget _buildText(String text, bool isUser) {
+    final parts = text.split('**');
+    final spans = <TextSpan>[];
+    for (int i = 0; i < parts.length; i++) {
+      spans.add(TextSpan(
+        text: parts[i],
+        style: TextStyle(
+          fontWeight: i.isOdd ? FontWeight.bold : FontWeight.normal,
+          color: isUser ? Colors.white : const Color(0xFF1F2937),
+          fontSize: 14.5,
+          height: 1.55,
+        ),
+      ));
+    }
+    return RichText(text: TextSpan(children: spans));
+  }
+
+  // ─── TYPING INDICATOR ──────────────────────────────────────────────────────
+  Widget _typingIndicator() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(18),
+                topRight: Radius.circular(18),
+                bottomRight: Radius.circular(18),
+                bottomLeft: Radius.circular(4),
+              ),
+              border: Border.all(color: borderColor),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 36,
+                  child: LinearProgressIndicator(
+                    minHeight: 2,
+                    color: primary,
+                    backgroundColor: borderColor,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  "A escrever...",
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: textMuted,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── INPUT BAR (mantém estrutura original, visual melhorado) ──────────────
   Widget _inputBar() {
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
-      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: borderColor, width: 1)),
+      ),
       child: Row(
         children: [
           Expanded(
-            child: TextField(
-              controller: _controller,
-              decoration: InputDecoration(
-                hintText: "Pergunte sobre segurança...",
-                filled: true,
-                fillColor: const Color(0xFFF3F4F6),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+            child: Container(
+              decoration: BoxDecoration(
+                color: bgPage,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: borderColor),
               ),
-              onSubmitted: (_) => _handleSend(),
+              child: TextField(
+                controller: _controller,
+                style: const TextStyle(
+                  fontSize: 14.5,
+                  color: textDark,
+                  height: 1.4,
+                ),
+                decoration: const InputDecoration(
+                  hintText: "Pergunte sobre segurança...",
+                  hintStyle: TextStyle(color: textMuted, fontSize: 14),
+                  border: InputBorder.none,
+                  contentPadding:
+                      EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+                ),
+                onSubmitted: (_) => _handleSend(),
+                maxLines: null,
+              ),
             ),
           ),
           const SizedBox(width: 10),
+
+          // Botão enviar — mantém forma do original, gradiente melhorado
           GestureDetector(
             onTap: _handleSend,
-            child: Container(
-              height: 50, width: 50,
-              decoration: BoxDecoration(color: const Color(0xFF2563EB), borderRadius: BorderRadius.circular(14)),
-              child: const Icon(Icons.send, color: Colors.white),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              height: 50,
+              width: 50,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: _isLoading
+                      ? [Colors.grey.shade300, Colors.grey.shade300]
+                      : [primary, primaryDark],
+                ),
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: _isLoading
+                    ? []
+                    : [
+                        BoxShadow(
+                          color: primary.withOpacity(0.35),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
+                        ),
+                      ],
+              ),
+              child: Icon(
+                _isLoading
+                    ? Icons.hourglass_top_rounded
+                    : Icons.send_rounded,
+                color: _isLoading ? Colors.grey : Colors.white,
+                size: 22,
+              ),
             ),
           ),
         ],
