@@ -8,6 +8,9 @@ import 'package:projeto_safequest/screens/recompensas_page.dart';
 import 'package:projeto_safequest/screens/quiz_screen.dart';
 import 'package:projeto_safequest/screens/avatar_store_page.dart';
 import 'package:projeto_safequest/screens/leaderboard_page.dart';
+import 'package:projeto_safequest/screens/clan_page.dart';
+import 'package:projeto_safequest/screens/friends_page.dart';
+import 'package:projeto_safequest/screens/member_profile_page.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AVATAR HELPERS
@@ -44,6 +47,7 @@ class _HomePageState extends State<HomePage> {
     _pages = [
       const QuizzesDashboard(),
       const RecompensasPage(),
+      const ClanPage(),
       const AssistantPage(),
       const HistoryPage(),
       const ProfilePage(),
@@ -63,6 +67,7 @@ class _HomePageState extends State<HomePage> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.book_outlined),        label: 'Quizzes'),
           BottomNavigationBarItem(icon: Icon(Icons.emoji_events_outlined), label: 'Recompensas'),
+          BottomNavigationBarItem(icon: Icon(Icons.groups_rounded),        label: 'Clã'),
           BottomNavigationBarItem(icon: Icon(Icons.chat_bubble_outline),   label: 'IA'),
           BottomNavigationBarItem(icon: Icon(Icons.history),               label: 'Histórico'),
           BottomNavigationBarItem(icon: Icon(Icons.person_outline),        label: 'Perfil'),
@@ -336,13 +341,28 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
           onTap: () => Navigator.push(context,
               MaterialPageRoute(builder: (_) => AvatarStorePage())),
           child: Container(
-            margin: const EdgeInsets.only(right: 14),
+            margin: const EdgeInsets.only(right: 6),
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: const Color(0xFFF0F7FF),
               borderRadius: BorderRadius.circular(10),
             ),
             child: const Icon(Icons.storefront_rounded,
+                color: _primary, size: 20),
+          ),
+        ),
+        // Ícone de amigos — azul
+        GestureDetector(
+          onTap: () => Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const FriendsPage())),
+          child: Container(
+            margin: const EdgeInsets.only(right: 14),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.people_rounded,
                 color: _primary, size: 20),
           ),
         ),
@@ -447,8 +467,6 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
                         progress,
                         t['icon'] as IconData);
                   }),
-                  const SizedBox(height: 25),
-                  _buildAICard(context),
                   const SizedBox(height: 40),
                 ],
               ),
@@ -463,39 +481,25 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
   Widget _buildMainScoreCard(int pts, double prog) {
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-          color: _primary, borderRadius: BorderRadius.circular(24)),
+      decoration: BoxDecoration(color: _primary, borderRadius: BorderRadius.circular(24)),
       child: Column(
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Total de Pontos',
-                      style:
-                          TextStyle(color: Colors.white70, fontSize: 14)),
-                  Text('$pts',
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold)),
-                ],
-              ),
-              const Icon(Icons.emoji_events,
-                  color: Colors.white24, size: 50),
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('Total de Pontos', style: TextStyle(color: Colors.white70, fontSize: 14)),
+                Text('$pts', style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)),
+              ]),
+              const Icon(Icons.emoji_events, color: Colors.white24, size: 50),
             ],
           ),
           const SizedBox(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Progresso Geral',
-                  style: TextStyle(color: Colors.white)),
-              Text('${(prog * 100).toInt()}%',
-                  style: const TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.bold)),
+              const Text('Progresso Geral', style: TextStyle(color: Colors.white)),
+              Text('${(prog * 100).toInt()}%', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ],
           ),
           const SizedBox(height: 8),
@@ -504,12 +508,12 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
             duration: const Duration(milliseconds: 800),
             curve: Curves.easeOut,
             builder: (_, val, __) => LinearProgressIndicator(
-              value: val,
-              minHeight: 10,
-              backgroundColor: Colors.white24,
-              color: Colors.white,
+              value: val, minHeight: 10, backgroundColor: Colors.white24, color: Colors.white,
             ),
           ),
+          // ── Banner de skins dos outros jogadores ────────────────────────
+          const SizedBox(height: 16),
+          _SkinBanner(),
         ],
       ),
     );
@@ -615,7 +619,7 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
         // Navega para o tab da IA no bottom nav
         final homeState =
             context.findAncestorStateOfType<_HomePageState>();
-        homeState?.setState(() => homeState._currentIndex = 2);
+        homeState?.setState(() => homeState._currentIndex = 3);
       },
       child: Container(
         padding: const EdgeInsets.all(18),
@@ -645,166 +649,436 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
   void _showDifficultySelector(BuildContext context, String tema) {
     showDialog(
       context: context,
+      barrierColor: Colors.black54,
       builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(28)),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.emoji_events_outlined,
-                  size: 50, color: _primary),
-              const SizedBox(height: 16),
-              Text(tema,
-                  style: const TextStyle(
-                      fontSize: 22, fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center),
-              const Text("Escolha o nível de dificuldade",
-                  style: TextStyle(color: Colors.grey)),
-              const SizedBox(height: 24),
-              _difficultyButton(
-                  context, "Iniciante", Colors.green, Icons.bar_chart, tema),
-              const SizedBox(height: 12),
-              _difficultyButton(context, "Intermédio", Colors.orange,
-                  Icons.analytics, tema),
-              const SizedBox(height: 12),
-              _difficultyButton(context, "Avançado", Colors.red,
-                  Icons.stacked_bar_chart, tema),
-              const SizedBox(height: 16),
-              TextButton(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 80),
+        child: Container(
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(28)),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Ícone do tema
+                Container(
+                  width: 60, height: 60,
+                  decoration: BoxDecoration(color: const Color(0xFFEFF6FF), shape: BoxShape.circle),
+                  child: const Center(child: Icon(Icons.emoji_events_outlined, size: 32, color: _primary)),
+                ),
+                const SizedBox(height: 16),
+                Text(tema, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _primaryDeep), textAlign: TextAlign.center),
+                const SizedBox(height: 4),
+                const Text("Escolha o nível de dificuldade", style: TextStyle(color: Colors.grey, fontSize: 13)),
+                const SizedBox(height: 24),
+
+                _difficultyButton(context, "Iniciante",  Colors.green,  Icons.bar_chart,         tema, '5–7 questões · Conceitos básicos'),
+                const SizedBox(height: 10),
+                _difficultyButton(context, "Intermédio", Colors.orange, Icons.analytics,         tema, 'Aprofunda os teus conhecimentos'),
+                const SizedBox(height: 10),
+                _difficultyButton(context, "Avançado",   Colors.red,    Icons.stacked_bar_chart,  tema, 'Para os verdadeiros especialistas'),
+
+                const SizedBox(height: 16),
+                TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text("Voltar",
-                      style: TextStyle(color: Colors.grey))),
-            ],
+                  child: const Text("Cancelar", style: TextStyle(color: Colors.grey)),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _difficultyButton(BuildContext context, String nivel,
-      Color cor, IconData icon, String tema) {
+  Widget _difficultyButton(BuildContext context, String nivel, Color cor, IconData icon, String tema, String subtitle) {
     return InkWell(
       onTap: () {
         Navigator.pop(context);
-        _showLevelSelector(context, tema, nivel, cor);
+        _showSwipeLevelSelector(context, tema, nivel, cor);
       },
       borderRadius: BorderRadius.circular(16),
       child: Container(
-        padding:
-            const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
         decoration: BoxDecoration(
-          color: cor.withOpacity(0.1),
+          color: cor.withOpacity(0.07),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: cor.withOpacity(0.5)),
+          border: Border.all(color: cor.withOpacity(0.35)),
         ),
-        child: Row(
-          children: [
-            Icon(icon, color: cor),
-            const SizedBox(width: 15),
-            Expanded(
-                child: Text(nivel,
-                    style: TextStyle(
-                        color: cor,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18))),
-            Icon(Icons.play_arrow_rounded, color: cor),
-          ],
-        ),
+        child: Row(children: [
+          Container(
+            width: 42, height: 42,
+            decoration: BoxDecoration(color: cor.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
+            child: Icon(icon, color: cor, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(nivel, style: TextStyle(color: cor, fontWeight: FontWeight.bold, fontSize: 16)),
+            Text(subtitle, style: TextStyle(color: cor.withOpacity(0.7), fontSize: 11)),
+          ])),
+          Icon(Icons.arrow_forward_ios_rounded, color: cor.withOpacity(0.6), size: 16),
+        ]),
       ),
     );
   }
 
-  void _showLevelSelector(BuildContext context, String tema,
-      String dificuldade, Color cor) {
+  // ── SWIPE LEVEL SELECTOR — dialog central com tipos de quiz ──────────────
+  void _showSwipeLevelSelector(BuildContext context, String tema, String dificuldade, Color cor) {
     showDialog(
       context: context,
-      builder: (context) => Dialog(
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(28)),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.flag_circle, size: 50, color: cor),
-              const SizedBox(height: 16),
-              Text("$tema\n$dificuldade",
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: _primaryDeep)),
-              const SizedBox(height: 8),
-              const Text("Selecione o Nível",
-                  style: TextStyle(color: Colors.grey)),
-              const SizedBox(height: 24),
-              Wrap(
-                spacing: 15,
-                runSpacing: 15,
-                alignment: WrapAlignment.center,
-                children: List.generate(5, (index) {
-                  final level    = index + 1;
-                  final isLocked = level > 3;
-                  return _buildLevelBox(
-                      context, level, isLocked, cor, tema, dificuldade);
-                }),
-              ),
-              const SizedBox(height: 24),
-              TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text("Fechar",
-                      style: TextStyle(color: Colors.grey))),
-            ],
-          ),
-        ),
+      barrierColor: Colors.black54,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 40),
+        child: _SwipeLevelSheet(tema: tema, dificuldade: dificuldade, cor: cor),
       ),
     );
   }
 
-  Widget _buildLevelBox(BuildContext context, int level, bool isLocked,
-      Color cor, String tema, String dificuldade) {
+  // Mantém _buildLevelBox para compatibilidade
+  Widget _buildLevelBox(BuildContext context, int level, bool isLocked, Color cor, String tema, String dificuldade) {
     return InkWell(
       borderRadius: BorderRadius.circular(16),
-      onTap: isLocked
-          ? null
-          : () {
-              Navigator.pop(context);
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => QuizScreen(
-                    tema: tema,
-                    dificuldade: dificuldade,
-                    nivel: level,
-                  ),
-                ),
-              );
-            },
+      onTap: isLocked ? null : () {
+        Navigator.pop(context);
+        Navigator.push(context, MaterialPageRoute(builder: (_) => QuizScreen(tema: tema, dificuldade: dificuldade, nivel: level)));
+      },
       child: Container(
-        width: 65,
-        height: 65,
+        width: 65, height: 65,
         decoration: BoxDecoration(
-          color: isLocked
-              ? Colors.grey.withOpacity(0.1)
-              : cor.withOpacity(0.1),
+          color: isLocked ? Colors.grey.withOpacity(0.1) : cor.withOpacity(0.1),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isLocked
-                ? Colors.grey.withOpacity(0.3)
-                : cor.withOpacity(0.5),
-            width: 2,
-          ),
+          border: Border.all(color: isLocked ? Colors.grey.withOpacity(0.3) : cor.withOpacity(0.5), width: 2),
         ),
         alignment: Alignment.center,
         child: isLocked
             ? const Icon(Icons.lock, color: Colors.grey, size: 28)
-            : Text("$level",
-                style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                    color: cor)),
+            : Text("$level", style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: cor)),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FRIENDS ONLINE BANNER — mostra amigos online/offline no card de pontos
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _SkinBanner extends StatelessWidget {
+  static const _avatarEmoji = {
+    'default': '👤', 'fox': '🦊', 'cat': '🐱', 'panda': '🐼',
+    'lion': '🦁', 'koala': '🐨', 'dragon': '🐉', 'unicorn': '🦄',
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return const SizedBox.shrink();
+
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
+      builder: (context, mySnap) {
+        if (!mySnap.hasData) return const SizedBox.shrink();
+        final myData  = mySnap.data!.data() as Map<String, dynamic>? ?? {};
+        final friends = List<String>.from(myData['friends'] ?? []);
+
+        if (friends.isEmpty) {
+          return Row(children: [
+            Text('👥 Sem amigos ainda', style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 11)),
+          ]);
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('👥 Amigos', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 11)),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 40,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: friends.length.clamp(0, 6),
+                itemBuilder: (context, i) {
+                  final friendUid = friends[i];
+                  return StreamBuilder<DocumentSnapshot>(
+                    stream: FirebaseFirestore.instance.collection('users').doc(friendUid).snapshots(),
+                    builder: (context, snap) {
+                      if (!snap.hasData) return const SizedBox(width: 44);
+                      final data     = snap.data!.data() as Map<String, dynamic>? ?? {};
+                      final avatarId = data['avatar']    ?? 'default';
+                      final lastDate = data['lastQuizDate'] as Timestamp?;
+                      final emoji    = _avatarEmoji[avatarId] ?? '👤';
+
+                      // Online = fez quiz hoje; Offline = outro dia
+                      bool isOnline = false;
+                      if (lastDate != null) {
+                        final now  = DateTime.now();
+                        final last = lastDate.toDate();
+                        isOnline   = now.difference(last).inHours < 24;
+                      }
+
+                      return GestureDetector(
+                        onTap: () => Navigator.push(context, MaterialPageRoute(
+                            builder: (_) => MemberProfilePage(uid: friendUid))),
+                        child: Container(
+                          margin: const EdgeInsets.only(right: 8),
+                          child: Stack(children: [
+                            Container(
+                              width: 36, height: 36,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white.withOpacity(0.4), width: 1.5),
+                              ),
+                              child: Center(child: Text(emoji, style: const TextStyle(fontSize: 18))),
+                            ),
+                            // Ponto online/offline
+                            Positioned(
+                              bottom: 0, right: 0,
+                              child: Container(
+                                width: 10, height: 10,
+                                decoration: BoxDecoration(
+                                  color: isOnline ? const Color(0xFF22C55E) : const Color(0xFFF59E0B),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white, width: 1.5),
+                                ),
+                              ),
+                            ),
+                          ]),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SWIPE LEVEL SHEET — swipe entre tipos de quiz
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _SwipeLevelSheet extends StatefulWidget {
+  final String tema;
+  final String dificuldade;
+  final Color  cor;
+
+  const _SwipeLevelSheet({required this.tema, required this.dificuldade, required this.cor});
+
+  @override
+  State<_SwipeLevelSheet> createState() => _SwipeLevelSheetState();
+}
+
+class _SwipeLevelSheetState extends State<_SwipeLevelSheet> {
+  static const _primary     = Color(0xFF1A56DB);
+  static const _primaryDeep = Color(0xFF1E3A8A);
+
+  late PageController _pageCtrl;
+  int _currentPage = 0;
+
+  // Definição dos 3 tipos de quiz
+  static final _quizTypes = [
+    {
+      'type'    : QuizType.normal,
+      'title'   : 'Quiz Normal',
+      'subtitle': '5 perguntas · Sem limite de tempo',
+      'icon'    : '📚',
+      'desc'    : 'Responde ao teu ritmo. Perguntas de escolha múltipla sobre o tema selecionado.',
+      'color'   : Color(0xFF1A56DB),
+    },
+    {
+      'type'    : QuizType.tempo,
+      'title'   : 'Contra o Tempo',
+      'subtitle': '7 perguntas · 15 segundos cada',
+      'icon'    : '⏱️',
+      'desc'    : 'Tens 15 segundos por pergunta! Raciocínio rápido e precisão são essenciais.',
+      'color'   : Color(0xFFDC2626),
+    },
+    {
+      'type'    : QuizType.vf,
+      'title'   : 'Verdadeiro / Falso',
+      'subtitle': '7 perguntas · V ou F',
+      'icon'    : '✅',
+      'desc'    : 'Determina se cada afirmação é verdadeira ou falsa. Simples mas desafiante!',
+      'color'   : Color(0xFF7C3AED),
+    },
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _pageCtrl = PageController(viewportFraction: 0.85);
+  }
+
+  @override
+  void dispose() {
+    _pageCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header com gradiente
+              Container(
+                padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [widget.cor, widget.cor.withOpacity(0.7)],
+                    begin: Alignment.topLeft, end: Alignment.bottomRight,
+                  ),
+                ),
+                child: Row(children: [
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(widget.tema, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                    Text(widget.dificuldade, style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 13)),
+                  ])),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), shape: BoxShape.circle),
+                      child: const Icon(Icons.close_rounded, color: Colors.white, size: 18),
+                    ),
+                  ),
+                ]),
+              ),
+
+              Padding(
+                padding: const EdgeInsets.fromLTRB(0, 16, 0, 0),
+                child: Column(children: [
+                  // Instrução
+                  const Text('Desliza para escolher o tipo de quiz',
+                      style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  const SizedBox(height: 14),
+
+                  // PageView dos tipos
+                  SizedBox(
+                    height: 170,
+                    child: PageView.builder(
+                      controller: _pageCtrl,
+                      itemCount: _quizTypes.length,
+                      onPageChanged: (i) => setState(() => _currentPage = i),
+                      itemBuilder: (context, i) {
+                        final qt     = _quizTypes[i];
+                        final active = i == _currentPage;
+                        final color  = qt['color'] as Color;
+
+                        return AnimatedScale(
+                          scale: active ? 1.0 : 0.92,
+                          duration: const Duration(milliseconds: 200),
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(colors: [color, color.withOpacity(0.75)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                              borderRadius: BorderRadius.circular(20),
+                              boxShadow: active ? [BoxShadow(color: color.withOpacity(0.35), blurRadius: 14, offset: const Offset(0, 5))] : [],
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                Row(children: [
+                                  Text(qt['icon'] as String, style: const TextStyle(fontSize: 28)),
+                                  const SizedBox(width: 10),
+                                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                    Text(qt['title'] as String, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                                    Text(qt['subtitle'] as String, style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 11)),
+                                  ])),
+                                ]),
+                                const SizedBox(height: 10),
+                                Text(qt['desc'] as String, style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 12, height: 1.4)),
+                              ]),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+
+                  // Indicadores
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(_quizTypes.length, (i) {
+                      final active = i == _currentPage;
+                      final color  = _quizTypes[i]['color'] as Color;
+                      return AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        width: active ? 22 : 7,
+                        height: 7,
+                        decoration: BoxDecoration(
+                          color: active ? color : const Color(0xFFE5E7EB),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      );
+                    }),
+                  ),
+                  const SizedBox(height: 18),
+
+                  // Níveis
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      const Text('Seleciona o Nível', style: TextStyle(fontWeight: FontWeight.bold, color: _primaryDeep, fontSize: 14)),
+                      const SizedBox(height: 12),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: List.generate(5, (i) {
+                          final level    = i + 1;
+                          final isLocked = level > 3;
+                          final color    = _quizTypes[_currentPage]['color'] as Color;
+                          return GestureDetector(
+                            onTap: isLocked ? null : () {
+                              final qt = _quizTypes[_currentPage]['type'] as QuizType;
+                              Navigator.pop(context);
+                              Navigator.push(context, MaterialPageRoute(
+                                builder: (_) => QuizScreen(
+                                  tema: widget.tema, dificuldade: widget.dificuldade,
+                                  nivel: level, quizType: qt,
+                                ),
+                              ));
+                            },
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 150),
+                              width: 52, height: 52,
+                              decoration: BoxDecoration(
+                                color: isLocked ? Colors.grey.withOpacity(0.08) : color.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: isLocked ? Colors.grey.withOpacity(0.25) : color.withOpacity(0.5), width: 2),
+                              ),
+                              alignment: Alignment.center,
+                              child: isLocked
+                                  ? const Icon(Icons.lock_rounded, color: Colors.grey, size: 22)
+                                  : Text('$level', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color)),
+                            ),
+                          );
+                        }),
+                      ),
+                    ]),
+                  ),
+                  const SizedBox(height: 24),
+                ]),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
