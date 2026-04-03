@@ -3,155 +3,181 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// LEADERBOARD PAGE — Classificação global com dados reais do Firestore
+// LEADERBOARD PAGE — Jogadores + Clãs
 // ─────────────────────────────────────────────────────────────────────────────
 
-class LeaderboardPage extends StatelessWidget {
+class LeaderboardPage extends StatefulWidget {
   const LeaderboardPage({super.key});
 
+  @override
+  State<LeaderboardPage> createState() => _LeaderboardPageState();
+}
+
+class _LeaderboardPageState extends State<LeaderboardPage>
+    with SingleTickerProviderStateMixin {
   static const _primary     = Color(0xFF1A56DB);
   static const _primaryDeep = Color(0xFF1E3A8A);
   static const _gold        = Color(0xFFFBBF24);
   static const _silver      = Color(0xFF9CA3AF);
   static const _bronze      = Color(0xFFCD7C2F);
 
-  // Mapa de emoji por avatar id
-  static const _avatarEmoji = {
-    'default': '👤',
-    'fox'    : '🦊',
-    'cat'    : '🐱',
-    'panda'  : '🐼',
-    'lion'   : '🦁',
-    'koala'  : '🐨',
-    'dragon' : '🐉',
-    'unicorn': '🦄',
-  };
+  late TabController _tabCtrl;
+  final currentUser = FirebaseAuth.instance.currentUser;
 
+  static const _avatarEmoji = {
+    'default': '👤', 'fox': '🦊', 'cat': '🐱', 'panda': '🐼',
+    'lion': '🦁', 'koala': '🐨', 'dragon': '🐉', 'unicorn': '🦄',
+  };
   static const _avatarColor = {
-    'default': Color(0xFF1A56DB),
-    'fox'    : Color(0xFFEA580C),
-    'cat'    : Color(0xFF7C3AED),
-    'panda'  : Color(0xFF0F766E),
-    'lion'   : Color(0xFFB45309),
-    'koala'  : Color(0xFF4B5563),
-    'dragon' : Color(0xFFDC2626),
-    'unicorn': Color(0xFFDB2777),
+    'default': Color(0xFF1A56DB), 'fox': Color(0xFFEA580C),
+    'cat': Color(0xFF7C3AED), 'panda': Color(0xFF0F766E),
+    'lion': Color(0xFFB45309), 'koala': Color(0xFF4B5563),
+    'dragon': Color(0xFFDC2626), 'unicorn': Color(0xFFDB2777),
   };
 
   @override
-  Widget build(BuildContext context) {
-    final currentUser = FirebaseAuth.instance.currentUser;
+  void initState() {
+    super.initState();
+    _tabCtrl = TabController(length: 2, vsync: this);
+  }
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        title: const Text(
-          'Classificação Global',
-          style: TextStyle(
-              color: _primaryDeep,
-              fontWeight: FontWeight.bold,
-              fontSize: 18),
+  @override
+  void dispose() {
+    _tabCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // Header
+        Container(
+          color: Colors.white,
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Classificação Global',
+                  style: TextStyle(color: _primaryDeep, fontWeight: FontWeight.bold, fontSize: 16)),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF6FF),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: _primary.withOpacity(0.2)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.trending_up_rounded, color: _primary, size: 14),
+                    SizedBox(width: 4),
+                    Text('Top 10', style: TextStyle(color: _primary, fontWeight: FontWeight.bold, fontSize: 11)),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
-        actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        // Tab bar
+        Container(
+          color: Colors.white,
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+          child: Container(
+            padding: const EdgeInsets.all(4),
             decoration: BoxDecoration(
-              color: const Color(0xFFEFF6FF),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: _primary.withOpacity(0.2)),
+              color: const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(12),
             ),
-            child: const Row(
-              children: [
-                Icon(Icons.trending_up_rounded, color: _primary, size: 16),
-                SizedBox(width: 4),
-                Text('Top 10',
-                    style: TextStyle(
-                        color: _primary,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12)),
+            child: TabBar(
+              controller: _tabCtrl,
+              indicator: BoxDecoration(color: _primary, borderRadius: BorderRadius.circular(8)),
+              labelColor: Colors.white,
+              unselectedLabelColor: Colors.grey,
+              indicatorSize: TabBarIndicatorSize.tab,
+              dividerColor: Colors.transparent,
+              tabs: const [
+                Tab(child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.person_rounded, size: 15),
+                    SizedBox(width: 5),
+                    Text('Jogadores', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  ],
+                )),
+                Tab(child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.groups_rounded, size: 15),
+                    SizedBox(width: 5),
+                    Text('Clãs', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  ],
+                )),
               ],
             ),
           ),
-        ],
-      ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('users')
-            .orderBy('pontos', descending: true)
-            .limit(20)
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-                child: CircularProgressIndicator(color: _primary));
-          }
+        ),
+        // Content
+        Expanded(
+          child: TabBarView(
+            controller: _tabCtrl,
+            children: [
+              _buildPlayersTab(),
+              _buildClansTab(),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(
-              child: Text('Nenhum jogador encontrado.',
-                  style: TextStyle(color: Colors.grey)),
-            );
-          }
+  // ─────────────────────────────────────────────────────────────────────────
+  // ABA JOGADORES
+  // ─────────────────────────────────────────────────────────────────────────
+  Widget _buildPlayersTab() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .orderBy('pontos', descending: true)
+          .limit(20)
+          .snapshots(),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(color: _primary));
+        }
 
-          final docs = snapshot.data!.docs;
+        if (!snap.hasData || snap.data!.docs.isEmpty) {
+          return const Center(child: Text('Nenhum jogador encontrado.', style: TextStyle(color: Colors.grey)));
+        }
 
-          return ListView.builder(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-            itemCount: docs.length,
-            itemBuilder: (context, index) {
-              final data =
-                  docs[index].data() as Map<String, dynamic>;
-              final uid      = docs[index].id;
-              final name     = data['name'] ?? data['nickname'] ?? 'Jogador';
-              final pontos   = (data['pontos'] ?? 0) as int;
-              final avatarId = data['avatar'] ?? 'default';
-              final isMe     = uid == currentUser?.uid;
-              final rank     = index + 1;
-
-              // Calcula nível (1 ponto = 1pt, nível a cada 250)
-              final nivel = (pontos ~/ 250) + 1;
-
-              return _buildPlayerCard(
-                  rank, name, pontos, nivel, avatarId, isMe);
-            },
-          );
-        },
-      ),
+        final docs = snap.data!.docs;
+        return ListView.builder(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+          itemCount: docs.length,
+          itemBuilder: (context, index) {
+            final data     = docs[index].data() as Map<String, dynamic>;
+            final uid      = docs[index].id;
+            final name     = data['name']     ?? data['nickname'] ?? 'Jogador';
+            final pontos   = (data['pontos']  ?? 0) as int;
+            final avatarId = data['avatar']   ?? 'default';
+            final isMe     = uid == currentUser?.uid;
+            final nivel    = (pontos ~/ 250) + 1;
+            return _buildPlayerCard(index + 1, name, pontos, nivel, avatarId, isMe);
+          },
+        );
+      },
     );
   }
 
   Widget _buildPlayerCard(int rank, String name, int pontos, int nivel,
       String avatarId, bool isMe) {
-    Color rankColor;
-    Widget rankWidget;
-
-    if (rank == 1) {
-      rankColor  = _gold;
-      rankWidget = _rankBadge('#1', _gold);
-    } else if (rank == 2) {
-      rankColor  = _silver;
-      rankWidget = _rankBadge('#2', _silver);
-    } else if (rank == 3) {
-      rankColor  = _bronze;
-      rankWidget = _rankBadge('#3', _bronze);
-    } else {
-      rankColor  = const Color(0xFF94A3B8);
-      rankWidget = _rankBadge('#$rank', const Color(0xFFE2E8F0));
-    }
-
+    final rankColor = rank == 1 ? _gold : rank == 2 ? _silver : rank == 3 ? _bronze : const Color(0xFF94A3B8);
     final emoji = _avatarEmoji[avatarId] ?? '👤';
     final color = _avatarColor[avatarId] ?? _primary;
 
-    // Medalha para top 3
     Widget? medal;
-    if (rank == 1) medal = const Text('🥇', style: TextStyle(fontSize: 20));
-    if (rank == 2) medal = const Text('🥈', style: TextStyle(fontSize: 20));
-    if (rank == 3) medal = const Text('🥉', style: TextStyle(fontSize: 20));
+    if (rank == 1) medal = const Text('🥇', style: TextStyle(fontSize: 18));
+    if (rank == 2) medal = const Text('🥈', style: TextStyle(fontSize: 18));
+    if (rank == 3) medal = const Text('🥉', style: TextStyle(fontSize: 18));
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -159,96 +185,180 @@ class LeaderboardPage extends StatelessWidget {
       decoration: BoxDecoration(
         color: isMe ? const Color(0xFFEFF6FF) : Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isMe ? _primary : const Color(0xFFE5E7EB),
-          width: isMe ? 2 : 1,
-        ),
-        boxShadow: [
-          BoxShadow(
-              color: isMe
-                  ? _primary.withOpacity(0.08)
-                  : Colors.black.withOpacity(0.03),
-              blurRadius: 8,
-              offset: const Offset(0, 2))
-        ],
+        border: Border.all(color: isMe ? _primary : const Color(0xFFE5E7EB), width: isMe ? 2 : 1),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Row(
         children: [
           // Rank badge
-          rankWidget,
-          const SizedBox(width: 12),
-
+          Container(
+            width: 34, height: 34,
+            decoration: BoxDecoration(
+              color: rank <= 3 ? rankColor.withOpacity(0.15) : const Color(0xFFE2E8F0),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Center(child: Text('#$rank', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: rank <= 3 ? rankColor : Colors.grey))),
+          ),
+          const SizedBox(width: 10),
           // Avatar
           Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Center(
-              child: Text(emoji, style: const TextStyle(fontSize: 24)),
-            ),
+            width: 44, height: 44,
+            decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(13)),
+            child: Center(child: Text(emoji, style: const TextStyle(fontSize: 22))),
           ),
           const SizedBox(width: 12),
-
-          // Nome + nível
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isMe ? '$name (Você)' : name,
-                  style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                      color: isMe ? _primary : _primaryDeep),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Nível $nivel  •  ',
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-
-          // Pontos + medalha
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          // Info
+          Expanded(child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (medal != null) medal,
-              Text(
-                '$pontos pts',
-                style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                    color: isMe ? _primary : const Color(0xFF3B82F6)),
-              ),
+              Text(isMe ? '$name (Você)' : name,
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isMe ? _primary : _primaryDeep)),
+              const SizedBox(height: 2),
+              Text('Nível $nivel', style: const TextStyle(color: Colors.grey, fontSize: 12)),
             ],
-          ),
+          )),
+          // Pontos + medalha
+          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            if (medal != null) medal,
+            Text('$pontos pts',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isMe ? _primary : const Color(0xFF3B82F6))),
+          ]),
         ],
       ),
     );
   }
 
-  Widget _rankBadge(String label, Color color) {
-    final isTop3 = label == '#1' || label == '#2' || label == '#3';
+  // ─────────────────────────────────────────────────────────────────────────
+  // ABA CLÃS
+  // ─────────────────────────────────────────────────────────────────────────
+  Widget _buildClansTab() {
+    return StreamBuilder<DocumentSnapshot>(
+      // Descobre o clã do utilizador atual
+      stream: FirebaseFirestore.instance.collection('users').doc(currentUser?.uid).snapshots(),
+      builder: (context, userSnap) {
+        String? myClanId;
+        if (userSnap.hasData && userSnap.data!.exists) {
+          final data = userSnap.data!.data() as Map<String, dynamic>? ?? {};
+          myClanId = data['clanId'] as String?;
+        }
+
+        return StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('clans')
+              .orderBy('points', descending: true)
+              .limit(20)
+              .snapshots(),
+          builder: (context, snap) {
+            if (snap.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator(color: _primary));
+            }
+
+            if (!snap.hasData || snap.data!.docs.isEmpty) {
+              return Center(child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('🏰', style: TextStyle(fontSize: 48)),
+                  const SizedBox(height: 16),
+                  const Text('Nenhum clã ainda!', style: TextStyle(fontWeight: FontWeight.bold, color: _primaryDeep)),
+                  const SizedBox(height: 8),
+                  const Text('Cria um clã no separador Clã.', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                ],
+              ));
+            }
+
+            // Só mostra clãs criados por utilizadores reais
+            final docs = snap.data!.docs.where((d) {
+              final data = d.data() as Map<String, dynamic>;
+              final createdBy = data['createdBy'] as String?;
+              return createdBy != null && createdBy.isNotEmpty;
+            }).toList();
+            return ListView.builder(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 32),
+              itemCount: docs.length,
+              itemBuilder: (context, index) {
+                final data     = docs[index].data() as Map<String, dynamic>;
+                final clanId   = docs[index].id;
+                final name     = data['name']       ?? 'Clã';
+                final icon     = data['icon']       ?? '🛡️';
+                final points   = (data['points']    ?? 0) as num;
+                final members  = (data['memberIds'] as List?)?.length ?? 0;
+                final isMyC    = clanId == myClanId;
+                return _buildClanCard(index + 1, name, icon, points.toInt(), members, isMyC);
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildClanCard(int rank, String name, String icon, int points, int members, bool isMyClan) {
+    final rankColor = rank == 1 ? _gold : rank == 2 ? _silver : rank == 3 ? _bronze : const Color(0xFF94A3B8);
+
+    Widget? medal;
+    if (rank == 1) medal = const Text('🥇', style: TextStyle(fontSize: 18));
+    if (rank == 2) medal = const Text('🥈', style: TextStyle(fontSize: 18));
+    if (rank == 3) medal = const Text('🥉', style: TextStyle(fontSize: 18));
+
     return Container(
-      width: 36,
-      height: 36,
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
-        color: isTop3 ? color.withOpacity(0.15) : color,
-        borderRadius: BorderRadius.circular(10),
+        color: isMyClan ? const Color(0xFFEFF6FF) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isMyClan ? _primary : const Color(0xFFE5E7EB), width: isMyClan ? 2 : 1),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 2))],
       ),
-      child: Center(
-        child: Text(
-          label,
-          style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 12,
-              color: isTop3 ? color : Colors.white),
-        ),
+      child: Row(
+        children: [
+          // Rank
+          Container(
+            width: 34, height: 34,
+            decoration: BoxDecoration(
+              color: rank <= 3 ? rankColor.withOpacity(0.15) : const Color(0xFFE2E8F0),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Center(child: Text('#$rank', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: rank <= 3 ? rankColor : Colors.grey))),
+          ),
+          const SizedBox(width: 10),
+          // Ícone do clã
+          Container(
+            width: 44, height: 44,
+            decoration: BoxDecoration(color: _primary.withOpacity(0.08), borderRadius: BorderRadius.circular(13)),
+            child: Center(child: Text(icon, style: const TextStyle(fontSize: 24))),
+          ),
+          const SizedBox(width: 12),
+          // Info
+          Expanded(child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                Text(isMyClan ? '$name (O teu)' : name,
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isMyClan ? _primary : _primaryDeep)),
+                if (isMyClan) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(color: _primary, borderRadius: BorderRadius.circular(6)),
+                    child: const Text('Meu', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ]),
+              const SizedBox(height: 2),
+              Row(children: [
+                const Icon(Icons.people_outline, size: 12, color: Colors.grey),
+                const SizedBox(width: 4),
+                Text('$members membros', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+              ]),
+            ],
+          )),
+          // Pontos + medalha
+          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            if (medal != null) medal,
+            Text('$points pts',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isMyClan ? _primary : const Color(0xFF3B82F6))),
+          ]),
+        ],
       ),
     );
   }
