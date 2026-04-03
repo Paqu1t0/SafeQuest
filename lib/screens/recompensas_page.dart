@@ -13,6 +13,19 @@ class RecompensasPage extends StatefulWidget {
 class _RecompensasPageState extends State<RecompensasPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  String _topicFilter = 'Todos';
+
+  static const _primary     = Color(0xFF1A56DB);
+  static const _primaryDeep = Color(0xFF1E3A8A);
+
+  // Cores para os cards conquistados (por tema)
+  static const _themeColors = {
+    'Phishing'      : Color(0xFF1A56DB),
+    'Palavras-passe': Color(0xFF7C3AED),
+    'Segurança Web' : Color(0xFF0F766E),
+    'Redes Sociais' : Color(0xFFEA580C),
+    'basica'        : Color(0xFFF59E0B),
+  };
 
   @override
   void initState() {
@@ -36,43 +49,32 @@ class _RecompensasPageState extends State<RecompensasPage>
         backgroundColor: Colors.white,
         elevation: 0.5,
         centerTitle: true,
-        title: const Text(
-          "Conquistas",
-          style: TextStyle(
-              color: Color(0xFF1E3A8A), fontWeight: FontWeight.bold),
-        ),
+        title: const Text('Conquistas',
+            style: TextStyle(color: _primaryDeep, fontWeight: FontWeight.bold)),
       ),
-
-      // ── StreamBuilder para reagir em tempo real ao Firestore ──────────────
       body: StreamBuilder<DocumentSnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('users')
-            .doc(user?.uid)
-            .snapshots(),
+        stream: FirebaseFirestore.instance.collection('users').doc(user?.uid).snapshots(),
         builder: (context, snapshot) {
-          // Set de IDs de emblemas conquistados
           Set<String> conquistados = {};
           if (snapshot.hasData && snapshot.data!.exists) {
-            final data =
-                snapshot.data!.data() as Map<String, dynamic>? ?? {};
-            conquistados =
-                Set<String>.from(data['badges'] ?? []);
+            final data = snapshot.data!.data() as Map<String, dynamic>? ?? {};
+            conquistados = Set<String>.from(data['badges'] ?? []);
           }
 
-          final total      = BadgesService.allBadges.length;
-          final totalGanho = conquistados.length;
+          final total  = BadgesService.allBadges.length;
+          final ganho  = conquistados.length;
 
           return Column(
             children: [
-              _headerProgresso(totalGanho, total),
+              _headerProgresso(ganho, total),
               _tabBarCustom(),
               Expanded(
                 child: TabBarView(
                   controller: _tabController,
                   physics: const NeverScrollableScrollPhysics(),
                   children: [
-                    _abaPorTemas(conquistados),
                     _abaBasicas(conquistados),
+                    _abaPorTemas(conquistados),
                   ],
                 ),
               ),
@@ -84,24 +86,14 @@ class _RecompensasPageState extends State<RecompensasPage>
   }
 
   // ── HEADER ─────────────────────────────────────────────────────────────────
-
   Widget _headerProgresso(int ganho, int total) {
     return Container(
-      margin: const EdgeInsets.all(20),
+      margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF2563EB), Color(0xFF1D4ED8)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+        gradient: const LinearGradient(colors: [Color(0xFF1A56DB), Color(0xFF1E40AF)], begin: Alignment.topLeft, end: Alignment.bottomRight),
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.blue.withOpacity(0.2),
-              blurRadius: 10,
-              offset: const Offset(0, 5))
-        ],
+        boxShadow: [BoxShadow(color: Colors.blue.withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 5))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -109,26 +101,14 @@ class _RecompensasPageState extends State<RecompensasPage>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text("Emblemas Conquistados",
-                      style:
-                          TextStyle(color: Colors.white70, fontSize: 14)),
-                  Text("$ganho/$total",
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold)),
-                ],
-              ),
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text("Emblemas Conquistados", style: TextStyle(color: Colors.white70, fontSize: 14)),
+                Text("$ganho/$total", style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)),
+              ]),
               Container(
                 padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(12)),
-                child: const Icon(Icons.emoji_events_outlined,
-                    color: Colors.white, size: 30),
+                decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
+                child: const Icon(Icons.emoji_events_outlined, color: Colors.white, size: 30),
               ),
             ],
           ),
@@ -139,12 +119,7 @@ class _RecompensasPageState extends State<RecompensasPage>
             curve: Curves.easeOut,
             builder: (_, val, __) => ClipRRect(
               borderRadius: BorderRadius.circular(10),
-              child: LinearProgressIndicator(
-                value: val,
-                backgroundColor: Colors.white24,
-                color: const Color(0xFF60A5FA),
-                minHeight: 8,
-              ),
+              child: LinearProgressIndicator(value: val, backgroundColor: Colors.white24, color: const Color(0xFF60A5FA), minHeight: 8),
             ),
           ),
         ],
@@ -154,245 +129,154 @@ class _RecompensasPageState extends State<RecompensasPage>
 
   Widget _tabBarCustom() {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
+      margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-          color: const Color(0xFFF1F5F9),
-          borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(12)),
       child: TabBar(
         controller: _tabController,
-        indicator:
-            BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
-        labelColor: const Color(0xFF2563EB),
+        indicator: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(8)),
+        labelColor: _primary,
         unselectedLabelColor: Colors.grey,
         indicatorSize: TabBarIndicatorSize.tab,
         dividerColor: Colors.transparent,
-        tabs: const [
-          Tab(text: "Por Temas"),
-          Tab(text: "Básicas"),
-        ],
+        tabs: const [Tab(text: "Básicas"), Tab(text: "Por Temas")],
       ),
     );
   }
 
-  // ── ABA POR TEMAS ──────────────────────────────────────────────────────────
+  // ── ABA BÁSICAS — grid de cards coloridos ──────────────────────────────────
+  Widget _abaBasicas(Set<String> conquistados) {
+    final basicBadges = BadgesService.allBadges.where((b) => b['categoria'] == 'basica').toList();
 
+    return GridView.builder(
+      padding: const EdgeInsets.all(16),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2, mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: 0.88,
+      ),
+      itemCount: basicBadges.length,
+      itemBuilder: (context, i) {
+        final badge      = basicBadges[i];
+        final conquistado = conquistados.contains(badge['id']);
+        return _badgeCard(badge, conquistado, 'basica');
+      },
+    );
+  }
+
+  // ── ABA POR TEMAS — filtros + grid ────────────────────────────────────────
   Widget _abaPorTemas(Set<String> conquistados) {
-    // Filtra só emblemas de tema (não básicos)
-    final temas = ['Phishing', 'Palavras-passe', 'Segurança Web', 'Redes Sociais'];
-    final temaIcons = {
-      'Phishing'       : Icons.email_outlined,
-      'Palavras-passe' : Icons.lock_outline,
-      'Segurança Web'  : Icons.language,
-      'Redes Sociais'  : Icons.people_outline,
-    };
+    final temas = ['Todos', 'Phishing', 'Palavras-passe', 'Segurança Web', 'Redes Sociais'];
+    final filtered = BadgesService.allBadges.where((b) {
+      if (b['categoria'] == 'basica') return false;
+      if (_topicFilter == 'Todos') return true;
+      return b['categoria'] == _topicFilter;
+    }).toList();
 
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      physics: const BouncingScrollPhysics(),
+    return Column(
       children: [
-        for (final tema in temas) ...[
-          _tituloTema(tema, temaIcons[tema]!),
-          ...BadgesService.allBadges
-              .where((b) => b['categoria'] == tema)
-              .map((b) => _badgeVertical(
-                    b['nome'] as String,
-                    b['desc'] as String,
-                    _iconForBadge(b['id'] as String),
-                    conquistados.contains(b['id']),
-                  )),
-          const SizedBox(height: 20),
-        ],
-        const SizedBox(height: 20),
+        // Filtros horizontais
+        SizedBox(
+          height: 50,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+            itemCount: temas.length,
+            itemBuilder: (context, i) {
+              final t          = temas[i];
+              final isSelected = t == _topicFilter;
+              return GestureDetector(
+                onTap: () => setState(() => _topicFilter = t),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  margin: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isSelected ? _primary : Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: isSelected ? _primary : const Color(0xFFE5E7EB)),
+                  ),
+                  child: Text(t, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: isSelected ? Colors.white : Colors.grey)),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 8),
+        // Grid
+        Expanded(
+          child: GridView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2, mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: 0.88,
+            ),
+            itemCount: filtered.length,
+            itemBuilder: (context, i) {
+              final badge       = filtered[i];
+              final conquistado = conquistados.contains(badge['id']);
+              return _badgeCard(badge, conquistado, badge['categoria'] as String);
+            },
+          ),
+        ),
       ],
     );
   }
 
-  // ── ABA BÁSICAS ────────────────────────────────────────────────────────────
+  // ── CARD DE EMBLEMA ────────────────────────────────────────────────────────
+  Widget _badgeCard(Map<String, dynamic> badge, bool conquistado, String categoria) {
+    final cardColor = conquistado
+        ? (_themeColors[categoria] ?? _primary)
+        : const Color(0xFFF1F5F9);
+    final textColor    = conquistado ? Colors.white : Colors.grey;
+    final subTextColor = conquistado ? Colors.white.withOpacity(0.75) : Colors.grey.shade400;
+    final icon         = badge['icon'] as String? ?? '🏅';
 
-  Widget _abaBasicas(Set<String> conquistados) {
-    final basicBadges = BadgesService.allBadges
-        .where((b) => b['categoria'] == 'basica')
-        .toList();
-
-    final colors = {
-      'primeira_vitoria' : Colors.blue,
-      'aprendiz_rapido'  : Colors.orange,
-      'perfeccionista'   : Colors.purple,
-      'guru_seguranca'   : Colors.indigo,
-    };
-
-    return GridView.count(
-      crossAxisCount: 2,
-      padding: const EdgeInsets.all(20),
-      mainAxisSpacing: 15,
-      crossAxisSpacing: 15,
-      childAspectRatio: 0.85,
-      physics: const BouncingScrollPhysics(),
-      children: basicBadges.map((b) {
-        final id           = b['id'] as String;
-        final conquistado  = conquistados.contains(id);
-        final cor          = conquistado
-            ? (colors[id] ?? Colors.blue)
-            : Colors.grey;
-        return _badgeBasico(
-          b['nome'] as String,
-          b['desc'] as String,
-          _iconForBadge(id),
-          conquistado,
-          cor,
-        );
-      }).toList(),
-    );
-  }
-
-  // ── COMPONENTES ────────────────────────────────────────────────────────────
-
-  Widget _tituloTema(String titulo, IconData icone) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12, top: 8),
-      child: Row(
-        children: [
-          Icon(icone, color: const Color(0xFF2563EB), size: 22),
-          const SizedBox(width: 10),
-          Text(titulo,
-              style: const TextStyle(
-                  fontSize: 19,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E3A8A))),
-        ],
-      ),
-    );
-  }
-
-  Widget _badgeVertical(
-      String nome, String desc, IconData icon, bool conquistado) {
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 400),
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(16),
+      duration: const Duration(milliseconds: 300),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(
-          color: conquistado
-              ? Colors.blue.withOpacity(0.3)
-              : Colors.grey.shade200,
-        ),
+        color: cardColor,
+        borderRadius: BorderRadius.circular(18),
         boxShadow: conquistado
-            ? [
-                BoxShadow(
-                    color: Colors.blue.withOpacity(0.08),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2))
-              ]
+            ? [BoxShadow(color: cardColor.withOpacity(0.35), blurRadius: 12, offset: const Offset(0, 4))]
             : [],
+        border: conquistado ? null : Border.all(color: const Color(0xFFE5E7EB)),
       ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: conquistado
-                  ? const Color(0xFFF0F7FF)
-                  : Colors.grey.shade100,
-              borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Ícone num círculo translúcido
+            Container(
+              width: 56, height: 56,
+              decoration: BoxDecoration(
+                color: conquistado ? Colors.white.withOpacity(0.2) : Colors.grey.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Center(
+                child: Text(
+                  conquistado ? icon : '🔒',
+                  style: TextStyle(fontSize: conquistado ? 30 : 24),
+                ),
+              ),
             ),
-            child: Icon(icon,
-                color: conquistado
-                    ? const Color(0xFF2563EB)
-                    : Colors.grey.shade400,
-                size: 28),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(nome,
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                        color: conquistado ? Colors.black : Colors.grey)),
-                Text(desc,
-                    style:
-                        const TextStyle(fontSize: 11, color: Colors.grey)),
-              ],
-            ),
-          ),
-          if (conquistado)
-            const Icon(Icons.check_circle, color: Colors.green, size: 18),
-        ],
-      ),
-    );
-  }
-
-  Widget _badgeBasico(
-      String nome, String desc, IconData icon, bool conquistado, Color cor) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 400),
-      padding: const EdgeInsets.all(15),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-            color: conquistado ? cor.withOpacity(0.3) : Colors.grey.shade200),
-        boxShadow: conquistado
-            ? [
-                BoxShadow(
-                    color: cor.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2))
-              ]
-            : [],
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon,
-              color: conquistado ? cor : Colors.grey.shade300, size: 40),
-          const SizedBox(height: 12),
-          Text(nome,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                  color:
-                      conquistado ? Colors.black : Colors.grey.shade400)),
-          const SizedBox(height: 4),
-          Text(desc,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 11, color: Colors.grey),
-              maxLines: 2),
-          if (conquistado) ...[
-            const SizedBox(height: 8),
-            const Icon(Icons.check_circle, color: Colors.green, size: 16),
+            const SizedBox(height: 10),
+            Text(badge['nome'] as String,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 13)),
+            const SizedBox(height: 4),
+            Text(badge['desc'] as String,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: subTextColor, fontSize: 10)),
+            if (conquistado) ...[
+              const SizedBox(height: 8),
+              const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+            ],
           ],
-        ],
+        ),
       ),
     );
-  }
-
-  // ── Ícone por ID de emblema ────────────────────────────────────────────────
-  IconData _iconForBadge(String id) {
-    const map = {
-      'primeira_vitoria'    : Icons.emoji_events_outlined,
-      'aprendiz_rapido'     : Icons.bolt,
-      'perfeccionista'      : Icons.workspace_premium,
-      'guru_seguranca'      : Icons.school,
-      'iniciante_phishing'  : Icons.mail_outline,
-      'especialista_phishing': Icons.shield_outlined,
-      'mestre_phishing'     : Icons.emoji_events_outlined,
-      'guardiao_senhas'     : Icons.lock_open_outlined,
-      'mestre_passwords'    : Icons.verified_user_outlined,
-      'criador_senhas'      : Icons.workspace_premium_outlined,
-      'surfista_web'        : Icons.language,
-      'navegador_seguro'    : Icons.shield_outlined,
-      'guardiao_web'        : Icons.emoji_events_outlined,
-      'navegador_social'    : Icons.person_search_outlined,
-      'influencer_seguro'   : Icons.star_outline,
-      'protetor_digital'    : Icons.verified_user_outlined,
-    };
-    return map[id] ?? Icons.military_tech_rounded;
   }
 }
