@@ -10,7 +10,7 @@ import 'package:projeto_safequest/screens/avatar_store_page.dart';
 import 'package:projeto_safequest/screens/leaderboard_page.dart';
 import 'package:projeto_safequest/screens/clan_page.dart';
 import 'package:projeto_safequest/screens/friends_page.dart';
-import 'package:projeto_safequest/screens/member_profile_page.dart';
+import 'package:projeto_safequest/screens/notification_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AVATAR HELPERS
@@ -34,10 +34,10 @@ class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  State<HomePage> createState() => HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class HomePageState extends State<HomePage> {
   int _currentIndex = 0;
   late final List<Widget> _pages;
 
@@ -96,26 +96,33 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
 
   late TabController _tabController;
 
-  // Tópicos — número de quizzes disponíveis (5 perguntas cada)
-  static const _topics = [
-    {'name': 'Phishing',       'quizCount': 5, 'icon': Icons.email_outlined},
-    {'name': 'Palavras-passe', 'quizCount': 5, 'icon': Icons.lock_outline},
-    {'name': 'Redes Sociais',  'quizCount': 5, 'icon': Icons.people_outline},
-    {'name': 'Segurança Web',  'quizCount': 5, 'icon': Icons.language},
+  // Cada tópico tem 3 tipos × 3 dificuldades × 3 níveis = 27 quizzes possíveis
+  // Mostramos 15 como meta razoável (3 tipos × 5 combinações)
+  static const _totalQuizzesPerTopic = 15;
+
+  // Tópicos — título e ícone
+  static final _topics = [
+    {'name': 'Phishing',       'icon': Icons.email_outlined},
+    {'name': 'Palavras-passe', 'icon': Icons.lock_outline},
+    {'name': 'Redes Sociais',  'icon': Icons.people_outline},
+    {'name': 'Segurança Web',  'icon': Icons.language},
   ];
 
+  // Progresso = quizzes feitos neste tema / meta (15), NÃO a média de percentagens
   static double _calcProgress(List<QueryDocumentSnapshot> docs, String tema) {
-    final filtered = docs.where((d) {
+    final count = docs.where((d) {
       final data = d.data() as Map<String, dynamic>;
       return (data['theme'] ?? '') == tema;
-    }).toList();
-    if (filtered.isEmpty) return 0.0;
-    double soma = 0;
-    for (final doc in filtered) {
-      final data = doc.data() as Map<String, dynamic>;
-      soma += ((data['percent'] ?? 0) as num).toDouble();
-    }
-    return (soma / filtered.length / 100.0).clamp(0.0, 1.0);
+    }).length;
+    return (count / _totalQuizzesPerTopic).clamp(0.0, 1.0);
+  }
+
+  // Número de quizzes feitos num tema
+  static int _countQuizzes(List<QueryDocumentSnapshot> docs, String tema) {
+    return docs.where((d) {
+      final data = d.data() as Map<String, dynamic>;
+      return (data['theme'] ?? '') == tema;
+    }).length;
   }
 
   static double _calcProgressoGeral(
@@ -336,6 +343,8 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
             );
           },
         ),
+        // Notificações do clã
+        _buildNotificationBell(context, user),
         // Ícone da loja
         GestureDetector(
           onTap: () => Navigator.push(context,
@@ -434,38 +443,34 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
               .doc(user?.uid)
               .snapshots(),
           builder: (context, userSnap) {
-            int pontos = 0;
+            int    pontos   = 0;
+            String bannerId = 'default';
+            int    nivel    = 1;
+
             if (userSnap.hasData && userSnap.data!.exists) {
               final data = userSnap.data!.data() as Map<String, dynamic>?;
-              pontos = data?['pontos'] ?? 0;
+              pontos   = data?['pontos']  ?? 0;
+              bannerId = data?['banner']  ?? 'default';
+              nivel    = ((pontos ~/ 250) + 1);
             }
 
-            final progressoGeral =
-                _calcProgressoGeral(quizDocs, _topics);
+            final progressoGeral = _calcProgressoGeral(quizDocs, _topics);
+            final bannerColors   = _getBannerColors(bannerId);
 
             return SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 20, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildMainScoreCard(pontos, progressoGeral),
+                  _buildMainScoreCard(pontos, progressoGeral, nivel, bannerColors),
                   const SizedBox(height: 25),
-                  const Text('Tópicos de Segurança',
-                      style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: _primaryDeep)),
+                  const Text('🎮 Arenas de Treino',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _primaryDeep)),
                   const SizedBox(height: 15),
                   ..._topics.map((t) {
-                    final progress =
-                        _calcProgress(quizDocs, t['name'] as String);
-                    return _buildTopicCard(
-                        context,
-                        t['name'] as String,
-                        t['quizCount'] as int,
-                        progress,
-                        t['icon'] as IconData);
+                    final progress  = _calcProgress(quizDocs, t['name'] as String);
+                    final doneSoFar = _countQuizzes(quizDocs, t['name'] as String);
+                    return _buildTopicCard(context, t['name'] as String, doneSoFar, progress, t['icon'] as IconData);
                   }),
                   const SizedBox(height: 40),
                 ],
@@ -477,11 +482,72 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
     );
   }
 
+  // ── Sino de notificações ──────────────────────────────────────────────────
+  Widget _buildNotificationBell(BuildContext context, User? user) {
+    if (user == null) return const SizedBox.shrink();
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users').doc(user.uid).collection('notifications')
+          .where('read', isEqualTo: false)
+          .snapshots(),
+      builder: (context, snap) {
+        final count = snap.hasData ? snap.data!.docs.length : 0;
+        return GestureDetector(
+          onTap: () => showDialog(
+            context: context,
+            builder: (_) => NotificationsDialog(uid: user.uid),
+          ),
+          child: Container(
+            margin: const EdgeInsets.only(right: 4),
+            child: Stack(children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: const Color(0xFFF0F7FF), borderRadius: BorderRadius.circular(10)),
+                child: const Icon(Icons.notifications_rounded, color: _primary, size: 20),
+              ),
+              if (count > 0) Positioned(
+                top: 2, right: 2,
+                child: Container(
+                  width: 15, height: 15,
+                  decoration: const BoxDecoration(color: Colors.red, shape: BoxShape.circle),
+                  child: Center(child: Text('$count', style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold))),
+                ),
+              ),
+            ]),
+          ),
+        );
+      },
+    );
+  }
+
+  // Mapa de cores dos banners (sincronizado com avatar_store_page)
+  static List<Color> _getBannerColors(String bannerId) {
+    const map = <String, List<Color>>{
+      'default' : [Color(0xFF2563EB), Color(0xFF1D4ED8)],
+      'sunset'  : [Color(0xFFEA580C), Color(0xFFDC2626)],
+      'forest'  : [Color(0xFF16A34A), Color(0xFF0F766E)],
+      'galaxy'  : [Color(0xFF7C3AED), Color(0xFF1E3A8A)],
+      'gold'    : [Color(0xFFF59E0B), Color(0xFFEA580C)],
+      'rose'    : [Color(0xFFDB2777), Color(0xFF9333EA)],
+      'ocean'   : [Color(0xFF0891B2), Color(0xFF1A56DB)],
+      'midnight': [Color(0xFF1E293B), Color(0xFF334155)],
+    };
+    return map[bannerId] ?? map['default']!;
+  }
+
   // ── Score card ────────────────────────────────────────────────────────────
-  Widget _buildMainScoreCard(int pts, double prog) {
+  Widget _buildMainScoreCard(int pts, double prog, int nivel, List<Color> bannerColors) {
+    // XP dentro do nível atual (cada nível = 250 pts)
+    final xpInLevel    = pts % 250;
+    final xpProgress   = xpInLevel / 250.0;
+    final xpToNext     = 250 - xpInLevel;
+
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: _primary, borderRadius: BorderRadius.circular(24)),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: bannerColors, begin: Alignment.topLeft, end: Alignment.bottomRight),
+        borderRadius: BorderRadius.circular(24),
+      ),
       child: Column(
         children: [
           Row(
@@ -491,57 +557,76 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
                 const Text('Total de Pontos', style: TextStyle(color: Colors.white70, fontSize: 14)),
                 Text('$pts', style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)),
               ]),
-              const Icon(Icons.emoji_events, color: Colors.white24, size: 50),
+              // Nível no canto direito
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
+                child: Column(children: [
+                  const Text('NÍVEL', style: TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                  Text('$nivel', style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                ]),
+              ),
             ],
           ),
-          const SizedBox(height: 20),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Progresso Geral', style: TextStyle(color: Colors.white)),
-              Text('${(prog * 100).toInt()}%', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            ],
+          const SizedBox(height: 16),
+          // Barra de XP
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Text('XP: $xpInLevel / 250', style: const TextStyle(color: Colors.white70, fontSize: 11)),
+            Text('Faltam $xpToNext XP p/ nível ${nivel + 1}', style: const TextStyle(color: Colors.white70, fontSize: 11)),
+          ]),
+          const SizedBox(height: 4),
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: xpProgress),
+            duration: const Duration(milliseconds: 800),
+            curve: Curves.easeOut,
+            builder: (_, val, __) => ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: LinearProgressIndicator(value: val, minHeight: 8, backgroundColor: Colors.white24, color: const Color(0xFFFBBF24)),
+            ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 14),
+          // Progresso geral
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            const Text('Progresso Geral', style: TextStyle(color: Colors.white)),
+            Text('${(prog * 100).toInt()}%', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ]),
+          const SizedBox(height: 6),
           TweenAnimationBuilder<double>(
             tween: Tween(begin: 0, end: prog),
             duration: const Duration(milliseconds: 800),
             curve: Curves.easeOut,
-            builder: (_, val, __) => LinearProgressIndicator(
-              value: val, minHeight: 10, backgroundColor: Colors.white24, color: Colors.white,
+            builder: (_, val, __) => ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: LinearProgressIndicator(value: val, minHeight: 8, backgroundColor: Colors.white24, color: Colors.white),
             ),
           ),
-          // ── Banner de skins dos outros jogadores ────────────────────────
-          const SizedBox(height: 16),
-          _SkinBanner(),
         ],
       ),
     );
   }
 
-  // ── Topic card — mostra nº de quizzes em vez de lições ────────────────────
   Widget _buildTopicCard(BuildContext context, String title,
-      int quizCount, double progress, IconData icon) {
+      int doneSoFar, double progress, IconData icon) {
+    // Cor da barra consoante o progresso
+    final barColor = progress >= 0.7
+        ? const Color(0xFF16A34A)
+        : progress >= 0.3
+            ? const Color(0xFFD97706)
+            : _primary;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 15),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 4)),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-                color: const Color(0xFFF0F7FF),
-                borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(color: const Color(0xFFF0F7FF), borderRadius: BorderRadius.circular(12)),
             child: Icon(icon, color: _primary, size: 28),
           ),
           const SizedBox(width: 15),
@@ -552,25 +637,17 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(title,
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: Color(0xFF1E3A8A))),
-                    // Nº de quizzes em vez de lições
+                    Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1E3A8A))),
+                    // Mostra quantos quizzes fez de 15 disponíveis
                     Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF0F7FF),
+                        color: doneSoFar > 0 ? barColor.withOpacity(0.1) : const Color(0xFFF0F7FF),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
-                        '$quizCount quizzes',
-                        style: const TextStyle(
-                            fontSize: 11,
-                            color: _primary,
-                            fontWeight: FontWeight.w600),
+                        '$doneSoFar/$_totalQuizzesPerTopic quizzes',
+                        style: TextStyle(fontSize: 11, color: doneSoFar > 0 ? barColor : _primary, fontWeight: FontWeight.w600),
                       ),
                     ),
                   ],
@@ -583,28 +660,25 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
                   builder: (_, val, __) => ClipRRect(
                     borderRadius: BorderRadius.circular(10),
                     child: LinearProgressIndicator(
-                      value: val,
-                      minHeight: 6,
+                      value: val, minHeight: 6,
                       backgroundColor: const Color(0xFFF1F5F9),
-                      color: _primary,
+                      color: barColor,
                     ),
                   ),
                 ),
                 const SizedBox(height: 4),
                 Align(
                   alignment: Alignment.centerRight,
-                  child: Text('${(progress * 100).toInt()}%',
-                      style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey)),
+                  child: Text(
+                    doneSoFar == 0 ? 'Começa agora!' : '${(progress * 100).toInt()}% completo',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: doneSoFar == 0 ? Colors.grey : barColor),
+                  ),
                 ),
               ],
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.play_circle_fill,
-                color: _primary, size: 35),
+            icon: const Icon(Icons.play_circle_fill, color: _primary, size: 35),
             onPressed: () => _showDifficultySelector(context, title),
           ),
         ],
@@ -618,7 +692,7 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
       onTap: () {
         // Navega para o tab da IA no bottom nav
         final homeState =
-            context.findAncestorStateOfType<_HomePageState>();
+            context.findAncestorStateOfType<HomePageState>();
         homeState?.setState(() => homeState._currentIndex = 3);
       },
       child: Container(
@@ -757,105 +831,6 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
             ? const Icon(Icons.lock, color: Colors.grey, size: 28)
             : Text("$level", style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: cor)),
       ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// FRIENDS ONLINE BANNER — mostra amigos online/offline no card de pontos
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _SkinBanner extends StatelessWidget {
-  static const _avatarEmoji = {
-    'default': '👤', 'fox': '🦊', 'cat': '🐱', 'panda': '🐼',
-    'lion': '🦁', 'koala': '🐨', 'dragon': '🐉', 'unicorn': '🦄',
-  };
-
-  @override
-  Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return const SizedBox.shrink();
-
-    return StreamBuilder<DocumentSnapshot>(
-      stream: FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
-      builder: (context, mySnap) {
-        if (!mySnap.hasData) return const SizedBox.shrink();
-        final myData  = mySnap.data!.data() as Map<String, dynamic>? ?? {};
-        final friends = List<String>.from(myData['friends'] ?? []);
-
-        if (friends.isEmpty) {
-          return Row(children: [
-            Text('👥 Sem amigos ainda', style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 11)),
-          ]);
-        }
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('👥 Amigos', style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 11)),
-            const SizedBox(height: 8),
-            SizedBox(
-              height: 40,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: friends.length.clamp(0, 6),
-                itemBuilder: (context, i) {
-                  final friendUid = friends[i];
-                  return StreamBuilder<DocumentSnapshot>(
-                    stream: FirebaseFirestore.instance.collection('users').doc(friendUid).snapshots(),
-                    builder: (context, snap) {
-                      if (!snap.hasData) return const SizedBox(width: 44);
-                      final data     = snap.data!.data() as Map<String, dynamic>? ?? {};
-                      final avatarId = data['avatar']    ?? 'default';
-                      final lastDate = data['lastQuizDate'] as Timestamp?;
-                      final emoji    = _avatarEmoji[avatarId] ?? '👤';
-
-                      // Online = fez quiz hoje; Offline = outro dia
-                      bool isOnline = false;
-                      if (lastDate != null) {
-                        final now  = DateTime.now();
-                        final last = lastDate.toDate();
-                        isOnline   = now.difference(last).inHours < 24;
-                      }
-
-                      return GestureDetector(
-                        onTap: () => Navigator.push(context, MaterialPageRoute(
-                            builder: (_) => MemberProfilePage(uid: friendUid))),
-                        child: Container(
-                          margin: const EdgeInsets.only(right: 8),
-                          child: Stack(children: [
-                            Container(
-                              width: 36, height: 36,
-                              decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2),
-                                shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white.withOpacity(0.4), width: 1.5),
-                              ),
-                              child: Center(child: Text(emoji, style: const TextStyle(fontSize: 18))),
-                            ),
-                            // Ponto online/offline
-                            Positioned(
-                              bottom: 0, right: 0,
-                              child: Container(
-                                width: 10, height: 10,
-                                decoration: BoxDecoration(
-                                  color: isOnline ? const Color(0xFF22C55E) : const Color(0xFFF59E0B),
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: Colors.white, width: 1.5),
-                                ),
-                              ),
-                            ),
-                          ]),
-                        ),
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
-        );
-      },
     );
   }
 }

@@ -24,82 +24,26 @@ class _AvatarStorePageState extends State<AvatarStorePage>
 
   // ── Avatares ──────────────────────────────────────────────────────────────
   static const List<Map<String, dynamic>> _avatars = [
-    {'id': 'default',  'name': 'Padrão',     'price': 0,   'emoji': '👤', 'color': Color(0xFF1A56DB)},
-    {'id': 'fox',      'name': 'Raposa',     'price': 0,   'emoji': '🦊', 'color': Color(0xFFEA580C)},
-    {'id': 'cat',      'name': 'Gato',       'price': 100, 'emoji': '🐱', 'color': Color(0xFF7C3AED)},
-    {'id': 'panda',    'name': 'Panda',      'price': 150, 'emoji': '🐼', 'color': Color(0xFF0F766E)},
-    {'id': 'lion',     'name': 'Leão',       'price': 150, 'emoji': '🦁', 'color': Color(0xFFB45309)},
-    {'id': 'koala',    'name': 'Koala',      'price': 150, 'emoji': '🐨', 'color': Color(0xFF4B5563)},
-    {'id': 'dragon',   'name': 'Dragão',     'price': 300, 'emoji': '🐉', 'color': Color(0xFFDC2626)},
-    {'id': 'unicorn',  'name': 'Unicórnio',  'price': 300, 'emoji': '🦄', 'color': Color(0xFFDB2777)},
+    {'id': 'default',  'name': 'Padrão',     'price': 0,   'emoji': '👤', 'color': Color(0xFF1A56DB), 'minLevel': 1},
+    {'id': 'fox',      'name': 'Raposa',     'price': 0,   'emoji': '🦊', 'color': Color(0xFFEA580C), 'minLevel': 1},
+    {'id': 'cat',      'name': 'Gato',       'price': 100, 'emoji': '🐱', 'color': Color(0xFF7C3AED), 'minLevel': 3},
+    {'id': 'panda',    'name': 'Panda',      'price': 150, 'emoji': '🐼', 'color': Color(0xFF0F766E), 'minLevel': 4},
+    {'id': 'lion',     'name': 'Leão',       'price': 150, 'emoji': '🦁', 'color': Color(0xFFB45309), 'minLevel': 5},
+    {'id': 'koala',    'name': 'Koala',      'price': 150, 'emoji': '🐨', 'color': Color(0xFF4B5563), 'minLevel': 5},
+    {'id': 'dragon',   'name': 'Dragão',     'price': 300, 'emoji': '🐉', 'color': Color(0xFFDC2626), 'minLevel': 8},
+    {'id': 'unicorn',  'name': 'Unicórnio',  'price': 300, 'emoji': '🦄', 'color': Color(0xFFDB2777), 'minLevel': 10},
   ];
 
-  // ── Banners — gradientes do fundo do perfil ───────────────────────────────
+  // ── Banners ───────────────────────────────────────────────────────────────
   static const List<Map<String, dynamic>> _banners = [
-    {
-      'id'     : 'default',
-      'name'   : 'Azul Padrão',
-      'price'  : 0,
-      'emoji'  : '🔵',
-      'colors' : [Color(0xFF2563EB), Color(0xFF1D4ED8)],
-      'desc'   : 'O banner original da SafeQuest',
-    },
-    {
-      'id'     : 'sunset',
-      'name'   : 'Pôr do Sol',
-      'price'  : 150,
-      'emoji'  : '🌅',
-      'colors' : [Color(0xFFEA580C), Color(0xFFDC2626)],
-      'desc'   : 'Tons quentes de laranja e vermelho',
-    },
-    {
-      'id'     : 'forest',
-      'name'   : 'Floresta',
-      'price'  : 150,
-      'emoji'  : '🌿',
-      'colors' : [Color(0xFF16A34A), Color(0xFF0F766E)],
-      'desc'   : 'Verde profundo como a natureza',
-    },
-    {
-      'id'     : 'galaxy',
-      'name'   : 'Galáxia',
-      'price'  : 250,
-      'emoji'  : '🌌',
-      'colors' : [Color(0xFF7C3AED), Color(0xFF1E3A8A)],
-      'desc'   : 'Roxo e azul do cosmos',
-    },
-    {
-      'id'     : 'gold',
-      'name'   : 'Ouro',
-      'price'  : 300,
-      'emoji'  : '✨',
-      'colors' : [Color(0xFFF59E0B), Color(0xFFEA580C)],
-      'desc'   : 'Dourado e radiante',
-    },
-    {
-      'id'     : 'rose',
-      'name'   : 'Rosa',
-      'price'  : 200,
-      'emoji'  : '🌸',
-      'colors' : [Color(0xFFDB2777), Color(0xFF9333EA)],
-      'desc'   : 'Rosa vibrante e elegante',
-    },
-    {
-      'id'     : 'ocean',
-      'name'   : 'Oceano',
-      'price'  : 200,
-      'emoji'  : '🌊',
-      'colors' : [Color(0xFF0891B2), Color(0xFF1A56DB)],
-      'desc'   : 'Azul profundo do mar',
-    },
-    {
-      'id'     : 'midnight',
-      'name'   : 'Meia-Noite',
-      'price'  : 250,
-      'emoji'  : '🌙',
-      'colors' : [Color(0xFF1E293B), Color(0xFF334155)],
-      'desc'   : 'Escuro e misterioso',
-    },
+    {'id': 'default',  'name': 'Azul Padrão', 'price': 0,   'emoji': '🔵', 'colors': [Color(0xFF2563EB), Color(0xFF1D4ED8)], 'desc': 'O banner original da SafeQuest',    'minLevel': 1},
+    {'id': 'sunset',   'name': 'Pôr do Sol',  'price': 150, 'emoji': '🌅', 'colors': [Color(0xFFEA580C), Color(0xFFDC2626)], 'desc': 'Tons quentes de laranja e vermelho','minLevel': 3},
+    {'id': 'forest',   'name': 'Floresta',    'price': 150, 'emoji': '🌿', 'colors': [Color(0xFF16A34A), Color(0xFF0F766E)], 'desc': 'Verde profundo como a natureza',    'minLevel': 3},
+    {'id': 'galaxy',   'name': 'Galáxia',     'price': 250, 'emoji': '🌌', 'colors': [Color(0xFF7C3AED), Color(0xFF1E3A8A)], 'desc': 'Roxo e azul do cosmos',            'minLevel': 6},
+    {'id': 'gold',     'name': 'Ouro',        'price': 300, 'emoji': '✨', 'colors': [Color(0xFFF59E0B), Color(0xFFEA580C)], 'desc': 'Dourado e radiante',               'minLevel': 8},
+    {'id': 'rose',     'name': 'Rosa',        'price': 200, 'emoji': '🌸', 'colors': [Color(0xFFDB2777), Color(0xFF9333EA)], 'desc': 'Rosa vibrante e elegante',         'minLevel': 4},
+    {'id': 'ocean',    'name': 'Oceano',      'price': 200, 'emoji': '🌊', 'colors': [Color(0xFF0891B2), Color(0xFF1A56DB)], 'desc': 'Azul profundo do mar',             'minLevel': 5},
+    {'id': 'midnight', 'name': 'Meia-Noite',  'price': 250, 'emoji': '🌙', 'colors': [Color(0xFF1E293B), Color(0xFF334155)], 'desc': 'Escuro e misterioso',              'minLevel': 7},
   ];
 
   @override
@@ -126,6 +70,7 @@ class _AvatarStorePageState extends State<AvatarStorePage>
           String equippedBn    = 'default';
           List<String> ownedAv = ['default', 'fox'];
           List<String> ownedBn = ['default'];
+          int    userNivel     = 1;
 
           if (snapshot.hasData && snapshot.data!.exists) {
             final data = snapshot.data!.data() as Map<String, dynamic>? ?? {};
@@ -134,6 +79,8 @@ class _AvatarStorePageState extends State<AvatarStorePage>
             equippedBn   = (data['banner']          ?? 'default') as String;
             ownedAv      = List<String>.from(data['ownedAvatars'] ?? ['default', 'fox']);
             ownedBn      = List<String>.from(data['ownedBanners'] ?? ['default']);
+            final pontos = (data['pontos'] ?? 0) as int;
+            userNivel    = (pontos ~/ 250) + 1;
           }
 
           return CustomScrollView(
@@ -217,7 +164,7 @@ class _AvatarStorePageState extends State<AvatarStorePage>
                         final id      = av['id'] as String;
                         final isOwned = ownedAv.contains(id);
                         final isEq    = equippedAv == id;
-                        return _buildAvatarCard(context, av, isOwned, isEq, moedas, ownedAv);
+                        return _buildAvatarCard(context, av, isOwned, isEq, moedas, ownedAv, userNivel);
                       },
                     ),
 
@@ -225,7 +172,7 @@ class _AvatarStorePageState extends State<AvatarStorePage>
                     GridView.builder(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
                       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2, mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: 0.78,
+                        crossAxisCount: 2, mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: 0.72,
                       ),
                       itemCount: _banners.length,
                       itemBuilder: (context, index) {
@@ -233,7 +180,7 @@ class _AvatarStorePageState extends State<AvatarStorePage>
                         final id      = bn['id'] as String;
                         final isOwned = ownedBn.contains(id);
                         final isEq    = equippedBn == id;
-                        return _buildBannerCard(context, bn, isOwned, isEq, moedas, ownedBn);
+                        return _buildBannerCard(context, bn, isOwned, isEq, moedas, ownedBn, userNivel);
                       },
                     ),
                   ],
@@ -247,13 +194,15 @@ class _AvatarStorePageState extends State<AvatarStorePage>
   }
 
   // ── Card de avatar ────────────────────────────────────────────────────────
-  Widget _buildAvatarCard(BuildContext context, Map<String, dynamic> av, bool isOwned, bool isEq, int moedas, List<String> owned) {
-    final id       = av['id'] as String;
-    final name     = av['name'] as String;
-    final price    = av['price'] as int;
-    final emoji    = av['emoji'] as String;
-    final color    = av['color'] as Color;
-    final canAfford = moedas >= price;
+  Widget _buildAvatarCard(BuildContext context, Map<String, dynamic> av, bool isOwned, bool isEq, int moedas, List<String> owned, int userNivel) {
+    final id        = av['id'] as String;
+    final name      = av['name'] as String;
+    final price     = av['price'] as int;
+    final emoji     = av['emoji'] as String;
+    final color     = av['color'] as Color;
+    final minLevel  = (av['minLevel'] ?? 1) as int;
+    final levelLock = userNivel < minLevel;
+    final canAfford = moedas >= price && !levelLock;
 
     return Container(
       decoration: BoxDecoration(
@@ -272,17 +221,25 @@ class _AvatarStorePageState extends State<AvatarStorePage>
                 decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(18)),
                 child: Center(child: Stack(alignment: Alignment.center, children: [
                   Text(emoji, style: const TextStyle(fontSize: 36)),
-                  if (!isOwned) Container(
+                  if (!isOwned || levelLock) Container(
                     width: 68, height: 68,
                     decoration: BoxDecoration(color: Colors.black.withOpacity(0.4), borderRadius: BorderRadius.circular(18)),
                     child: const Icon(Icons.lock_rounded, color: Colors.white, size: 26),
                   ),
                 ])),
               ),
-              const SizedBox(height: 10),
-              Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _primaryDeep)),
               const SizedBox(height: 8),
-              SizedBox(width: double.infinity, child: _avatarBtn(context, id, isOwned, isEq, price, canAfford, moedas, owned)),
+              Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _primaryDeep)),
+              if (minLevel > 1) ...[
+                const SizedBox(height: 2),
+                Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Icon(Icons.star_rounded, size: 11, color: levelLock ? Colors.grey : _gold),
+                  const SizedBox(width: 2),
+                  Text('Nível $minLevel', style: TextStyle(fontSize: 10, color: levelLock ? Colors.grey : _gold, fontWeight: FontWeight.bold)),
+                ]),
+              ],
+              const SizedBox(height: 8),
+              SizedBox(width: double.infinity, child: _avatarBtn(context, id, isOwned && !levelLock, isEq, price, canAfford, moedas, owned, levelLock, minLevel)),
             ]),
           ),
           if (isEq) Positioned(top: 8, right: 8, child: Container(
@@ -295,7 +252,12 @@ class _AvatarStorePageState extends State<AvatarStorePage>
     );
   }
 
-  Widget _avatarBtn(BuildContext context, String id, bool isOwned, bool isEq, int price, bool canAfford, int moedas, List<String> owned) {
+  Widget _avatarBtn(BuildContext context, String id, bool isOwned, bool isEq, int price, bool canAfford, int moedas, List<String> owned, bool levelLock, int minLevel) {
+    if (levelLock) return ElevatedButton(
+      style: ElevatedButton.styleFrom(backgroundColor: Colors.grey.shade200, foregroundColor: Colors.grey, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), padding: const EdgeInsets.symmetric(vertical: 8)),
+      onPressed: null,
+      child: Text('Nível $minLevel', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+    );
     if (isEq) return ElevatedButton(
       style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEFF6FF), foregroundColor: _primary, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), padding: const EdgeInsets.symmetric(vertical: 8)),
       onPressed: null,
@@ -318,14 +280,16 @@ class _AvatarStorePageState extends State<AvatarStorePage>
   }
 
   // ── Card de banner ────────────────────────────────────────────────────────
-  Widget _buildBannerCard(BuildContext context, Map<String, dynamic> bn, bool isOwned, bool isEq, int moedas, List<String> owned) {
-    final id       = bn['id'] as String;
-    final name     = bn['name'] as String;
-    final price    = bn['price'] as int;
-    final emoji    = bn['emoji'] as String;
-    final colors   = bn['colors'] as List<Color>;
-    final desc     = bn['desc'] as String;
-    final canAfford = moedas >= price;
+  Widget _buildBannerCard(BuildContext context, Map<String, dynamic> bn, bool isOwned, bool isEq, int moedas, List<String> owned, int userNivel) {
+    final id        = bn['id'] as String;
+    final name      = bn['name'] as String;
+    final price     = bn['price'] as int;
+    final emoji     = bn['emoji'] as String;
+    final colors    = bn['colors'] as List<Color>;
+    final desc      = bn['desc'] as String;
+    final minLevel  = (bn['minLevel'] ?? 1) as int;
+    final levelLock = userNivel < minLevel;
+    final canAfford = moedas >= price && !levelLock;
 
     return Container(
       decoration: BoxDecoration(
@@ -359,8 +323,16 @@ class _AvatarStorePageState extends State<AvatarStorePage>
                 Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _primaryDeep)),
                 const SizedBox(height: 3),
                 Text(desc, textAlign: TextAlign.center, style: const TextStyle(color: Colors.grey, fontSize: 10), maxLines: 2, overflow: TextOverflow.ellipsis),
+                if (minLevel > 1) ...[
+                  const SizedBox(height: 4),
+                  Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Icon(Icons.star_rounded, size: 11, color: levelLock ? Colors.grey : _gold),
+                    const SizedBox(width: 2),
+                    Text('Nível $minLevel', style: TextStyle(fontSize: 10, color: levelLock ? Colors.grey : _gold, fontWeight: FontWeight.bold)),
+                  ]),
+                ],
                 const SizedBox(height: 10),
-                SizedBox(width: double.infinity, child: _bannerBtn(context, id, isOwned, isEq, price, canAfford, moedas, owned, colors[0])),
+                SizedBox(width: double.infinity, child: _bannerBtn(context, id, isOwned && !levelLock, isEq, price, canAfford, moedas, owned, colors[0], levelLock, minLevel)),
               ]),
             ),
           ]),
@@ -374,7 +346,12 @@ class _AvatarStorePageState extends State<AvatarStorePage>
     );
   }
 
-  Widget _bannerBtn(BuildContext context, String id, bool isOwned, bool isEq, int price, bool canAfford, int moedas, List<String> owned, Color color) {
+  Widget _bannerBtn(BuildContext context, String id, bool isOwned, bool isEq, int price, bool canAfford, int moedas, List<String> owned, Color color, bool levelLock, int minLevel) {
+    if (levelLock) return ElevatedButton(
+      style: ElevatedButton.styleFrom(backgroundColor: Colors.grey.shade200, foregroundColor: Colors.grey, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), padding: const EdgeInsets.symmetric(vertical: 8)),
+      onPressed: null,
+      child: Text('Nível $minLevel', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+    );
     if (isEq) return ElevatedButton(
       style: ElevatedButton.styleFrom(backgroundColor: color.withOpacity(0.15), foregroundColor: color, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), padding: const EdgeInsets.symmetric(vertical: 8)),
       onPressed: null,
