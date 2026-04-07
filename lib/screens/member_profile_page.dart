@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:projeto_safequest/screens/badges_service.dart';
 
@@ -21,7 +22,8 @@ class _MemberProfilePageState extends State<MemberProfilePage>
   static const _primaryDeep = Color(0xFF1E3A8A);
 
   late TabController _tabCtrl;
-  String _badgeFilter = 'Todos';
+  String _badgeFilter  = 'Todos';
+  final _currentUser   = FirebaseAuth.instance.currentUser;
 
   static const _avatarEmoji = {
     'default': '👤', 'fox': '🦊', 'cat': '🐱', 'panda': '🐼',
@@ -95,83 +97,162 @@ class _MemberProfilePageState extends State<MemberProfilePage>
         final badges    = List<String>.from(data['badges'] ?? []);
         final nivel     = (pontos ~/ 250) + 1;
         final createdAt = data['createdAt'] as Timestamp?;
+        final privacy   = data['privacy']  ?? 'publico';
 
         final emoji        = _avatarEmoji[avatarId] ?? '👤';
         final color        = _avatarColor[avatarId] ?? _primary;
         final bannerColors = _getBannerColors(bannerId);
 
+        // Verifica privacidade
+        if (privacy == 'privado') {
+          return Scaffold(
+            backgroundColor: const Color(0xFFF8FAFC),
+            appBar: AppBar(
+              backgroundColor: bannerColors[0], elevation: 0,
+              leading: IconButton(icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white), onPressed: () => Navigator.pop(context)),
+            ),
+            body: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              const Icon(Icons.lock_rounded, size: 60, color: Colors.grey),
+              const SizedBox(height: 16),
+              Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: _primaryDeep)),
+              const SizedBox(height: 8),
+              const Text('Perfil privado', style: TextStyle(color: Colors.grey, fontSize: 14)),
+            ])),
+          );
+        }
+
         return Scaffold(
           backgroundColor: const Color(0xFFF8FAFC),
-          body: CustomScrollView(
-            slivers: [
-              SliverAppBar(
-                expandedHeight: bio.isNotEmpty ? 250 : 220,
-                pinned: true,
-                backgroundColor: bannerColors[0],
-                leading: IconButton(
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
-                  onPressed: () => Navigator.pop(context),
-                ),
-                title: const Text('Voltar', style: TextStyle(color: Colors.white, fontSize: 14)),
-                flexibleSpace: FlexibleSpaceBar(
-                  background: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(colors: bannerColors, begin: Alignment.topCenter, end: Alignment.bottomCenter),
+          body: StreamBuilder<DocumentSnapshot>(
+            // Lê os dados do utilizador atual para saber se já são amigos
+            stream: FirebaseFirestore.instance.collection('users').doc(_currentUser?.uid).snapshots(),
+            builder: (context, mySnap) {
+              final myData    = mySnap.hasData && mySnap.data!.exists ? mySnap.data!.data() as Map<String, dynamic>? ?? {} : {};
+              final myFriends = List<String>.from(myData['friends'] ?? []);
+              final myRequests = List.from(myData['friendRequests'] ?? []);
+              final isFriend  = myFriends.contains(widget.uid);
+              final isPending = myRequests.any((r) => r is Map && r['from'] == widget.uid);
+              // Pedido que eu já enviei — verifica no doc do destinatário
+              // (simplificado: se já é amigo mostra remover, senão mostra adicionar)
+
+              return CustomScrollView(
+                slivers: [
+                  SliverAppBar(
+                    expandedHeight: bio.isNotEmpty ? 250 : 220,
+                    pinned: true,
+                    backgroundColor: bannerColors[0],
+                    leading: IconButton(
+                      icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white, size: 20),
+                      onPressed: () => Navigator.pop(context),
                     ),
-                    child: SafeArea(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const SizedBox(height: 20),
-                          Container(
-                            width: 80, height: 80,
-                            decoration: BoxDecoration(color: color.withOpacity(0.2), shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 3)),
-                            child: Center(child: Text(emoji, style: const TextStyle(fontSize: 42))),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
-                          const SizedBox(height: 4),
-                          Text('Nível $nivel', style: const TextStyle(color: Colors.white70, fontSize: 13)),
-                          // Bio debaixo do nível
-                          if (bio.isNotEmpty) ...[
-                            const SizedBox(height: 6),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 32),
-                              child: Text(bio, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(color: Colors.white.withOpacity(0.75), fontSize: 12, fontStyle: FontStyle.italic)),
+                    title: const Text('Voltar', style: TextStyle(color: Colors.white, fontSize: 14)),
+                    // ── Botão de amigo no canto superior direito ──────────
+                    actions: [
+                      Padding(
+                        padding: const EdgeInsets.only(right: 12),
+                        child: GestureDetector(
+                          onTap: () => isFriend
+                              ? _removeFriend(context)
+                              : _sendFriendRequest(context, name),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: Colors.white.withOpacity(0.4)),
                             ),
-                          ],
-                        ],
+                            child: Row(mainAxisSize: MainAxisSize.min, children: [
+                              Icon(
+                                isFriend ? Icons.person_remove_rounded : Icons.person_add_rounded,
+                                color: Colors.white, size: 16,
+                              ),
+                              const SizedBox(width: 5),
+                              Text(
+                                isFriend ? 'Remover' : 'Adicionar',
+                                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                              ),
+                            ]),
+                          ),
+                        ),
+                      ),
+                    ],
+                    flexibleSpace: FlexibleSpaceBar(
+                      background: Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(colors: bannerColors, begin: Alignment.topCenter, end: Alignment.bottomCenter),
+                        ),
+                        child: SafeArea(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const SizedBox(height: 20),
+                              Container(
+                                width: 80, height: 80,
+                                decoration: BoxDecoration(color: color.withOpacity(0.2), shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 3)),
+                                child: Center(child: Text(emoji, style: const TextStyle(fontSize: 42))),
+                              ),
+                              const SizedBox(height: 12),
+                              Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 20)),
+                              const SizedBox(height: 4),
+                              Text('Nível $nivel', style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                              if (bio.isNotEmpty) ...[
+                                const SizedBox(height: 6),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 32),
+                                  child: Text(bio, textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(color: Colors.white.withOpacity(0.75), fontSize: 12, fontStyle: FontStyle.italic)),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
                       ),
                     ),
+                  ), // fim SliverAppBar
+
+                  // ── Tabs ─────────────────────────────────────────────────
+                  SliverToBoxAdapter(
+                    child: Container(color: Colors.white, child: _buildTabBar(badges)),
                   ),
-                ),
-              ), // fim do SliverAppBar
 
-              // ── Tabs ─────────────────────────────────────────────────────
-              SliverToBoxAdapter(
-                child: Container(
-                  color: Colors.white,
-                  child: _buildTabBar(badges),
-                ),
-              ),
-
-              // ── Tab content ──────────────────────────────────────────────
-              SliverFillRemaining(
-                child: TabBarView(
-                  controller: _tabCtrl,
-                  children: [
-                    _buildStatsTab(
-                        pontos, streak, badges, nivel, createdAt),
-                    _buildAchievementsTab(badges),
-                  ],
-                ),
-              ),
-            ],
+                  SliverFillRemaining(
+                    child: TabBarView(
+                      controller: _tabCtrl,
+                      children: [
+                        _buildStatsTab(pontos, streak, badges, nivel, createdAt),
+                        _buildAchievementsTab(badges),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         );
       },
     );
+  }
+
+  // ── Adicionar amigo ───────────────────────────────────────────────────────
+  Future<void> _sendFriendRequest(BuildContext context, String toName) async {
+    if (_currentUser == null) return;
+    final myDoc = await FirebaseFirestore.instance.collection('users').doc(_currentUser!.uid).get();
+    final myName = (myDoc.data()?['name'] ?? 'Jogador') as String;
+    await FirebaseFirestore.instance.collection('users').doc(widget.uid).update({
+      'friendRequests': FieldValue.arrayUnion([{'from': _currentUser!.uid, 'fromName': myName, 'status': 'pending'}]),
+    });
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Pedido enviado a $toName! 📨'), backgroundColor: Colors.green),
+    );
+  }
+
+  Future<void> _removeFriend(BuildContext context) async {
+    if (_currentUser == null) return;
+    final batch = FirebaseFirestore.instance.batch();
+    batch.update(FirebaseFirestore.instance.collection('users').doc(_currentUser!.uid), {'friends': FieldValue.arrayRemove([widget.uid])});
+    batch.update(FirebaseFirestore.instance.collection('users').doc(widget.uid), {'friends': FieldValue.arrayRemove([_currentUser!.uid])});
+    await batch.commit();
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Amigo removido.'), backgroundColor: Colors.orange));
   }
 
   // ── Tab bar ────────────────────────────────────────────────────────────────
@@ -224,8 +305,9 @@ class _MemberProfilePageState extends State<MemberProfilePage>
           }
         }
 
+        // Usa formato simples sem locale para evitar LocaleDataException
         final membroDesde = createdAt != null
-            ? DateFormat('MMMM yyyy', 'pt').format(createdAt.toDate())
+            ? DateFormat('dd/MM/yyyy').format(createdAt.toDate())
             : 'N/A';
 
         return SingleChildScrollView(
