@@ -730,9 +730,51 @@ class PrivacyPage extends StatefulWidget {
 }
 
 class _PrivacyPageState extends State<PrivacyPage> {
-  String _visibility = "Público";
-  bool _emailNotifs  = true;
-  bool _pushNotifs   = true;
+  final user = FirebaseAuth.instance.currentUser;
+  String _visibility = 'publico';
+  bool   _emailNotifs = true;
+  bool   _pushNotifs  = true;
+  bool   _loading     = true;
+  bool   _saving      = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    if (user == null) return;
+    final snap = await FirebaseFirestore.instance.collection('users').doc(user!.uid).get();
+    if (snap.exists) {
+      final data = snap.data() as Map<String, dynamic>? ?? {};
+      setState(() {
+        _visibility  = data['privacy']      ?? 'publico';
+        _emailNotifs = data['emailNotifs']   ?? true;
+        _pushNotifs  = data['pushNotifs']    ?? true;
+        _loading     = false;
+      });
+    } else {
+      setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _save() async {
+    if (user == null) return;
+    setState(() => _saving = true);
+    await FirebaseFirestore.instance.collection('users').doc(user!.uid).update({
+      'privacy'     : _visibility,
+      'emailNotifs' : _emailNotifs,
+      'pushNotifs'  : _pushNotifs,
+    });
+    setState(() => _saving = false);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('✅ Definições guardadas!'), backgroundColor: Colors.green),
+      );
+      Navigator.pop(context);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -743,45 +785,104 @@ class _PrivacyPageState extends State<PrivacyPage> {
         centerTitle: true, elevation: 0,
         backgroundColor: Colors.white, foregroundColor: const Color(0xFF1E3A8A),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            _buildSection(title: "Visibilidade do Perfil", icon: Icons.visibility_outlined,
-              child: Column(children: [
-                _buildRadioOption("Público", "Todos podem ver o seu perfil", "Público"),
-                const Padding(padding: EdgeInsets.symmetric(horizontal: 20), child: Divider(height: 1, color: Color(0xFFF1F5F9))),
-                _buildRadioOption("Amigos", "Apenas amigos podem ver", "Amigos"),
-                const Padding(padding: EdgeInsets.symmetric(horizontal: 20), child: Divider(height: 1, color: Color(0xFFF1F5F9))),
-                _buildRadioOption("Privado", "Apenas você pode ver", "Privado"),
-              ]),
-            ),
-            const SizedBox(height: 20),
-            _buildSection(title: "Notificações", icon: Icons.notifications_none,
-              child: Column(children: [
-                _buildSwitchOption("Notificações por Email", _emailNotifs, (val) => setState(() => _emailNotifs = val)),
-                const Padding(padding: EdgeInsets.symmetric(horizontal: 20), child: Divider(height: 1, color: Color(0xFFF1F5F9))),
-                _buildSwitchOption("Notificações Push", _pushNotifs, (val) => setState(() => _pushNotifs = val)),
-              ]),
-            ),
-            const SizedBox(height: 35),
-            SizedBox(
-              width: double.infinity, height: 55,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1D4ED8), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15))),
-                onPressed: () => Navigator.pop(context),
-                child: const Text("Guardar Alterações", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+      body: _loading
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFF1A56DB)))
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  // Visibilidade
+                  _buildSection(
+                    title: "Visibilidade do Perfil",
+                    icon: Icons.visibility_outlined,
+                    child: Column(children: [
+                      _buildRadioOption('publico',  'Público',  'Todos podem ver o seu perfil'),
+                      const Padding(padding: EdgeInsets.symmetric(horizontal: 20), child: Divider(height: 1, color: Color(0xFFF1F5F9))),
+                      _buildRadioOption('amigos',   'Amigos',   'Apenas amigos podem ver'),
+                      const Padding(padding: EdgeInsets.symmetric(horizontal: 20), child: Divider(height: 1, color: Color(0xFFF1F5F9))),
+                      _buildRadioOption('privado',  'Privado',  'Apenas você pode ver'),
+                    ]),
+                  ),
+                  const SizedBox(height: 12),
+                  // Info sobre a privacidade
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEFF6FF),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFF1A56DB).withOpacity(0.2)),
+                    ),
+                    child: const Row(children: [
+                      Icon(Icons.info_outline, color: Color(0xFF1A56DB), size: 18),
+                      SizedBox(width: 10),
+                      Expanded(child: Text(
+                        'Se puseres "Privado", outros utilizadores não conseguem ver as tuas estatísticas nem conquistas.',
+                        style: TextStyle(color: Color(0xFF1A56DB), fontSize: 12),
+                      )),
+                    ]),
+                  ),
+                  const SizedBox(height: 20),
+                  // Notificações
+                  _buildSection(
+                    title: "Notificações",
+                    icon: Icons.notifications_none,
+                    child: Column(children: [
+                      _buildSwitchOption(
+                        'Notificações por Email',
+                        'Recebe updates e resumos por email',
+                        _emailNotifs,
+                        (val) => setState(() => _emailNotifs = val),
+                      ),
+                      const Padding(padding: EdgeInsets.symmetric(horizontal: 20), child: Divider(height: 1, color: Color(0xFFF1F5F9))),
+                      _buildSwitchOption(
+                        'Notificações Push',
+                        'Alertas no telemóvel em tempo real',
+                        _pushNotifs,
+                        (val) => setState(() => _pushNotifs = val),
+                      ),
+                    ]),
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF3C7),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.3)),
+                    ),
+                    child: const Row(children: [
+                      Text('🔔', style: TextStyle(fontSize: 18)),
+                      SizedBox(width: 10),
+                      Expanded(child: Text(
+                        'As notificações push requerem permissão no telemóvel. Podes gerir isto nas definições do sistema.',
+                        style: TextStyle(color: Color(0xFF92400E), fontSize: 12),
+                      )),
+                    ]),
+                  ),
+                  const SizedBox(height: 35),
+                  SizedBox(
+                    width: double.infinity, height: 55,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1D4ED8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                      ),
+                      onPressed: _saving ? null : _save,
+                      child: _saving
+                          ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : const Text("Guardar Alterações", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-      ),
     );
   }
 
   Widget _buildSection({required String title, required IconData icon, required Widget child}) {
     return Container(
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))]),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))]),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Padding(
           padding: const EdgeInsets.only(left: 20, top: 20, bottom: 10),
@@ -792,25 +893,27 @@ class _PrivacyPageState extends State<PrivacyPage> {
           ]),
         ),
         child,
+        const SizedBox(height: 8),
       ]),
     );
   }
 
-  Widget _buildRadioOption(String title, String subtitle, String value) {
-    return RadioListTile(
+  Widget _buildRadioOption(String value, String title, String subtitle) {
+    return RadioListTile<String>(
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15)),
       subtitle: Text(subtitle, style: const TextStyle(fontSize: 13, color: Colors.grey)),
       value: value, groupValue: _visibility,
       activeColor: const Color(0xFF2563EB),
       contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-      onChanged: (v) => setState(() => _visibility = v.toString()),
+      onChanged: (v) => setState(() => _visibility = v!),
     );
   }
 
-  Widget _buildSwitchOption(String title, bool value, Function(bool) onChanged) {
+  Widget _buildSwitchOption(String title, String subtitle, bool value, Function(bool) onChanged) {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 15)),
+      subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: Colors.grey)),
       trailing: CupertinoSwitch(activeColor: const Color(0xFF2563EB), value: value, onChanged: onChanged),
     );
   }
