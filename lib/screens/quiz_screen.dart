@@ -362,7 +362,16 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
           }),
         ]);
 
-        // ── Atualiza streak de dias consecutivos ────────────────────────
+        // ── Atualiza pontos do clã automaticamente ────────────────────────
+        final userSnap = await userRef.get();
+        final userData = userSnap.data() as Map<String, dynamic>? ?? {};
+        final clanId   = userData['clanId'] as String?;
+        if (clanId != null && clanId.isNotEmpty) {
+          await FirebaseFirestore.instance.collection('clans').doc(clanId)
+              .update({'points': FieldValue.increment(points)});
+        }
+
+        // ── Atualiza streak ───────────────────────────────────────────────
         await _updateStreak(userRef);
 
         await BadgesService.checkAndUnlock(
