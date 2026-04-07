@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:projeto_safequest/screens/member_profile_page.dart';
+import 'package:projeto_safequest/screens/notification_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // FRIENDS PAGE — pedidos de amizade com aceitar/rejeitar
@@ -93,19 +94,26 @@ class _FriendsPageState extends State<FriendsPage>
   // ── Aceitar pedido ────────────────────────────────────────────────────────
   Future<void> _acceptRequest(String fromUid, String fromName, List requests) async {
     if (user == null) return;
-    final batch = FirebaseFirestore.instance.batch();
-    final myRef = FirebaseFirestore.instance.collection('users').doc(user!.uid);
-    final fromRef = FirebaseFirestore.instance.collection('users').doc(fromUid);
+    final myDoc  = await FirebaseFirestore.instance.collection('users').doc(user!.uid).get();
+    final myName = (myDoc.data()?['name'] ?? 'Jogador') as String;
 
-    // Adiciona amigos mutuamente
+    final batch = FirebaseFirestore.instance.batch();
+    final myRef   = FirebaseFirestore.instance.collection('users').doc(user!.uid);
+    final fromRef = FirebaseFirestore.instance.collection('users').doc(fromUid);
     batch.update(myRef,   {'friends': FieldValue.arrayUnion([fromUid])});
     batch.update(fromRef, {'friends': FieldValue.arrayUnion([user!.uid])});
-
-    // Remove o pedido pendente
     final updatedRequests = requests.where((r) => r['from'] != fromUid).toList();
     batch.update(myRef, {'friendRequests': updatedRequests});
-
     await batch.commit();
+
+    // Notificações para ambos
+    await NotificationService.send(
+      toUid : fromUid,
+      title : '👥 $myName aceitou o teu pedido!',
+      body  : 'Já são amigos! Podem ver os perfis um do outro e competir nas classificações.',
+      type  : 'friend_added',
+    );
+
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('$fromName é agora teu amigo! 🎉'), backgroundColor: Colors.green),
     );
@@ -228,10 +236,23 @@ class _FriendsPageState extends State<FriendsPage>
             final nivel    = (pontos ~/ 250) + 1;
             return _userCard(
               uid: uid, name: name, pontos: pontos, nivel: nivel, avatarId: avatarId,
-              trailing: GestureDetector(
-                onLongPress: () => _confirmRemove(uid, name),
-                child: const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
-              ),
+              trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                // Botão remover visível
+                GestureDetector(
+                  onTap: () => _confirmRemove(uid, name),
+                  child: Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF2F2),
+                      borderRadius: BorderRadius.circular(9),
+                      border: Border.all(color: const Color(0xFFFECACA)),
+                    ),
+                    child: const Icon(Icons.person_remove_rounded, color: Colors.red, size: 16),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Icon(Icons.chevron_right, color: Colors.grey, size: 20),
+              ]),
             );
           },
         );
