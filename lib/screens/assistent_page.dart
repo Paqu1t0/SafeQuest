@@ -5,8 +5,8 @@ import 'package:intl/intl.dart';
 import 'package:flutter/services.dart' show rootBundle;
 
 class AssistantPage extends StatefulWidget {
-  final String? initialPrompt;                            
-  const AssistantPage({super.key, this.initialPrompt});
+  final String? initialPrompt; // ← NOVO
+  const AssistantPage({super.key, this.initialPrompt}); // ← ATUALIZADO
 
   @override
   State<AssistantPage> createState() => _AssistantPageState();
@@ -20,7 +20,7 @@ class _AssistantPageState extends State<AssistantPage> {
   late ChatSession _chat;
   bool _isLoading = false;
 
-  // ─── CORES (mantidas do original) ─────────────────────────────────────────
+  // ─── CORES ─────────────────────────────────────────────────────────────────
   static const primary      = Color(0xFF2563EB);
   static const primaryDark  = Color(0xFF1D4ED8);
   static const bgPage       = Color(0xFFF3F4F6);
@@ -32,11 +32,13 @@ class _AssistantPageState extends State<AssistantPage> {
   void initState() {
     super.initState();
     _setupAI();
+
+    // ── NOVO: preenche o campo se vier um prompt inicial do QuizDetailPage ──
     if (widget.initialPrompt != null && widget.initialPrompt!.isNotEmpty) {
-  WidgetsBinding.instance.addPostFrameCallback((_) {
-    _controller.text = widget.initialPrompt!;
-  });
-}
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _controller.text = widget.initialPrompt!;
+      });
+    }
   }
 
   void _scrollToBottom() {
@@ -132,7 +134,6 @@ class _AssistantPageState extends State<AssistantPage> {
     }
   }
 
-  // ─── BUILD ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -151,7 +152,7 @@ class _AssistantPageState extends State<AssistantPage> {
     );
   }
 
-  // ─── HEADER MELHORADO (mantém seta + ícone do original) ────────────────────
+  //  HEADE
   Widget _header(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
@@ -168,13 +169,15 @@ class _AssistantPageState extends State<AssistantPage> {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
       child: Row(
         children: [
-          // Botão voltar — igual ao original
           IconButton(
             icon: const Icon(Icons.arrow_back, color: textDark),
-            onPressed: () => Navigator.pop(context),
+            onPressed: () {
+              if (Navigator.canPop(context)) {
+                Navigator.pop(context);
+              }
+              
+            },
           ),
-
-          // Ícone — mesmo ícone do original, versão melhorada
           Stack(
             clipBehavior: Clip.none,
             children: [
@@ -199,7 +202,6 @@ class _AssistantPageState extends State<AssistantPage> {
                 child: const Icon(Icons.shield_outlined,
                     color: Colors.white, size: 22),
               ),
-              // Badge "online"
               Positioned(
                 right: -2,
                 bottom: -2,
@@ -215,10 +217,7 @@ class _AssistantPageState extends State<AssistantPage> {
               ),
             ],
           ),
-
           const SizedBox(width: 12),
-
-          // Título — igual ao original mas tipografia melhorada
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -253,8 +252,6 @@ class _AssistantPageState extends State<AssistantPage> {
               ],
             ),
           ),
-
-          // Chip "Seguro" — novo
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
@@ -283,7 +280,7 @@ class _AssistantPageState extends State<AssistantPage> {
     );
   }
 
-  // ─── LISTA DE MENSAGENS ────────────────────────────────────────────────────
+  // MENSAGENS 
   Widget _messageList() {
     return ListView.builder(
       controller: _scrollController,
@@ -296,7 +293,6 @@ class _AssistantPageState extends State<AssistantPage> {
     );
   }
 
-  // ─── BALÃO DE CHAT MELHORADO ───────────────────────────────────────────────
   Widget _chatBubble(bool isUser, String text, String time) {
     return Padding(
       padding: EdgeInsets.only(
@@ -308,7 +304,6 @@ class _AssistantPageState extends State<AssistantPage> {
         crossAxisAlignment:
             isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
-          // Remetente
           Padding(
             padding: const EdgeInsets.only(bottom: 4, left: 2, right: 2),
             child: Text(
@@ -320,8 +315,6 @@ class _AssistantPageState extends State<AssistantPage> {
               ),
             ),
           ),
-
-          // Balão
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
             decoration: BoxDecoration(
@@ -345,8 +338,6 @@ class _AssistantPageState extends State<AssistantPage> {
             ),
             child: _buildText(text, isUser),
           ),
-
-          // Hora
           Padding(
             padding: const EdgeInsets.only(top: 4, left: 2, right: 2),
             child: Text(
@@ -359,7 +350,6 @@ class _AssistantPageState extends State<AssistantPage> {
     );
   }
 
-  // Suporte a **negrito** nas respostas da IA
   Widget _buildText(String text, bool isUser) {
     final parts = text.split('**');
     final spans = <TextSpan>[];
@@ -377,7 +367,6 @@ class _AssistantPageState extends State<AssistantPage> {
     return RichText(text: TextSpan(children: spans));
   }
 
-  // ─── TYPING INDICATOR ──────────────────────────────────────────────────────
   Widget _typingIndicator() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
@@ -423,7 +412,6 @@ class _AssistantPageState extends State<AssistantPage> {
     );
   }
 
-  // ─── INPUT BAR (mantém estrutura original, visual melhorado) ──────────────
   Widget _inputBar() {
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 20),
@@ -460,8 +448,6 @@ class _AssistantPageState extends State<AssistantPage> {
             ),
           ),
           const SizedBox(width: 10),
-
-          // Botão enviar — mantém forma do original, gradiente melhorado
           GestureDetector(
             onTap: _handleSend,
             child: AnimatedContainer(
