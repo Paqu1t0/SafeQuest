@@ -686,7 +686,7 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
     );
   }
 
-  // ── AI card — encaminha para página IA (tab index 2) ──────────────────────
+
   Widget _buildAICard(BuildContext context) {
     return GestureDetector(
       onTap: () {
