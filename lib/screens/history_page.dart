@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:projeto_safequest/screens/quiz_detail_page.dart';
 
 class HistoryPage extends StatefulWidget {
@@ -322,48 +323,108 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
     setState(() { _aiLoading = true; _aiAnalysis = null; });
 
     try {
-      // Constrói o resumo para enviar à IA
-      final temas = ['Phishing', 'Palavras-passe', 'Redes Sociais', 'Segurança Web'];
-      final buffer = StringBuffer();
-      buffer.writeln('Sou um estudante da app SafeQuest. Analisa o meu desempenho e dá-me recomendações em Português de Portugal:');
+      // Lê o documento oficial SafeQuest do ficheiro de assets
+      String docSafeQuest = '';
+      try {
+        docSafeQuest = await rootBundle.loadString('assets/conhecimento_safequest.txt');
+      } catch (_) {
+        docSafeQuest = 'Documento SafeQuest não disponível.';
+      }
+
+      final temas      = ['Phishing', 'Palavras-passe', 'Redes Sociais', 'Segurança Web'];
+      final temaStats  = <String, Map<String, dynamic>>{};
+      final buffer     = StringBuffer();
+
+      // Passa o documento completo para o contexto da IA
+      buffer.writeln('DOCUMENTO OFICIAL SAFEQUEST (usa como base de conhecimento):');
+      buffer.writeln('---');
+      buffer.writeln(docSafeQuest);
+      buffer.writeln('---');
       buffer.writeln();
+      buffer.writeln('És o Mentor SafeQuest. Com base no documento acima e nos resultados do utilizador abaixo, dá recomendações em Português de Portugal.');
+      buffer.writeln();
+      buffer.writeln('RESULTADOS DO UTILIZADOR:');
 
       for (final tema in temas) {
         final themed = data.where((d) => d['theme'] == tema).toList();
         if (themed.isEmpty) continue;
-        final avg = themed.fold<double>(0, (s, d) => s + (d['percent'] ?? 0).toDouble()) / themed.length;
-        buffer.writeln('$tema: ${themed.length} quizzes, média ${avg.toInt()}%');
+        final avg   = themed.fold<double>(0, (s, d) => s + (d['percent'] ?? 0).toDouble()) / themed.length;
+        final tipos = themed.map((d) => d['tipoQuiz'] ?? 'normal').toSet().join(', ');
+        temaStats[tema] = {'count': themed.length, 'avg': avg.toInt()};
+        buffer.writeln('• $tema: ${themed.length} quiz(zes), média ${avg.toInt()}%, tipos: $tipos');
       }
 
-      buffer.writeln();
       buffer.writeln('Total de quizzes: ${data.length}');
-      buffer.writeln('Quiz mais recente: ${data.first['theme']} - ${data.first['percent']}%');
-      buffer.writeln();
-      buffer.writeln('Com base nestes dados, diz-me:');
-      buffer.writeln('1. Quais os temas onde estou a ter mais dificuldades');
-      buffer.writeln('2. O que posso fazer para melhorar');
-      buffer.writeln('3. Que tipo de quiz (normal, contra o tempo, V/F) me recomendas para cada tema');
-      buffer.writeln('Sê específico, prático e motivador. Usa bullet points.');
+      if (data.isNotEmpty) buffer.writeln('Último: ${data.first['theme']} — ${data.first['percent']}%');
+
+      // Identifica tema mais fraco
+      final sorted = temaStats.entries.toList()
+        ..sort((a, b) => (a.value['avg'] as int).compareTo(b.value['avg'] as int));
+      if (sorted.isNotEmpty) {
+        buffer.writeln('\nTema mais fraco: ${sorted.first.key} (${sorted.first.value['avg']}%)');
+      }
+
+      buffer.writeln('''
+
+Responde EXACTAMENTE neste formato:
+
+**📊 Análise do teu Desempenho**
+[2-3 frases sobre pontos fortes e fracos, referencia conceitos do documento SafeQuest]
+
+**🎯 O que deves estudar**
+• [Tema mais fraco]: [dica concreta com base no documento SafeQuest]
+• [Outros temas fracos, se existirem]
+
+**🕹️ Tipo de Quiz Recomendado**
+• [Tema]: [Normal / Contra o Tempo / V/F] — [razão]
+
+**💡 Conselho SafeQuest**
+[Cita uma regra ou conselho relevante do documento SafeQuest]
+
+Máximo 220 palavras. Sê direto, motivador e prático.
+''');
 
       final apiKey = dotenv.env['GEMINI_API_KEY'] ?? '';
+      if (apiKey.isEmpty) {
+        setState(() {
+          _aiAnalysis = '⚠️ Chave da API não encontrada. Verifica o ficheiro .env com a chave GEMINI_API_KEY.';
+          _aiLoading  = false;
+        });
+        return;
+      }
+
       final response = await http.post(
-        Uri.parse('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=$apiKey'),
+        Uri.parse('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'contents': [{'parts': [{'text': buffer.toString()}]}],
-          'generationConfig': {'maxOutputTokens': 600, 'temperature': 0.7},
+          'contents': [{'role': 'user', 'parts': [{'text': buffer.toString()}]}],
+          'generationConfig': {'maxOutputTokens': 700, 'temperature': 0.6, 'topP': 0.8},
         }),
       );
 
       if (response.statusCode == 200) {
-        final json = jsonDecode(response.body);
-        final text = json['candidates'][0]['content']['parts'][0]['text'] as String;
-        setState(() { _aiAnalysis = text; _aiLoading = false; });
+        final json       = jsonDecode(response.body);
+        final candidates = json['candidates'] as List?;
+        if (candidates != null && candidates.isNotEmpty) {
+          final text = candidates[0]['content']['parts'][0]['text'] as String;
+          setState(() { _aiAnalysis = text; _aiLoading = false; });
+        } else {
+          setState(() { _aiAnalysis = 'Resposta vazia. Tenta novamente.'; _aiLoading = false; });
+        }
       } else {
-        setState(() { _aiAnalysis = 'Não foi possível obter a análise. Tenta novamente.'; _aiLoading = false; });
+        final errorBody = jsonDecode(response.body);
+        final msg = errorBody['error']?['message'] ?? 'Erro ${response.statusCode}';
+        if (msg.contains('quota') || msg.contains('RESOURCE_EXHAUSTED')) {
+          setState(() {
+            _aiAnalysis = '⚠️ Limite da API atingido.\n\nSolução: cria uma nova chave em aistudio.google.com e atualiza o ficheiro .env.';
+            _aiLoading  = false;
+          });
+        } else {
+          setState(() { _aiAnalysis = '❌ Erro: $msg'; _aiLoading = false; });
+        }
       }
     } catch (e) {
-      setState(() { _aiAnalysis = 'Erro de ligação. Verifica a tua conexão e tenta novamente.'; _aiLoading = false; });
+      setState(() { _aiAnalysis = '🔌 Erro de ligação: $e'; _aiLoading = false; });
     }
   }
 
