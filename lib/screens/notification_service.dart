@@ -1,19 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// NOTIFICATION SERVICE — guarda e mostra notificações
-// Estrutura: users/{uid}/notifications/{id}
-//   { title, body, type, read, createdAt }
-// Tipos: friend_added, clan_promoted, clan_demoted, clan_kicked, quiz_reminder
-// ─────────────────────────────────────────────────────────────────────────────
+
 
 class NotificationService {
   static Future<void> send({
     required String toUid,
     required String title,
     required String body,
-    required String type, // friend_added | clan_promoted | clan_demoted | clan_kicked | quiz_reminder
+    required String type, 
   }) async {
     await FirebaseFirestore.instance
         .collection('users')
@@ -129,35 +124,46 @@ class NotificationsDialog extends StatelessWidget {
                     itemCount: snap.data!.docs.length,
                     separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
                     itemBuilder: (context, i) {
-                      final data  = snap.data!.docs[i].data() as Map<String, dynamic>;
+                      final doc   = snap.data!.docs[i];
+                      final data  = doc.data() as Map<String, dynamic>;
                       final title = data['title'] ?? '';
                       final body  = data['body']  ?? '';
                       final type  = data['type']  ?? 'quiz_reminder';
                       final read  = data['read']  == true;
 
                       final iconData = _typeIcon[type] ?? ('🔔', const Color(0xFF1A56DB));
-                      final bgColor = read ? Colors.white : iconData.$2.withOpacity(0.05);
+                      final bgColor  = read ? Colors.white : iconData.$2.withOpacity(0.05);
 
-                      return Container(
-                        color: bgColor,
-                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          // Ícone colorido
-                          Container(
-                            width: 42, height: 42,
-                            decoration: BoxDecoration(color: iconData.$2.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
-                            child: Center(child: Text(iconData.$1, style: const TextStyle(fontSize: 20))),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Row(children: [
-                              Expanded(child: Text(title, style: TextStyle(fontWeight: read ? FontWeight.w500 : FontWeight.bold, fontSize: 14, color: const Color(0xFF1E3A8A)))),
-                              if (!read) Container(width: 8, height: 8, decoration: BoxDecoration(color: iconData.$2, shape: BoxShape.circle)),
-                            ]),
-                            const SizedBox(height: 3),
-                            Text(body, style: const TextStyle(color: Colors.grey, fontSize: 12, height: 1.4)),
-                          ])),
-                        ]),
+                      return GestureDetector(
+                        onTap: () async {
+                          // Marca como lida ao clicar
+                          if (!read) {
+                            await FirebaseFirestore.instance
+                                .collection('users').doc(uid)
+                                .collection('notifications').doc(doc.id)
+                                .update({'read': true});
+                          }
+                        },
+                        child: Container(
+                          color: bgColor,
+                          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Container(
+                              width: 42, height: 42,
+                              decoration: BoxDecoration(color: iconData.$2.withOpacity(0.12), borderRadius: BorderRadius.circular(12)),
+                              child: Center(child: Text(iconData.$1, style: const TextStyle(fontSize: 20))),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Row(children: [
+                                Expanded(child: Text(title, style: TextStyle(fontWeight: read ? FontWeight.w500 : FontWeight.bold, fontSize: 14, color: const Color(0xFF1E3A8A)))),
+                                if (!read) Container(width: 8, height: 8, decoration: BoxDecoration(color: iconData.$2, shape: BoxShape.circle)),
+                              ]),
+                              const SizedBox(height: 3),
+                              Text(body, style: const TextStyle(color: Colors.grey, fontSize: 12, height: 1.4)),
+                            ])),
+                          ]),
+                        ),
                       );
                     },
                   );
