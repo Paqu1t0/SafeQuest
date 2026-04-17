@@ -38,7 +38,7 @@ class _LeaderboardPageState extends State<LeaderboardPage>
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 2, vsync: this);
+    _tabCtrl = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -100,16 +100,24 @@ class _LeaderboardPageState extends State<LeaderboardPage>
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(Icons.person_rounded, size: 15),
-                    SizedBox(width: 5),
-                    Text('Jogadores', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    SizedBox(width: 4),
+                    Flexible(child: Text('Jogadores', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12), overflow: TextOverflow.ellipsis)),
                   ],
                 )),
                 Tab(child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(Icons.groups_rounded, size: 15),
-                    SizedBox(width: 5),
-                    Text('Clãs', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    SizedBox(width: 4),
+                    Flexible(child: Text('Clãs', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12), overflow: TextOverflow.ellipsis)),
+                  ],
+                )),
+                Tab(child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.people_rounded, size: 15),
+                    SizedBox(width: 4),
+                    Flexible(child: Text('Amigos', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12), overflow: TextOverflow.ellipsis)),
                   ],
                 )),
               ],
@@ -123,6 +131,7 @@ class _LeaderboardPageState extends State<LeaderboardPage>
             children: [
               _buildPlayersTab(),
               _buildClansTab(),
+              _buildFriendsTab(),
             ],
           ),
         ),
@@ -212,7 +221,8 @@ class _LeaderboardPageState extends State<LeaderboardPage>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(isMe ? '$name (Você)' : name,
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isMe ? _primary : _primaryDeep)),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isMe ? _primary : _primaryDeep),
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
               const SizedBox(height: 2),
               Text('Nível $nivel', style: const TextStyle(color: Colors.grey, fontSize: 12)),
             ],
@@ -333,8 +343,9 @@ class _LeaderboardPageState extends State<LeaderboardPage>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(children: [
-                Text(isMyClan ? '$name (O teu)' : name,
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isMyClan ? _primary : _primaryDeep)),
+                Flexible(child: Text(isMyClan ? '$name (O teu)' : name,
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isMyClan ? _primary : _primaryDeep),
+                    maxLines: 1, overflow: TextOverflow.ellipsis)),
                 if (isMyClan) ...[
                   const SizedBox(width: 6),
                   Container(
@@ -361,5 +372,161 @@ class _LeaderboardPageState extends State<LeaderboardPage>
         ],
       ),
     );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // ABA AMIGOS
+  // ─────────────────────────────────────────────────────────────────────────
+  Widget _buildFriendsTab() {
+    if (currentUser == null) return const SizedBox.shrink();
+
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance.collection('users').doc(currentUser!.uid).snapshots(),
+      builder: (context, mySnap) {
+        if (!mySnap.hasData) return const Center(child: CircularProgressIndicator(color: _primary));
+
+        final myData  = mySnap.data!.data() as Map<String, dynamic>? ?? {};
+        final friends = List<String>.from(myData['friends'] ?? []);
+
+        if (friends.isEmpty) {
+          return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            const Text('👥', style: TextStyle(fontSize: 52)),
+            const SizedBox(height: 16),
+            const Text('Ainda não tens amigos!', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: _primaryDeep)),
+            const SizedBox(height: 8),
+            const Text('Adiciona amigos para ver o ranking.', style: TextStyle(color: Colors.grey, fontSize: 13)),
+          ]));
+        }
+
+        // Inclui o próprio utilizador + amigos
+        final allUids = [currentUser!.uid, ...friends];
+
+        return FutureBuilder<List<Map<String, dynamic>>>(
+          future: _fetchFriendsData(allUids),
+          builder: (context, snap) {
+            if (!snap.hasData) return const Center(child: CircularProgressIndicator(color: _primary));
+
+            final sorted = snap.data!..sort((a, b) => (b['pontos'] as int).compareTo(a['pontos'] as int));
+            final myRank = sorted.indexWhere((u) => u['uid'] == currentUser!.uid) + 1;
+
+            return Column(children: [
+              // Banner do meu rank entre amigos
+              Container(
+                margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(colors: [Color(0xFF1A56DB), Color(0xFF7C3AED)]),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Row(children: [
+                  const Text('🏆', style: TextStyle(fontSize: 20)),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text(
+                    'Estás em ${_rankLabel(myRank)} entre os teus amigos!',
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                  )),
+                  Text('#$myRank', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 20)),
+                ]),
+              ),
+
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                  itemCount: sorted.length,
+                  itemBuilder: (context, i) {
+                    final u       = sorted[i];
+                    final isMe    = u['uid'] == currentUser!.uid;
+                    final rank    = i + 1;
+                    final emoji   = _avatarEmoji[u['avatar'] ?? 'default'] ?? '👤';
+                    final color   = _avatarColor[u['avatar'] ?? 'default'] ?? _primary;
+                    final medal   = rank == 1 ? const Text('🥇', style: TextStyle(fontSize: 22))
+                                  : rank == 2 ? const Text('🥈', style: TextStyle(fontSize: 22))
+                                  : rank == 3 ? const Text('🥉', style: TextStyle(fontSize: 22))
+                                  : null;
+
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      margin: const EdgeInsets.only(bottom: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: isMe ? const Color(0xFFEFF6FF) : Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: isMe ? _primary.withOpacity(0.4) : const Color(0xFFE5E7EB),
+                          width: isMe ? 1.5 : 1,
+                        ),
+                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 2))],
+                      ),
+                      child: Row(children: [
+                        // Rank
+                        SizedBox(width: 32, child: medal ?? Text(
+                          '#$rank',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14,
+                              color: isMe ? _primary : Colors.grey),
+                          textAlign: TextAlign.center,
+                        )),
+                        const SizedBox(width: 8),
+                        // Avatar
+                        Container(width: 40, height: 40,
+                          decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
+                          child: Center(child: Text(emoji, style: const TextStyle(fontSize: 22))),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Row(children: [
+                            Flexible(child: Text(
+                              u['nickname'] ?? u['name'] ?? 'Jogador',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14,
+                                  color: isMe ? _primary : _primaryDeep),
+                              maxLines: 1, overflow: TextOverflow.ellipsis,
+                            )),
+                            if (isMe) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                decoration: BoxDecoration(color: _primary, borderRadius: BorderRadius.circular(6)),
+                                child: const Text('Tu', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                              ),
+                            ],
+                          ]),
+                          Text('Nível ${((u['pontos'] as int) ~/ 250) + 1}',
+                              style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                        ])),
+                        // Pontos
+                        Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                          Text('${u['pontos']}',
+                            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16,
+                                color: rank <= 3 ? [_gold, _silver, _bronze][rank - 1] : const Color(0xFF3B82F6))),
+                          const Text('pontos', style: TextStyle(color: Colors.grey, fontSize: 10)),
+                        ]),
+                      ]),
+                    );
+                  },
+                ),
+              ),
+            ]);
+          },
+        );
+      },
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchFriendsData(List<String> uids) async {
+    final results = <Map<String, dynamic>>[];
+    for (final uid in uids) {
+      final snap = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      if (snap.exists) {
+        final data = snap.data() as Map<String, dynamic>? ?? {};
+        results.add({...data, 'uid': uid});
+      }
+    }
+    return results;
+  }
+
+  String _rankLabel(int rank) {
+    if (rank == 1) return '1.º lugar 🥇';
+    if (rank == 2) return '2.º lugar 🥈';
+    if (rank == 3) return '3.º lugar 🥉';
+    return '$rank.º lugar';
   }
 }
