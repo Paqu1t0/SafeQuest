@@ -151,7 +151,7 @@ class _RecompensasPageState extends State<RecompensasPage>
     return GridView.builder(
       padding: const EdgeInsets.all(16),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2, mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: 0.88,
+        crossAxisCount: 2, mainAxisSpacing: 12, crossAxisSpacing: 12, childAspectRatio: 0.78,
       ),
       itemCount: basicBadges.length,
       itemBuilder: (context, i) {
@@ -240,39 +240,41 @@ class _RecompensasPageState extends State<RecompensasPage>
         border: conquistado ? null : Border.all(color: const Color(0xFFE5E7EB)),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             // Ícone num círculo translúcido
             Container(
-              width: 56, height: 56,
+              width: 50, height: 50,
               decoration: BoxDecoration(
                 color: conquistado ? Colors.white.withOpacity(0.2) : Colors.grey.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(14),
               ),
               child: Center(
                 child: Text(
                   conquistado ? icon : '🔒',
-                  style: TextStyle(fontSize: conquistado ? 30 : 24),
+                  style: TextStyle(fontSize: conquistado ? 26 : 22),
                 ),
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             Text(badge['nome'] as String,
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 13)),
-            const SizedBox(height: 4),
-            Text(badge['desc'] as String,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: subTextColor, fontSize: 10)),
+                style: TextStyle(color: textColor, fontWeight: FontWeight.bold, fontSize: 12)),
+            const SizedBox(height: 3),
+            Flexible(
+              child: Text(badge['desc'] as String,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: subTextColor, fontSize: 10)),
+            ),
             if (conquistado) ...[
-              const SizedBox(height: 8),
-              const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+              const SizedBox(height: 6),
+              const Icon(Icons.check_circle_rounded, color: Colors.white, size: 16),
             ],
           ],
         ),
