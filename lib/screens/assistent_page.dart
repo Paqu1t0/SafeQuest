@@ -3,6 +3,7 @@ import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:connectivity_plus/connectivity_plus.dart';
 
 class AssistantPage extends StatefulWidget {
   final String? initialPrompt; // ← NOVO
@@ -19,6 +20,7 @@ class _AssistantPageState extends State<AssistantPage> {
   late GenerativeModel _model;
   late ChatSession _chat;
   bool _isLoading = false;
+  bool _aiReady = false;
 
   // ─── CORES ─────────────────────────────────────────────────────────────────
   static const primary      = Color(0xFF2563EB);
@@ -55,9 +57,39 @@ class _AssistantPageState extends State<AssistantPage> {
 
   Future<void> _setupAI() async {
     try {
+      // Verifica conectividade antes de inicializar
+      final connectivity = await Connectivity().checkConnectivity();
+      final hasInternet = connectivity.any((r) => r != ConnectivityResult.none);
+      
+      if (!hasInternet) {
+        if (mounted) {
+          setState(() {
+            _messages.add({
+              "role": "ai",
+              "text": "⚠️ **Sem ligação à internet**\n\nO Assistente IA necessita de ligação à internet para funcionar. Por favor, verifica a tua ligação e tenta novamente.",
+              "time": DateFormat('HH:mm').format(DateTime.now()),
+            });
+          });
+        }
+        return;
+      }
+
       final String manualSafeQuest =
           await rootBundle.loadString('assets/conhecimento_safequest.txt');
       final String myKey = (dotenv.env['GEMINI_API_KEY'] ?? '').trim();
+
+      if (myKey.isEmpty) {
+        if (mounted) {
+          setState(() {
+            _messages.add({
+              "role": "ai",
+              "text": "⚠️ **Erro de configuração**\n\nA chave da API não foi encontrada. Contacta o suporte.",
+              "time": DateFormat('HH:mm').format(DateTime.now()),
+            });
+          });
+        }
+        return;
+      }
 
       _model = GenerativeModel(model: 'gemini-2.5-flash', apiKey: myKey);
 
@@ -81,6 +113,7 @@ class _AssistantPageState extends State<AssistantPage> {
 
       if (mounted) {
         setState(() {
+          _aiReady = true;
           _messages.add({
             "role": "ai",
             "text": "Olá! Sou o **Mentor SafeQuest** 👋\n\nEstou aqui para te ajudar com qualquer dúvida sobre segurança digital. Como posso ajudar-te hoje?",
@@ -90,7 +123,16 @@ class _AssistantPageState extends State<AssistantPage> {
         _scrollToBottom();
       }
     } catch (e) {
-      debugPrint("🚨 ERRO: $e");
+      debugPrint("🚨 ERRO AI SETUP: $e");
+      if (mounted) {
+        setState(() {
+          _messages.add({
+            "role": "ai",
+            "text": "⚠️ **Erro ao inicializar o Assistente**\n\nNão foi possível conectar ao serviço de IA. Verifica a tua ligação à internet e reinicia a app.",
+            "time": DateFormat('HH:mm').format(DateTime.now()),
+          });
+        });
+      }
     }
   }
 
@@ -107,7 +149,45 @@ class _AssistantPageState extends State<AssistantPage> {
     });
     _scrollToBottom();
 
+    // Verifica internet antes de enviar
     try {
+      final connectivity = await Connectivity().checkConnectivity();
+      final hasInternet = connectivity.any((r) => r != ConnectivityResult.none);
+      
+      if (!hasInternet) {
+        if (mounted) {
+          setState(() {
+            _messages.add({
+              "role": "ai",
+              "text": "⚠️ **Sem ligação à internet**\n\nNão é possível enviar a mensagem sem internet. Verifica a tua ligação e tenta novamente.",
+              "time": time,
+            });
+            _isLoading = false;
+          });
+          _scrollToBottom();
+        }
+        return;
+      }
+
+      // Se IA não foi inicializada, tenta novamente
+      if (!_aiReady) {
+        await _setupAI();
+        if (!_aiReady) {
+          if (mounted) {
+            setState(() {
+              _messages.add({
+                "role": "ai",
+                "text": "⚠️ O assistente não conseguiu inicializar. Verifica a tua ligação à internet e tenta novamente.",
+                "time": time,
+              });
+              _isLoading = false;
+            });
+            _scrollToBottom();
+          }
+          return;
+        }
+      }
+
       final response = await _chat.sendMessage(Content.text(text));
       if (mounted) {
         setState(() {
@@ -121,19 +201,22 @@ class _AssistantPageState extends State<AssistantPage> {
         _scrollToBottom();
       }
     } catch (e) {
+      debugPrint("🚨 ERRO AI SEND: $e");
       if (mounted) {
         setState(() {
           _messages.add({
             "role": "ai",
-            "text": "Erro de ligação. Tenta novamente.",
+            "text": "❌ **Não foi possível responder**\n\nOcorreu um erro de ligação. Verifica a tua internet e tenta novamente.",
             "time": time,
           });
           _isLoading = false;
         });
+        _scrollToBottom();
       }
     }
   }
 
+  // ─── BUILD ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -152,7 +235,7 @@ class _AssistantPageState extends State<AssistantPage> {
     );
   }
 
-  //  HEADE
+  // ─── HEADER ────────────────────────────────────────────────────────────────
   Widget _header(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
@@ -169,15 +252,6 @@ class _AssistantPageState extends State<AssistantPage> {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
       child: Row(
         children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back, color: textDark),
-            onPressed: () {
-              if (Navigator.canPop(context)) {
-                Navigator.pop(context);
-              }
-              
-            },
-          ),
           Stack(
             clipBehavior: Clip.none,
             children: [
@@ -280,7 +354,7 @@ class _AssistantPageState extends State<AssistantPage> {
     );
   }
 
-  // MENSAGENS 
+  // ─── LISTA DE MENSAGENS ────────────────────────────────────────────────────
   Widget _messageList() {
     return ListView.builder(
       controller: _scrollController,
