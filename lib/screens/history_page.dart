@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:projeto_safequest/screens/quiz_detail_page.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
 class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});
@@ -111,6 +112,7 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
     );
   }
 
+
   // ── ABA ATIVIDADE ──────────────────────────────────────────────────────────
   Widget _buildActivityTab(List<Map<String, dynamic>> displayData, int total, double media, int pontos) {
     return SingleChildScrollView(
@@ -148,100 +150,111 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
   }
 
   // ── ABA ANÁLISE IA ─────────────────────────────────────────────────────────
-  Widget _buildAITab(List<Map<String, dynamic>> data) {
-    if (data.isEmpty) {
-      return const Center(child: Padding(
-        padding: EdgeInsets.all(32),
-        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Text('🤖', style: TextStyle(fontSize: 48)),
-          SizedBox(height: 16),
-          Text('Faz alguns quizzes primeiro!', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: _primaryDeep)),
-          SizedBox(height: 8),
-          Text('A IA precisa de dados para te dar recomendações.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 13)),
-        ]),
-      ));
-    }
+ Widget _buildAITab(List<Map<String, dynamic>> data) {
+  if (data.isEmpty) {
+    return const Center(child: Padding(
+      padding: EdgeInsets.all(32),
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Text('🤖', style: TextStyle(fontSize: 48)),
+        SizedBox(height: 16),
+        Text('Faz alguns quizzes primeiro!', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: _primaryDeep)),
+        SizedBox(height: 8),
+        Text('A IA precisa de dados para te dar recomendações.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 13)),
+      ]),
+    ));
+  }
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Card de análise
+  return SingleChildScrollView(
+    padding: const EdgeInsets.all(20),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 1. Card do Mentor (Botão de Analisar)
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(colors: [Color(0xFF7C3AED), Color(0xFF4F46E5)]),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(children: [
+                Text('🤖', style: TextStyle(fontSize: 28)),
+                SizedBox(width: 12),
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('Análise do Mentor SafeQuest', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                  Text('IA personalizada para o teu desempenho', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                ]),
+              ]),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: const Color(0xFF7C3AED),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                  ),
+                  onPressed: _aiLoading ? null : () => _fetchAIAnalysis(data),
+                  child: _aiLoading
+                      ? const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                          SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF7C3AED))),
+                          SizedBox(width: 10),
+                          Text('A analisar...', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ])
+                      : const Text('Analisar o meu desempenho', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // 2. Resposta da IA (Markdown)
+        if (_aiAnalysis != null) ...[
+          const SizedBox(height: 20),
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(colors: [Color(0xFF7C3AED), Color(0xFF4F46E5)]),
-              borderRadius: BorderRadius.circular(20),
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 3))],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Row(children: [
-                  Text('🤖', style: TextStyle(fontSize: 28)),
-                  SizedBox(width: 12),
-                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('Análise do Mentor SafeQuest', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-                    Text('IA personalizada para o teu desempenho', style: TextStyle(color: Colors.white70, fontSize: 11)),
-                  ]),
+                  Icon(Icons.auto_awesome_rounded, color: Color(0xFF7C3AED), size: 20),
+                  SizedBox(width: 8),
+                  Text('Recomendações do Mentor', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: _primaryDeep)),
                 ]),
                 const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: const Color(0xFF7C3AED),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      elevation: 0,
-                    ),
-                    onPressed: _aiLoading ? null : () => _fetchAIAnalysis(data),
-                    child: _aiLoading
-                        ? const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                            SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF7C3AED))),
-                            SizedBox(width: 10),
-                            Text('A analisar...', style: TextStyle(fontWeight: FontWeight.bold)),
-                          ])
-                        : const Text('Analisar o meu desempenho', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                MarkdownBody(
+                  data: _aiAnalysis!,
+                  styleSheet: MarkdownStyleSheet(
+                    h1: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A)),
+                    h2: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A), height: 2),
+                    p: const TextStyle(fontSize: 14, height: 1.5, color: Color(0xFF374151)),
+                    strong: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF7C3AED)),
+                    listBullet: const TextStyle(color: Color(0xFF7C3AED), fontWeight: FontWeight.bold),
+                    blockSpacing: 12,
                   ),
                 ),
               ],
             ),
           ),
-
-          if (_aiAnalysis != null) ...[
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 3))],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(children: [
-                    Icon(Icons.auto_awesome_rounded, color: Color(0xFF7C3AED), size: 20),
-                    SizedBox(width: 8),
-                    Text('Recomendações Personalizadas', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: _primaryDeep)),
-                  ]),
-                  const SizedBox(height: 14),
-                  _buildFormattedAnalysis(_aiAnalysis!),
-                ],
-              ),
-            ),
-          ],
-
-          const SizedBox(height: 20),
-
-          // Gráfico de desempenho por tema
-          _buildThemeBreakdown(data),
         ],
-      ),
-    );
-  }
+
+        const SizedBox(height: 25),
+
+        // 3. Gráfico de desempenho por tema
+        _buildThemeBreakdown(data),
+      ],
+    ),
+  );
+}
 
   Widget _buildFormattedAnalysis(String text) {
     // Divide por linhas e formata
@@ -318,115 +331,95 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
       ),
     );
   }
+Future<void> _fetchAIAnalysis(List<Map<String, dynamic>> data) async {
+  setState(() { _aiLoading = true; _aiAnalysis = null; });
 
-  Future<void> _fetchAIAnalysis(List<Map<String, dynamic>> data) async {
-    setState(() { _aiLoading = true; _aiAnalysis = null; });
-
+  try {
+    String docSafeQuest = '';
     try {
-      // Lê o documento oficial SafeQuest do ficheiro de assets
-      String docSafeQuest = '';
-      try {
-        docSafeQuest = await rootBundle.loadString('assets/conhecimento_safequest.txt');
-      } catch (_) {
-        docSafeQuest = 'Documento SafeQuest não disponível.';
-      }
+      docSafeQuest = await rootBundle.loadString('assets/conhecimento_safequest.txt');
+    } catch (_) {
+      docSafeQuest = 'Conhecimento base: Foca-te em Phishing, Passwords, Redes Sociais e Segurança Web.';
+    }
 
-      final temas      = ['Phishing', 'Palavras-passe', 'Redes Sociais', 'Segurança Web'];
-      final temaStats  = <String, Map<String, dynamic>>{};
-      final buffer     = StringBuffer();
+    final temas = ['Phishing', 'Palavras-passe', 'Redes Sociais', 'Segurança Web'];
+    final temaStats = <String, Map<String, dynamic>>{};
+    final buffer = StringBuffer();
 
-      // Passa o documento completo para o contexto da IA
-      buffer.writeln('DOCUMENTO OFICIAL SAFEQUEST (usa como base de conhecimento):');
-      buffer.writeln('---');
-      buffer.writeln(docSafeQuest);
-      buffer.writeln('---');
-      buffer.writeln();
-      buffer.writeln('És o Mentor SafeQuest. Com base no documento acima e nos resultados do utilizador abaixo, dá recomendações em Português de Portugal.');
-      buffer.writeln();
-      buffer.writeln('RESULTADOS DO UTILIZADOR:');
+    // PROMPT DE PERSONALIDADE E CONHECIMENTO
+    buffer.writeln('AGE COMO O MENTOR SAFEQUEST, UM ESPECIALISTA EM CIBERSEGURANÇA.');
+    buffer.writeln('USA O SEGUINTE CONHECIMENTO BASE PARA AS TUAS DICAS:');
+    buffer.writeln(docSafeQuest);
+    buffer.writeln('\n---');
+    buffer.writeln('ANALISA O DESEMPENHO DESTE ALUNO E DÁ CONSELHOS EM PORTUGUÊS DE PORTUGAL:');
 
-      for (final tema in temas) {
-        final themed = data.where((d) => d['theme'] == tema).toList();
-        if (themed.isEmpty) continue;
-        final avg   = themed.fold<double>(0, (s, d) => s + (d['percent'] ?? 0).toDouble()) / themed.length;
-        final tipos = themed.map((d) => d['tipoQuiz'] ?? 'normal').toSet().join(', ');
-        temaStats[tema] = {'count': themed.length, 'avg': avg.toInt()};
-        buffer.writeln('• $tema: ${themed.length} quiz(zes), média ${avg.toInt()}%, tipos: $tipos');
-      }
+    for (final tema in temas) {
+      final themed = data.where((d) => d['theme'] == tema).toList();
+      if (themed.isEmpty) continue;
+      final avg = themed.fold<double>(0, (s, d) => s + (d['percent'] ?? 0).toDouble()) / themed.length;
+      temaStats[tema] = {'count': themed.length, 'avg': avg.toInt()};
+      buffer.writeln('• Tema $tema: ${themed.length} quizzes feitos, média de ${avg.toInt()}% de acerto.');
+    }
 
-      buffer.writeln('Total de quizzes: ${data.length}');
-      if (data.isNotEmpty) buffer.writeln('Último: ${data.first['theme']} — ${data.first['percent']}%');
+    buffer.writeln('\nREGRAS DE RESPOSTA:');
+    buffer.writeln('1. Começa com uma frase motivadora personalizada.');
+    buffer.writeln('2. No ponto "O que deves estudar", identifica o tema com menor média e dá uma dica técnica específica baseada no teu conhecimento base.');
+    buffer.writeln('3. Sê direto. Não uses introduções longas como "Com base nos dados...".');
+    buffer.writeln('4. Usa estritamente o formato Markdown abaixo.');
 
-      // Identifica tema mais fraco
-      final sorted = temaStats.entries.toList()
-        ..sort((a, b) => (a.value['avg'] as int).compareTo(b.value['avg'] as int));
-      if (sorted.isNotEmpty) {
-        buffer.writeln('\nTema mais fraco: ${sorted.first.key} (${sorted.first.value['avg']}%)');
-      }
+    buffer.writeln('''
+\nRESPONDE APENAS NESTE FORMATO MARKDOWN (SEM OUTROS SÍMBOLOS):
+# INSTRUÇÕES DO SISTEMA: TUTOR DE PERFORMANCE AI
 
-      buffer.writeln('''
+Como um Tutor de IA, a tua função é analisar os resultados de quizzes do utilizador e fornecer um roteiro de melhoria imediata.
 
-Responde EXACTAMENTE neste formato:
+## DADOS DE ENTRADA ESPERADOS
+O utilizador irá fornecer:
+1. Percentagem de acerto (ex: 65%).
+2. Temas das perguntas erradas.
+3. Nome do quiz realizado.
 
-**📊 Análise do teu Desempenho**
-[2-3 frases sobre pontos fortes e fracos, referencia conceitos do documento SafeQuest]
+## REGRAS DE RESPOSTA
+Deves seguir rigorosamente este template de Markdown:
 
-**🎯 O que deves estudar**
-• [Tema mais fraco]: [dica concreta com base no documento SafeQuest]
-• [Outros temas fracos, se existirem]
+---
+# 📊 Análise do teu Desempenho
+[Inserir aqui 1 frase curta de incentivo baseada no score:
+- < 50%: Focada em persistência e base teórica.
+- 50-80%: Focada em ajuste de detalhes e prática.
+- > 80%: Focada em perfeccionismo e consistência.]
 
-**🕹️ Tipo de Quiz Recomendado**
-• [Tema]: [Normal / Contra o Tempo / V/F] — [razão]
+## 🎯 O que deves estudar
+• **[Tema mais fraco identificado nos erros]**: [Inserir aqui uma dica técnica curta, explicando o conceito-chave que o utilizador parece ter falhado].
 
-**💡 Conselho SafeQuest**
-[Cita uma regra ou conselho relevante do documento SafeQuest]
+## 📈 Métricas e Evolução
+* **Score Atual:** [X]%
+* **Próximo Objetivo:** [X+15]% 
+* **Recomendação:** Se o score for < 70%, recomenda refazer este mesmo quiz. Se for > 70%, recomenda avançar para o quiz de nível seguinte ou tema complementar.
 
-Máximo 220 palavras. Sê direto, motivador e prático.
 ''');
 
-      final apiKey = dotenv.env['GEMINI_API_KEY'] ?? '';
-      if (apiKey.isEmpty) {
-        setState(() {
-          _aiAnalysis = '⚠️ Chave da API não encontrada. Verifica o ficheiro .env com a chave GEMINI_API_KEY.';
-          _aiLoading  = false;
-        });
-        return;
-      }
+    final apiKey = dotenv.env['GEMINI_API_KEY'] ?? '';
+    final response = await http.post(
+      Uri.parse('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'contents': [{'role': 'user', 'parts': [{'text': buffer.toString()}]}],
+        'generationConfig': {'maxOutputTokens': 800, 'temperature': 0.7},
+      }),
+    );
 
-      final response = await http.post(
-        Uri.parse('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'contents': [{'role': 'user', 'parts': [{'text': buffer.toString()}]}],
-          'generationConfig': {'maxOutputTokens': 700, 'temperature': 0.6, 'topP': 0.8},
-        }),
-      );
-
-      if (response.statusCode == 200) {
-        final json       = jsonDecode(response.body);
-        final candidates = json['candidates'] as List?;
-        if (candidates != null && candidates.isNotEmpty) {
-          final text = candidates[0]['content']['parts'][0]['text'] as String;
-          setState(() { _aiAnalysis = text; _aiLoading = false; });
-        } else {
-          setState(() { _aiAnalysis = 'Resposta vazia. Tenta novamente.'; _aiLoading = false; });
-        }
-      } else {
-        final errorBody = jsonDecode(response.body);
-        final msg = errorBody['error']?['message'] ?? 'Erro ${response.statusCode}';
-        if (msg.contains('quota') || msg.contains('RESOURCE_EXHAUSTED')) {
-          setState(() {
-            _aiAnalysis = '⚠️ Limite da API atingido.\n\nSolução: cria uma nova chave em aistudio.google.com e atualiza o ficheiro .env.';
-            _aiLoading  = false;
-          });
-        } else {
-          setState(() { _aiAnalysis = '❌ Erro: $msg'; _aiLoading = false; });
-        }
-      }
-    } catch (e) {
-      setState(() { _aiAnalysis = '🔌 Erro de ligação: $e'; _aiLoading = false; });
+    if (response.statusCode == 200) {
+      final json = jsonDecode(response.body);
+      final text = json['candidates'][0]['content']['parts'][0]['text'] as String;
+      setState(() { _aiAnalysis = text; _aiLoading = false; });
+    } else {
+      setState(() { _aiAnalysis = 'Erro ao contactar o Mentor. Tenta novamente.'; _aiLoading = false; });
     }
+  } catch (e) {
+    setState(() { _aiAnalysis = 'Erro de ligação: $e'; _aiLoading = false; });
   }
+}
 
   // ── STAT CARD ──────────────────────────────────────────────────────────────
   Widget _statCard(String value, String label, IconData icon) {
