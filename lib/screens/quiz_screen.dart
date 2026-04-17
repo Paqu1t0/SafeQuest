@@ -8,6 +8,8 @@ import 'package:projeto_safequest/services/app_settings.dart';
 import 'package:projeto_safequest/screens/quiz_result_dialog.dart';
 import 'package:projeto_safequest/screens/badges_service.dart';
 import 'package:projeto_safequest/services/sound_service.dart';
+import 'package:projeto_safequest/screens/daily_missions_service.dart';
+import 'package:projeto_safequest/screens/coin_animation.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TIPOS DE QUIZ
@@ -150,6 +152,11 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
   bool _answered       = false;
   int  _correctAnswers = 0;
 
+  // ── Combo de acertos consecutivos ────────────────────────────────────────
+  int  _combo          = 0;    // acertos consecutivos na sessão atual
+  int  _maxCombo       = 0;    // melhor combo desta sessão
+  bool _showCombo      = false; // animação de combo
+
   // Temporizador geral
   int    _secondsElapsed = 0;
   Timer? _timer;
@@ -245,7 +252,15 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
     setState(() {
       _selectedOption = index;
       _answered       = true;
-      if (isCorrect) _correctAnswers++;
+      if (isCorrect) {
+        _correctAnswers++;
+        _combo++;
+        if (_combo > _maxCombo) _maxCombo = _combo;
+        _showCombo = _combo >= 2; // mostra badge de combo a partir de 2
+      } else {
+        _combo     = 0;
+        _showCombo = false;
+      }
     });
   }
 
@@ -307,7 +322,17 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
     final percent      = ((_correctAnswers / _questions.length) * 100).round();
     final pointsMap    = {'Iniciante': 50, 'Intermédio': 100, 'Avançado': 200};
     final basePoints   = pointsMap[widget.dificuldade] ?? 50;
-    final points       = (basePoints * (_correctAnswers / _questions.length)).round();
+
+    // ── Multiplicador de combo ────────────────────────────────────────────
+    // Combo 2-3: ×1.2 | 4: ×1.5 | 5+: ×2.0
+    double comboMultiplier = 1.0;
+    String comboLabel      = '';
+    if (_maxCombo >= 5) { comboMultiplier = 2.0; comboLabel = '🔥 ×2 COMBO MÁXIMO!'; }
+    else if (_maxCombo == 4) { comboMultiplier = 1.5; comboLabel = '⚡ ×1.5 Combo x4!'; }
+    else if (_maxCombo >= 2) { comboMultiplier = 1.2; comboLabel = '✨ ×1.2 Combo x$_maxCombo!'; }
+
+    final rawPoints    = (basePoints * (_correctAnswers / _questions.length)).round();
+    final points       = (rawPoints * comboMultiplier).round();
     final timeStr      = _formattedTime;
     final moedasGanhas = percent >= 70 ? 100 : 50;
     final tipoQuizStr  = widget.quizType == QuizType.tempo ? 'tempo' : widget.quizType == QuizType.vf ? 'vf' : 'normal';
@@ -341,7 +366,8 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
       builder: (_) => QuizResultDialog(
         percent: percent, points: points, correct: _correctAnswers,
         total: _questions.length, timeStr: timeStr, tema: widget.tema,
-        newBadge: null, wrongQuestions: wrongQuestions, moedasGanhas: moedasGanhas,
+        newBadge: comboLabel.isNotEmpty ? comboLabel : null,
+        wrongQuestions: wrongQuestions, moedasGanhas: moedasGanhas,
       ),
     );
 
@@ -353,7 +379,7 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
             'theme': widget.tema, 'dificuldade': widget.dificuldade,
             'nivel': widget.nivel, 'percent': percent, 'points': points,
             'correct': _correctAnswers, 'total': _questions.length,
-            'time': timeStr, 'tipoQuiz': tipoQuizStr,
+            'time': timeStr, 'tipoQuiz': tipoQuizStr, 'maxCombo': _maxCombo,
             'date': FieldValue.serverTimestamp(), 'questions': questionsData,
           }),
           userRef.update({
@@ -362,7 +388,7 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
           }),
         ]);
 
-        // ── Atualiza pontos do clã automaticamente ────────────────────────
+        // Pontos do clã
         final userSnap = await userRef.get();
         final userData = userSnap.data() as Map<String, dynamic>? ?? {};
         final clanId   = userData['clanId'] as String?;
@@ -371,8 +397,35 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
               .update({'points': FieldValue.increment(points)});
         }
 
-        // ── Atualiza streak ───────────────────────────────────────────────
+        // Streak
         await _updateStreak(userRef);
+
+        // ── Animações de moedas e streak ──────────────────────────────────
+        if (mounted) {
+          CoinAnimation.show(context, coins: moedasGanhas);
+
+          // Streak — só no primeiro quiz do dia (quizzesDone era 0 antes)
+          final updatedSnap = await userRef.get();
+          final streak      = ((updatedSnap.data() as Map<String,dynamic>?)?['streak'] ?? 0) as int;
+          final missionSnap = await userRef.collection('daily_missions')
+              .doc(DailyMissionsService.todayKey()).get();
+          final quizzesDoneToday = (missionSnap.exists
+              ? (missionSnap.data()?['quizzesDone'] ?? 0) as int
+              : 0);
+          // quizzesDoneToday == 1 significa que este foi o primeiro quiz do dia
+          if (streak >= 2 && quizzesDoneToday == 1) {
+            await Future.delayed(const Duration(milliseconds: 1000));
+            if (mounted) StreakAnimation.show(context, streak: streak);
+          }
+        }
+
+        // ── Missões diárias ───────────────────────────────────────────────
+        await DailyMissionsService.recordQuiz(
+          userRef: userRef,
+          percent: percent,
+          tema: widget.tema,
+          tipoQuiz: tipoQuizStr,
+        );
 
         await BadgesService.checkAndUnlock(
           tema: widget.tema, percent: percent, tipoQuiz: tipoQuizStr,
@@ -466,10 +519,26 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
                   children: [
                     Text('Questão ${_currentIndex + 1} de ${_questions.length}',
                         style: const TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.w500)),
-                    // Só mostra o tempo geral se NÃO for modo tempo
-                    if (!isTempo)
-                      Text('${_secondsElapsed}s',
-                          style: const TextStyle(color: Color(0xFFEF4444), fontSize: 13, fontWeight: FontWeight.bold)),
+                    Row(children: [
+                      // Badge de combo
+                      if (_combo >= 2) AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: _combo >= 5 ? const Color(0xFFDC2626) : _combo >= 4 ? const Color(0xFFEA580C) : const Color(0xFFF59E0B),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Text(_combo >= 5 ? '🔥' : _combo >= 4 ? '⚡' : '✨', style: const TextStyle(fontSize: 11)),
+                          const SizedBox(width: 3),
+                          Text('Combo ×$_combo', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11)),
+                        ]),
+                      ),
+                      if (_combo >= 2) const SizedBox(width: 8),
+                      // Tempo
+                      if (!isTempo)
+                        Text('${_secondsElapsed}s', style: const TextStyle(color: Color(0xFFEF4444), fontSize: 13, fontWeight: FontWeight.bold)),
+                    ]),
                   ],
                 ),
                 const SizedBox(height: 8),
