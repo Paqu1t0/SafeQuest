@@ -9,8 +9,13 @@ import 'package:projeto_safequest/screens/quiz_screen.dart';
 import 'package:projeto_safequest/screens/avatar_store_page.dart';
 import 'package:projeto_safequest/screens/leaderboard_page.dart';
 import 'package:projeto_safequest/screens/clan_page.dart';
-import 'package:projeto_safequest/screens/friends_page.dart';
+import 'package:projeto_safequest/screens/friends_page.dart' show FriendsPage;
 import 'package:projeto_safequest/screens/notification_service.dart';
+import 'package:projeto_safequest/screens/coin_animation.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import 'package:projeto_safequest/screens/daily_missions_service.dart';
+import 'package:projeto_safequest/screens/dragon_mascot.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AVATAR HELPERS
@@ -34,16 +39,18 @@ class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
   @override
-  State<HomePage> createState() => HomePageState();
+  State<HomePage> createState() => _HomePageState();
 }
 
-class HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> {
   int _currentIndex = 0;
+  late final PageController _pageCtrl;
   late final List<Widget> _pages;
 
   @override
   void initState() {
     super.initState();
+    _pageCtrl = PageController(initialPage: 0);
     _pages = [
       const QuizzesDashboard(),
       const RecompensasPage(),
@@ -55,12 +62,31 @@ class HomePageState extends State<HomePage> {
   }
 
   @override
+  void dispose() {
+    _pageCtrl.dispose();
+    super.dispose();
+  }
+
+  void _goTo(int index) {
+    setState(() => _currentIndex = index);
+    _pageCtrl.animateToPage(index,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(index: _currentIndex, children: _pages),
+      body: PageView(
+        controller: _pageCtrl,
+        physics: const ClampingScrollPhysics(), // evita bounce excessivo
+        onPageChanged: (i) => setState(() => _currentIndex = i),
+        children: _pages,
+      ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: (index) => setState(() => _currentIndex = index),
+        onTap: _goTo,
         selectedItemColor: const Color(0xFF1A56DB),
         unselectedItemColor: Colors.grey,
         type: BottomNavigationBarType.fixed,
@@ -149,51 +175,95 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
 
   // ── Abre seletor: loja de avatares ou galeria ─────────────────────────────
   void _showAvatarSelector(BuildContext context) {
-    showModalBottomSheet(
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    showDialog(
       context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Alterar Avatar',
-                style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: _primaryDeep)),
-            const SizedBox(height: 20),
-            ListTile(
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14)),
-              tileColor: const Color(0xFFF0F7FF),
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                    color: _primary.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(10)),
-                child: const Icon(Icons.storefront_rounded,
-                    color: _primary, size: 24),
+      barrierColor: Colors.black54,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 120),
+        child: Container(
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                const Expanded(child: Text('Alterar Avatar', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: _primaryDeep))),
+                GestureDetector(onTap: () => Navigator.pop(ctx), child: const Icon(Icons.close_rounded, color: Colors.grey)),
+              ]),
+              const SizedBox(height: 18),
+
+              // Galeria
+              _avatarOption(ctx,
+                icon: Icons.photo_library_rounded, color: const Color(0xFF16A34A), bg: const Color(0xFFF0FDF4),
+                title: 'Galeria do Telemóvel', subtitle: 'Usa uma foto da galeria',
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final img = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 80);
+                  if (img != null && user.uid.isNotEmpty) {
+                    // Guarda path local — visível só neste device
+                    // Para persistir no Firestore precisas de Firebase Storage
+                    // Por agora mostramos a foto localmente
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Foto selecionada! Para guardar no perfil usa a página de Perfil.'), backgroundColor: Colors.green),
+                    );
+                  }
+                },
               ),
-              title: const Text('Avatares da Loja',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
-              subtitle: const Text('Escolhe um avatar desbloqueado',
-                  style: TextStyle(fontSize: 12, color: Colors.grey)),
-              trailing:
-                  const Icon(Icons.chevron_right, color: Colors.grey),
-              onTap: () {
-                Navigator.pop(ctx);
-                Navigator.push(context,
-                    MaterialPageRoute(builder: (_) => AvatarStorePage()));
-              },
-            ),
-            const SizedBox(height: 16),
-          ],
+              const SizedBox(height: 10),
+
+              // Câmara
+              _avatarOption(ctx,
+                icon: Icons.camera_alt_rounded, color: _primary, bg: const Color(0xFFEFF6FF),
+                title: 'Câmara', subtitle: 'Tira uma nova foto',
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final img = await ImagePicker().pickImage(source: ImageSource.camera, imageQuality: 80);
+                  if (img != null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Foto tirada! Para guardar no perfil usa a página de Perfil.'), backgroundColor: Colors.green),
+                    );
+                  }
+                },
+              ),
+              const SizedBox(height: 10),
+
+              // Loja
+              _avatarOption(ctx,
+                icon: Icons.storefront_rounded, color: const Color(0xFFF59E0B), bg: const Color(0xFFFEF3C7),
+                title: 'Avatares da Loja', subtitle: 'Escolhe um avatar desbloqueado',
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => AvatarStorePage()));
+                },
+              ),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _avatarOption(BuildContext ctx, {required IconData icon, required Color color, required Color bg, required String title, required String subtitle, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(14), border: Border.all(color: color.withOpacity(0.25))),
+        child: Row(children: [
+          Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(10)), child: Icon(icon, color: color, size: 22)),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+            Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+          ])),
+          Icon(Icons.chevron_right, color: color.withOpacity(0.6), size: 20),
+        ]),
       ),
     );
   }
@@ -286,7 +356,8 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
           String nome = user?.displayName ?? "Utilizador";
           if (snapshot.hasData && snapshot.data!.exists) {
             final data = snapshot.data!.data() as Map<String, dynamic>?;
-            nome = data?['name'] ?? nome;
+            // Mostra nickname se existir, senão o primeiro nome
+            nome = data?['nickname'] ?? (data?['name'] as String?)?.split(' ').first ?? nome;
           }
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -319,26 +390,15 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
               onTap: () => Navigator.push(context,
                   MaterialPageRoute(builder: (_) => AvatarStorePage())),
               child: Container(
+                key: coinBadgeKey,   // ← GlobalKey para animação de moedas
                 margin: const EdgeInsets.only(right: 8),
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 12, vertical: 7),
-                decoration: BoxDecoration(
-                  color: _gold,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  children: [
-                    const Text('🪙', style: TextStyle(fontSize: 13)),
-                    const SizedBox(width: 4),
-                    Text(
-                      '$moedas',
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13),
-                    ),
-                  ],
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                decoration: BoxDecoration(color: _gold, borderRadius: BorderRadius.circular(20)),
+                child: Row(children: [
+                  const Text('🪙', style: TextStyle(fontSize: 13)),
+                  const SizedBox(width: 4),
+                  Text('$moedas', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                ]),
               ),
             );
           },
@@ -363,7 +423,7 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
         // Ícone de amigos — azul
         GestureDetector(
           onTap: () => Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const FriendsPage())),
+              MaterialPageRoute(builder: (_) => FriendsPage())),
           child: Container(
             margin: const EdgeInsets.only(right: 14),
             padding: const EdgeInsets.all(8),
@@ -446,12 +506,14 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
             int    pontos   = 0;
             String bannerId = 'default';
             int    nivel    = 1;
+            int    streak   = 0;
 
             if (userSnap.hasData && userSnap.data!.exists) {
               final data = userSnap.data!.data() as Map<String, dynamic>?;
               pontos   = data?['pontos']  ?? 0;
               bannerId = data?['banner']  ?? 'default';
               nivel    = ((pontos ~/ 250) + 1);
+              streak   = data?['streak']  ?? 0;
             }
 
             final progressoGeral = _calcProgressoGeral(quizDocs, _topics);
@@ -463,14 +525,46 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildMainScoreCard(pontos, progressoGeral, nivel, bannerColors),
-                  const SizedBox(height: 25),
-                  const Text('🎮 Arenas de Treino',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _primaryDeep)),
+                  const SizedBox(height: 16),
+                  // ── Mascote Dragão ──
+                  StreamBuilder<DocumentSnapshot>(
+                    stream: FirebaseFirestore.instance
+                        .collection('users').doc(user?.uid)
+                        .collection('daily_missions').doc(DailyMissionsService.todayKey())
+                        .snapshots(),
+                    builder: (context, missionSnap) {
+                      int quizzesDone = 0;
+                      int missionsComplete = 0;
+                      if (missionSnap.hasData && missionSnap.data!.exists) {
+                        final mData = missionSnap.data!.data() as Map<String, dynamic>? ?? {};
+                        quizzesDone = mData['quizzesDone'] ?? 0;
+                        // Count completed missions
+                        final q = mData['quizzesDone'] ?? 0;
+                        final p = mData['perfectDone'] ?? 0;
+                        final t = (mData['temasDone'] as List?)?.length ?? 0;
+                        if (q >= 3) missionsComplete++;
+                        if (p >= 1) missionsComplete++;
+                        if (t >= 2) missionsComplete++;
+                        if (q >= 5) missionsComplete++;
+                      }
+                      return DragonMascot(
+                        quizzesDone: quizzesDone,
+                        streak: streak,
+                        missionsComplete: missionsComplete,
+                        totalMissions: 4,
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 4),
+                  const DailyMissionsWidget(),
+                  const SizedBox(height: 24),
+                  Text('🎮 Arenas de Treino',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: bannerColors[1])),
                   const SizedBox(height: 15),
                   ..._topics.map((t) {
                     final progress  = _calcProgress(quizDocs, t['name'] as String);
                     final doneSoFar = _countQuizzes(quizDocs, t['name'] as String);
-                    return _buildTopicCard(context, t['name'] as String, doneSoFar, progress, t['icon'] as IconData);
+                    return _buildTopicCard(context, t['name'] as String, doneSoFar, progress, t['icon'] as IconData, bannerColors[0]);
                   }),
                   const SizedBox(height: 40),
                 ],
@@ -606,13 +700,13 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
   }
 
   Widget _buildTopicCard(BuildContext context, String title,
-      int doneSoFar, double progress, IconData icon) {
-    // Cor da barra consoante o progresso
+      int doneSoFar, double progress, IconData icon, [Color? accent]) {
+    final accentColor = accent ?? _primary;
     final barColor = progress >= 0.7
         ? const Color(0xFF16A34A)
         : progress >= 0.3
             ? const Color(0xFFD97706)
-            : _primary;
+            : accentColor;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 15),
@@ -626,8 +720,11 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
         children: [
           Container(
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: const Color(0xFFF0F7FF), borderRadius: BorderRadius.circular(12)),
-            child: Icon(icon, color: _primary, size: 28),
+            decoration: BoxDecoration(
+              color: accentColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: accentColor, size: 28),
           ),
           const SizedBox(width: 15),
           Expanded(
@@ -637,17 +734,16 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1E3A8A))),
-                    // Mostra quantos quizzes fez de 15 disponíveis
+                    Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: _primaryDeep)),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: doneSoFar > 0 ? barColor.withOpacity(0.1) : const Color(0xFFF0F7FF),
+                        color: doneSoFar > 0 ? barColor.withOpacity(0.1) : accentColor.withOpacity(0.08),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
                         '$doneSoFar/$_totalQuizzesPerTopic quizzes',
-                        style: TextStyle(fontSize: 11, color: doneSoFar > 0 ? barColor : _primary, fontWeight: FontWeight.w600),
+                        style: TextStyle(fontSize: 11, color: doneSoFar > 0 ? barColor : accentColor, fontWeight: FontWeight.w600),
                       ),
                     ),
                   ],
@@ -677,22 +773,29 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
               ],
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.play_circle_fill, color: _primary, size: 35),
-            onPressed: () => _showDifficultySelector(context, title),
+          GestureDetector(
+            onTap: () => _showDifficultySelector(context, title),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: accentColor,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Text('Jogar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+            ),
           ),
         ],
       ),
     );
   }
 
-
+  // ── AI card — encaminha para página IA (tab index 2) ──────────────────────
   Widget _buildAICard(BuildContext context) {
     return GestureDetector(
       onTap: () {
         // Navega para o tab da IA no bottom nav
         final homeState =
-            context.findAncestorStateOfType<HomePageState>();
+            context.findAncestorStateOfType<_HomePageState>();
         homeState?.setState(() => homeState._currentIndex = 3);
       },
       child: Container(
@@ -855,7 +958,8 @@ class _SwipeLevelSheetState extends State<_SwipeLevelSheet> {
   static const _primaryDeep = Color(0xFF1E3A8A);
 
   late PageController _pageCtrl;
-  int _currentPage = 0;
+  int  _currentPage   = 0;
+  int? _selectedLevel;  // ← nível selecionado antes de jogar
 
   // Definição dos 3 tipos de quiz
   static final _quizTypes = [
@@ -949,7 +1053,7 @@ class _SwipeLevelSheetState extends State<_SwipeLevelSheet> {
                     child: PageView.builder(
                       controller: _pageCtrl,
                       itemCount: _quizTypes.length,
-                      onPageChanged: (i) => setState(() => _currentPage = i),
+                      onPageChanged: (i) => setState(() { _currentPage = i; _selectedLevel = null; }),
                       itemBuilder: (context, i) {
                         final qt     = _quizTypes[i];
                         final active = i == _currentPage;
@@ -1011,40 +1115,81 @@ class _SwipeLevelSheetState extends State<_SwipeLevelSheet> {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      const Text('Seleciona o Nível', style: TextStyle(fontWeight: FontWeight.bold, color: _primaryDeep, fontSize: 14)),
+                      Text('Seleciona o Nível',
+                        style: TextStyle(fontWeight: FontWeight.bold, color: widget.cor, fontSize: 14)),
                       const SizedBox(height: 12),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: List.generate(5, (i) {
-                          final level    = i + 1;
-                          final isLocked = level > 3;
-                          final color    = _quizTypes[_currentPage]['color'] as Color;
+                          final level     = i + 1;
+                          final isLocked  = level > 3;
+                          final isSelected = _selectedLevel == level;
+                          // Usa a cor da dificuldade escolhida para TUDO
+                          final levelColor = widget.cor;
                           return GestureDetector(
-                            onTap: isLocked ? null : () {
-                              final qt = _quizTypes[_currentPage]['type'] as QuizType;
-                              Navigator.pop(context);
-                              Navigator.push(context, MaterialPageRoute(
-                                builder: (_) => QuizScreen(
-                                  tema: widget.tema, dificuldade: widget.dificuldade,
-                                  nivel: level, quizType: qt,
-                                ),
-                              ));
-                            },
+                            onTap: isLocked ? null : () => setState(() => _selectedLevel = level),
                             child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 150),
+                              duration: const Duration(milliseconds: 180),
                               width: 52, height: 52,
                               decoration: BoxDecoration(
-                                color: isLocked ? Colors.grey.withOpacity(0.08) : color.withOpacity(0.12),
+                                color: isLocked
+                                    ? Colors.grey.withOpacity(0.08)
+                                    : isSelected
+                                        ? levelColor
+                                        : levelColor.withOpacity(0.12),
                                 borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: isLocked ? Colors.grey.withOpacity(0.25) : color.withOpacity(0.5), width: 2),
+                                border: Border.all(
+                                  color: isLocked
+                                      ? Colors.grey.withOpacity(0.25)
+                                      : levelColor.withOpacity(isSelected ? 1.0 : 0.5),
+                                  width: isSelected ? 2.5 : 1.5,
+                                ),
+                                boxShadow: isSelected ? [BoxShadow(color: levelColor.withOpacity(0.4), blurRadius: 10, offset: const Offset(0, 4))] : [],
                               ),
                               alignment: Alignment.center,
                               child: isLocked
                                   ? const Icon(Icons.lock_rounded, color: Colors.grey, size: 22)
-                                  : Text('$level', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: color)),
+                                  : Text('$level',
+                                      style: TextStyle(
+                                        fontSize: 22, fontWeight: FontWeight.bold,
+                                        color: isSelected ? Colors.white : levelColor,
+                                      )),
                             ),
                           );
                         }),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Botão JOGAR — grande, cor da dificuldade
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: widget.cor,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            elevation: 0,
+                          ),
+                          onPressed: _selectedLevel == null ? null : () {
+                            final qt = _quizTypes[_currentPage]['type'] as QuizType;
+                            Navigator.pop(context);
+                            Navigator.push(context, MaterialPageRoute(
+                              builder: (_) => QuizScreen(
+                                tema: widget.tema, dificuldade: widget.dificuldade,
+                                nivel: _selectedLevel!, quizType: qt,
+                              ),
+                            ));
+                          },
+                          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                            const Icon(Icons.sports_esports_rounded, size: 22),
+                            const SizedBox(width: 10),
+                            Text(
+                              _selectedLevel == null ? 'Seleciona um nível' : 'Jogar — Nível $_selectedLevel',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
+                          ]),
+                        ),
                       ),
                     ]),
                   ),
