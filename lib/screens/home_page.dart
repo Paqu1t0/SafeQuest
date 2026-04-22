@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+// 👇 Adicionado o import do Messaging 👇
+import 'package:firebase_messaging/firebase_messaging.dart'; 
+
 import 'package:projeto_safequest/screens/profile_page.dart';
 import 'package:projeto_safequest/screens/assistent_page.dart';
 import 'package:projeto_safequest/screens/history_page.dart';
@@ -15,7 +18,6 @@ import 'package:projeto_safequest/screens/coin_animation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import 'package:projeto_safequest/screens/daily_missions_service.dart';
-import 'package:projeto_safequest/screens/dragon_mascot.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AVATAR HELPERS
@@ -50,6 +52,7 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+
     _pageCtrl = PageController(initialPage: 0);
     _pages = [
       const QuizzesDashboard(),
@@ -59,6 +62,9 @@ class _HomePageState extends State<HomePage> {
       const HistoryPage(),
       const ProfilePage(),
     ];
+
+    // 👇 CHAMA A FUNÇÃO DAS NOTIFICAÇÕES AQUI 👇
+    _setupPushNotifications();
   }
 
   @override
@@ -100,6 +106,50 @@ class _HomePageState extends State<HomePage> {
         ],
       ),
     );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────────
+  // 👇 FUNÇÕES PARA GUARDAR O TOKEN FCM NO FIRESTORE 👇
+  // ─────────────────────────────────────────────────────────────────────────────
+  
+  Future<void> _setupPushNotifications() async {
+    FirebaseMessaging messaging = FirebaseMessaging.instance;
+    User? user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) return; // Se não houver utilizador logado, não avança
+
+    // 1. Pede permissão
+    NotificationSettings settings = await messaging.requestPermission(
+      alert: true, badge: true, sound: true,
+    );
+
+    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+      print('Permissão para notificações concedida!');
+
+      // 2. Pega no token atual e guarda no Firestore
+      String? token = await messaging.getToken();
+      if (token != null) {
+        await _guardarTokenNoFirestore(user.uid, token);
+      }
+
+      // 3. Fica à escuta se o token mudar no futuro
+      FirebaseMessaging.instance.onTokenRefresh.listen((novoToken) {
+        _guardarTokenNoFirestore(user.uid, novoToken);
+      });
+    } else {
+      print('O utilizador recusou as notificações.');
+    }
+  }
+
+  Future<void> _guardarTokenNoFirestore(String uid, String token) async {
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(uid).set({
+        'fcmToken': token,
+      }, SetOptions(merge: true)); // O merge não deixa apagar os outros dados!
+      print('Token FCM guardado com sucesso: $token');
+    } catch (e) {
+      print('Erro ao guardar o token FCM: $e');
+    }
   }
 }
 
@@ -525,37 +575,7 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildMainScoreCard(pontos, progressoGeral, nivel, bannerColors),
-                  const SizedBox(height: 16),
-                  // ── Mascote Dragão ──
-                  StreamBuilder<DocumentSnapshot>(
-                    stream: FirebaseFirestore.instance
-                        .collection('users').doc(user?.uid)
-                        .collection('daily_missions').doc(DailyMissionsService.todayKey())
-                        .snapshots(),
-                    builder: (context, missionSnap) {
-                      int quizzesDone = 0;
-                      int missionsComplete = 0;
-                      if (missionSnap.hasData && missionSnap.data!.exists) {
-                        final mData = missionSnap.data!.data() as Map<String, dynamic>? ?? {};
-                        quizzesDone = mData['quizzesDone'] ?? 0;
-                        // Count completed missions
-                        final q = mData['quizzesDone'] ?? 0;
-                        final p = mData['perfectDone'] ?? 0;
-                        final t = (mData['temasDone'] as List?)?.length ?? 0;
-                        if (q >= 3) missionsComplete++;
-                        if (p >= 1) missionsComplete++;
-                        if (t >= 2) missionsComplete++;
-                        if (q >= 5) missionsComplete++;
-                      }
-                      return DragonMascot(
-                        quizzesDone: quizzesDone,
-                        streak: streak,
-                        missionsComplete: missionsComplete,
-                        totalMissions: 4,
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 4),
+
                   const DailyMissionsWidget(),
                   const SizedBox(height: 24),
                   Text('🎮 Arenas de Treino',
