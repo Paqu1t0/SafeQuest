@@ -432,6 +432,19 @@ class _ClanPageState extends State<ClanPage> {
     );
   }
 
+  Widget _clanStatBox(String icon, String value, String label) {
+    return Expanded(child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: BoxDecoration(color: Colors.white.withOpacity(0.08), borderRadius: BorderRadius.circular(12)),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Text(icon, style: const TextStyle(fontSize: 20)),
+        const SizedBox(height: 4),
+        Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+        Text(label, style: const TextStyle(color: Colors.white54, fontSize: 10)),
+      ]),
+    ));
+  }
+
   Widget _sortChip(String label, String value, String current, Function(String) onTap) {
     final selected = current == value;
     return GestureDetector(
@@ -543,18 +556,126 @@ class _ClanPageState extends State<ClanPage> {
   }
 
   Future<void> _joinClan(BuildContext context, String clanId, String clanName) async {
+    // Busca dados completos do clã para mostrar no popup
+    final clanSnap = await FirebaseFirestore.instance.collection('clans').doc(clanId).get();
+    final clanData = clanSnap.data() as Map<String, dynamic>? ?? {};
+
+    final members   = List<String>.from(clanData['memberIds'] ?? []).length;
+    final maxSize   = (clanData['maxSize']   ?? 50) as int;
+    final minPts    = (clanData['minPoints'] ?? 0) as int;
+    final points    = (clanData['points']    ?? 0) as int;
+    final icon      = clanData['icon']        ?? '🏰';
+    final desc      = clanData['description'] ?? 'Sem descrição.';
+
+    if (!context.mounted) return;
+
     final confirm = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text('Juntar-se a $clanName?', style: const TextStyle(fontWeight: FontWeight.bold)),
-        content: const Text('Vais fazer parte deste clã e participar nos desafios de equipa.'),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar', style: TextStyle(color: Colors.grey))),
-          ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: _primary, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))), onPressed: () => Navigator.pop(ctx, true), child: const Text('Juntar!', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold))),
-        ],
+      barrierColor: Colors.black54,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 60),
+        child: Container(
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E3A8A),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: const Color(0xFF3B82F6), width: 2),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 30, offset: const Offset(0, 10))],
+          ),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+
+            // ── Header do clã ──────────────────────────────────────────
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(colors: [Color(0xFF1A56DB), Color(0xFF1E3A8A)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+              ),
+              child: Row(children: [
+                // Ícone grande
+                Container(
+                  width: 60, height: 60,
+                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white.withOpacity(0.3), width: 2)),
+                  child: Center(child: Text(icon, style: const TextStyle(fontSize: 32))),
+                ),
+                const SizedBox(width: 14),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(clanName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                  const SizedBox(height: 4),
+                  Text(desc, style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12), maxLines: 2, overflow: TextOverflow.ellipsis),
+                ])),
+                GestureDetector(onTap: () => Navigator.pop(ctx, false), child: const Icon(Icons.close_rounded, color: Colors.white70, size: 22)),
+              ]),
+            ),
+
+            // ── Stats em grid ──────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(children: [
+                _clanStatBox('🏆', '$points', 'Pontos'),
+                const SizedBox(width: 10),
+                _clanStatBox('👥', '$members/$maxSize', 'Membros'),
+                const SizedBox(width: 10),
+                _clanStatBox('⭐', '$minPts', 'Mín. Pontos'),
+              ]),
+            ),
+
+            // Divisor
+            Container(height: 1, color: Colors.white.withOpacity(0.1), margin: const EdgeInsets.symmetric(horizontal: 16)),
+
+            // ── Texto de confirmação ───────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
+              child: RichText(text: TextSpan(
+                style: const TextStyle(fontSize: 13, color: Colors.white70, height: 1.5),
+                children: [
+                  const TextSpan(text: 'Ao juntar-te a '),
+                  TextSpan(text: clanName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  const TextSpan(text: ', os teus pontos de quiz contribuirão para o score do clã e poderás participar em batalhas e desafios de equipa.'),
+                ],
+              )),
+            ),
+
+            // ── Botões ─────────────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+              child: Row(children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white70,
+                      side: const BorderSide(color: Colors.white24),
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Cancelar', style: TextStyle(fontWeight: FontWeight.w600)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  flex: 2,
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF22C55E),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
+                    ),
+                    icon: const Icon(Icons.group_add_rounded, size: 18),
+                    label: const Text('Juntar-se!', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                    onPressed: () => Navigator.pop(ctx, true),
+                  ),
+                ),
+              ]),
+            ),
+          ]),
+        ),
       ),
     );
+
     if (confirm != true || user == null) return;
     final batch = FirebaseFirestore.instance.batch();
     batch.update(FirebaseFirestore.instance.collection('users').doc(user!.uid), {'clanId': clanId});
