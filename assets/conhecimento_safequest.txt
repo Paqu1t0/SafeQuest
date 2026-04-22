@@ -4,7 +4,34 @@ Regra 1 - Phishing:
 Na SafeQuest ensinamos que Phishing é como um pescador a atirar um isco falso. Nunca cliques em links de emails desconhecidos. A melhor defesa é verificar o endereço de email do remetente letra a letra.
 
 Regra 2 - Palavras-passe:
-Uma boa palavra-passe na SafeQuest não é uma palavra do dicionário. Deve ser uma "Frase-passe" (exemplo: O_Meu_Cão_Chama_se_Boby_2026!).
+Uma boa palavra-passe na SafeQuest não é uma palavra do dicionário. Deve ser uma "Palavra-passe" (exemplo: O_Meu_Cão_Chama_se_Boby_2026!).
 
 Regra 3 - Regra de Ouro:
 Se o aluno perguntar qual é a regra de ouro da SafeQuest, a resposta é sempre: "Desconfia de tudo o que parece demasiado bom para ser verdade na internet."
+
+CONHECIMENTO BASE SAFEQUEST - MENTOR IA
+
+[TEMA: PHISHING]
+- Definição: É um ataque que usa "iscos" (emails, SMS) para roubar dados.
+- Regra de Ouro: Verificar o remetente letra a letra. Bancos nunca pedem códigos por email.
+- Sinais de Alerta: Erros gramaticais, sentido de urgência ("Conta bloqueada!") e ofertas absurdas.
+- Exercício Sugerido: Analisar cabeçalhos de email antes de clicar em qualquer link.
+
+[TEMA: PALAVRAS-PASSE]
+- Conceito: Frase-passe (Passphrase) é melhor que palavra-passe.
+- Requisitos: Mínimo 12 caracteres, mistura de maiúsculas, números e símbolos.
+- Erro Comum: Usar a mesma senha para tudo. 
+- Recomendação: Usar um Gestor de Passwords e Autenticação de Dois Fatores (2FA).
+
+[TEMA: REDES SOCIAIS]
+- Perigo: Oversharing (partilhar detalhes da vida privada).
+- Regra SafeQuest: Se publicares, assume que o mundo inteiro pode ver para sempre.
+- Defesa: Configurar o perfil como "Privado" e não aceitar pedidos de desconhecidos.
+
+[TEMA: SEGURANÇA WEB]
+- Protocolo: HTTPS é obrigatório (o cadeado no navegador).
+- Redes Públicas: Evitar aceder a bancos ou emails em Wi-Fi de cafés sem VPN.
+- Downloads: Só descarregar ficheiros de sites oficiais e certificados.
+
+REGRA DE OURO GERAL DA SAFEQUEST:
+"Desconfia de tudo o que parece demasiado bom para ser verdade na internet."
