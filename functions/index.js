@@ -12,14 +12,31 @@ exports.sendNotification = functions.firestore
     const data = snap.data();
 
     const user  = await admin.firestore().doc(`users/${uid}`).get();
-    const token = user.data()?.fcmToken;
+    const uData = user.data();
+    const token = uData?.fcmToken;
     if (!token) return null;
 
+    // Respeita a preferência do utilizador
+    if (uData?.pushNotifs === false) return null;
+
+    // AQUI ESTÁ A CORREÇÃO MÁGICA:
     return admin.messaging().send({
-      token,
-      notification: { title: data.title, body: data.body },
-      android: { priority: 'high' },
-      apns: { payload: { aps: { sound: 'default' } } },
+      token: token,
+      notification: { 
+        title: data.title, 
+        body: data.body 
+      },
+      android: { 
+        priority: 'high',
+        notification: {
+          channelId: 'safequest_channel' // 👈 O telemóvel agora já sabe qual é o canal!
+        }
+      },
+      apns: { 
+        payload: { 
+          aps: { sound: 'default' } 
+        } 
+      },
     });
   });
 
@@ -39,6 +56,9 @@ exports.emailDiario = functions.pubsub
       const email = data.email;
       const name  = data.nickname || data.name || 'Jogador';
       if (!email) continue;
+
+      // Respeita a preferência do utilizador
+      if (data.emailNotifs === false) continue;
 
       // Só envia se não fez quizzes hoje
       const missSnap = await admin.firestore()
@@ -74,6 +94,10 @@ exports.notificacaoDiariaIncentivo = functions.pubsub
 
     for (const doc of usersSnap.docs) {
       // Não incomoda quem já completou as missões
+      const userData = doc.data();
+      // Respeita a preferência do utilizador
+      if (userData.pushNotifs === false) continue;
+
       const missSnap = await admin.firestore()
         .collection('users').doc(doc.id)
         .collection('daily_missions').doc(today).get();
@@ -111,6 +135,9 @@ exports.notificacaoManha = functions.pubsub
       const data   = doc.data();
       const name   = data.nickname || data.name || 'Jogador';
       const streak = data.streak || 0;
+      // Respeita a preferência do utilizador
+      if (data.pushNotifs === false) continue;
+
       const missSnap = await admin.firestore()
         .collection('users').doc(doc.id)
         .collection('daily_missions').doc(today).get();
@@ -150,6 +177,10 @@ exports.notificacaoAlmoco = functions.pubsub
         .collection('daily_missions').doc(today).get();
       const quizzes = missSnap.exists ? (missSnap.data().quizzesDone || 0) : 0;
       if (quizzes >= 3) continue;
+      // Respeita a preferência do utilizador
+      const userData = doc.data();
+      if (userData.pushNotifs === false) continue;
+
       const remaining = 3 - quizzes;
       const notifRef = admin.firestore()
         .collection('users').doc(doc.id)
@@ -179,6 +210,9 @@ exports.notificacaoNoite = functions.pubsub
     for (const doc of usersSnap.docs) {
       const data   = doc.data();
       const streak = data.streak || 0;
+      // Respeita a preferência do utilizador
+      if (data.pushNotifs === false) continue;
+
       const missSnap = await admin.firestore()
         .collection('users').doc(doc.id)
         .collection('daily_missions').doc(today).get();
@@ -217,6 +251,9 @@ exports.emailSemanal = functions.pubsub
       const email = data.email;
       const name  = data.nickname || data.name || 'Jogador';
       if (!email) continue;
+
+      // Respeita a preferência do utilizador
+      if (data.emailNotifs === false) continue;
 
       const pontos = data.pontos || 0;
       const nivel  = Math.floor(pontos / 250) + 1;
