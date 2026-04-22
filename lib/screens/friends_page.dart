@@ -4,12 +4,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:projeto_safequest/screens/member_profile_page.dart';
 import 'package:projeto_safequest/screens/notification_service.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// FRIENDS PAGE — pedidos de amizade com aceitar/rejeitar
-// Estrutura Firestore:
-//   users/{uid}/friendRequests: [{from, fromName, status}]  ← pendentes recebidos
-//   users/{uid}/friends: [uid1, uid2, ...]                  ← amigos aceites
-// ─────────────────────────────────────────────────────────────────────────────
 
 class FriendsPage extends StatefulWidget {
   const FriendsPage({super.key});
