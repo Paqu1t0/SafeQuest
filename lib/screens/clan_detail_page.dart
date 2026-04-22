@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:projeto_safequest/screens/member_profile_page.dart';
 import 'package:projeto_safequest/screens/notification_service.dart';
-import 'package:projeto_safequest/screens/quiz_screen.dart' show QuizQuestion;
+import 'package:projeto_safequest/services/sound_service.dart';
 
 class ClanDetailPage extends StatefulWidget {
   final String clanId;
@@ -20,6 +20,7 @@ class _ClanDetailPageState extends State<ClanDetailPage>
     with SingleTickerProviderStateMixin {
   static const _primary     = Color(0xFF1A56DB);
   static const _primaryDeep = Color(0xFF1E3A8A);
+  static const _gold        = Color(0xFFF59E0B);
 
   late TabController _tabCtrl;
   final _msgCtrl    = TextEditingController();
@@ -51,7 +52,7 @@ class _ClanDetailPageState extends State<ClanDetailPage>
   @override
   void initState() {
     super.initState();
-    _tabCtrl = TabController(length: 3, vsync: this);
+    _tabCtrl = TabController(length: 1, vsync: this);
   }
 
   @override
@@ -102,44 +103,38 @@ class _ClanDetailPageState extends State<ClanDetailPage>
   Widget _buildBody(String name, String icon, num points, int members, String myRole, Map<String, dynamic> clanData) {
     return Column(
       children: [
-        // Header
-        Container(
-          margin: const EdgeInsets.all(16),
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(colors: [Color(0xFF1A56DB), Color(0xFF1E40AF)]),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Row(children: [
-            Container(width: 50, height: 50, decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(14)), child: Center(child: Text(icon, style: const TextStyle(fontSize: 26)))),
-            const SizedBox(width: 14),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-              Text('$members membros', style: const TextStyle(color: Colors.white70, fontSize: 13)),
-            ])),
-            Column(children: [
-              const Text('🏆', style: TextStyle(fontSize: 16)),
-              Text('${points.toInt()} pts', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-            ]),
-          ]),
-        ),
-        // O meu papel
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+        // Header clicável — mostra membros ao clicar
+        GestureDetector(
+          onTap: () => _showClanInfoSheet(context, name, icon, points, members, myRole, clanData),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: (_roleColors[myRole] ?? _primary).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: (_roleColors[myRole] ?? _primary).withOpacity(0.3)),
+              gradient: const LinearGradient(colors: [Color(0xFF1A56DB), Color(0xFF1E40AF)]),
+              borderRadius: BorderRadius.circular(20),
             ),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Text(_roleLabels[myRole] ?? '👤 Membro', style: TextStyle(color: _roleColors[myRole] ?? _primary, fontWeight: FontWeight.bold, fontSize: 13)),
+            child: Row(children: [
+              Container(width: 50, height: 50, decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(14)), child: Center(child: Text(icon, style: const TextStyle(fontSize: 26)))),
+              const SizedBox(width: 14),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                Text('$members membros  •  ${points.toInt()} pts', style: const TextStyle(color: Colors.white70, fontSize: 13)),
+              ])),
+              // Ícone de seta + papel
+              Column(children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+                  child: Text(_roleLabels[myRole] ?? '👤 Membro', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                ),
+                const SizedBox(height: 6),
+                const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white70, size: 18),
+              ]),
             ]),
           ),
         ),
-        const SizedBox(height: 12),
-        // Tabs
+        const SizedBox(height: 4),
+        // Só Chat tab
         Container(
           color: Colors.white,
           child: TabBar(
@@ -147,18 +142,166 @@ class _ClanDetailPageState extends State<ClanDetailPage>
             indicator: const BoxDecoration(border: Border(bottom: BorderSide(color: _primary, width: 3))),
             labelColor: _primary, unselectedLabelColor: Colors.grey,
             dividerColor: const Color(0xFFE5E7EB),
-            tabs: const [Tab(text: 'Membros'), Tab(text: 'Chat'), Tab(text: '⚔️ Batalhas')],
+            tabs: const [Tab(text: 'Chat')],
           ),
         ),
         Expanded(child: TabBarView(
           controller: _tabCtrl,
-          children: [_buildMembersTab(myRole, clanData), _buildChatTab(), _buildBattlesTab()],
+          children: [_buildChatTab()],
         )),
       ],
     );
   }
 
-  // ── ABA MEMBROS ────────────────────────────────────────────────────────────
+  // ── Sheet com info do clã + membros (abre ao clicar no header) ──────────
+  void _showClanInfoSheet(BuildContext context, String name, String icon, num points, int members, String myRole, Map<String, dynamic> clanData) {
+    final memberIds = List<String>.from(clanData['memberIds'] ?? []);
+    final maxSize   = (clanData['maxSize']   ?? 50) as int;
+    final minPts    = (clanData['minPoints'] ?? 0) as int;
+    final desc      = clanData['description'] ?? 'Sem descrição.';
+    final roles     = Map<String, dynamic>.from(clanData['roles'] ?? {});
+    final createdBy = clanData['createdBy'] as String? ?? '';
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => DraggableScrollableSheet(
+        initialChildSize: 0.7, minChildSize: 0.4, maxChildSize: 0.92,
+        builder: (_, scrollCtrl) => Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(children: [
+            // Handle
+            const SizedBox(height: 12),
+            Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: const Color(0xFFE5E7EB), borderRadius: BorderRadius.circular(10)))),
+            const SizedBox(height: 16),
+
+            // Header do clã
+            Container(
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(colors: [Color(0xFF1A56DB), Color(0xFF1E40AF)]),
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Row(children: [
+                Text(icon, style: const TextStyle(fontSize: 36)),
+                const SizedBox(width: 14),
+                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                  const SizedBox(height: 4),
+                  Text(desc, style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12), maxLines: 2),
+                ])),
+              ]),
+            ),
+
+            // Stats
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(children: [
+                _infoBox('🏆', '${points.toInt()}', 'Pontos'),
+                const SizedBox(width: 10),
+                _infoBox('👥', '$members/$maxSize', 'Membros'),
+                const SizedBox(width: 10),
+                _infoBox('⭐', '$minPts', 'Mín. Pontos'),
+              ]),
+            ),
+
+            // Lista de membros
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                Text('Membros (${memberIds.length})', style: const TextStyle(fontWeight: FontWeight.bold, color: _primaryDeep, fontSize: 14)),
+                // Botão sair escondido aqui
+                GestureDetector(
+                  onTap: () { Navigator.pop(ctx); _leaveClan(context); },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(color: const Color(0xFFFEF2F2), borderRadius: BorderRadius.circular(8)),
+                    child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.exit_to_app_rounded, color: Colors.red, size: 14),
+                      SizedBox(width: 4),
+                      Text('Sair', style: TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.w600)),
+                    ]),
+                  ),
+                ),
+              ]),
+            ),
+
+            Expanded(
+              child: ListView.builder(
+                controller: scrollCtrl,
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
+                itemCount: memberIds.length,
+                itemBuilder: (ctx2, i) {
+                  final uid        = memberIds[i];
+                  final memberRole = uid == createdBy ? 'leader' : (roles[uid] ?? 'member') as String;
+                  return StreamBuilder<DocumentSnapshot>(
+                    stream: FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
+                    builder: (ctx3, snap) {
+                      if (!snap.hasData) return const SizedBox.shrink();
+                      final data      = snap.data!.data() as Map<String,dynamic>? ?? {};
+                      final mname     = data['name']    ?? 'Jogador';
+                      final mnick     = data['nickname']?? '';
+                      final mpontos   = (data['pontos']  ?? 0) as int;
+                      final avatarId  = data['avatar']   ?? 'default';
+                      final emoji     = _avatarEmoji[avatarId] ?? '👤';
+                      final roleColor = _roleColors[memberRole] ?? _primary;
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE5E7EB))),
+                        child: Row(children: [
+                          // Rank
+                          SizedBox(width: 22, child: Text('${i + 1}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: i < 3 ? _gold : Colors.grey))),
+                          // Avatar
+                          Text(emoji, style: const TextStyle(fontSize: 26)),
+                          const SizedBox(width: 10),
+                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Text(mnick.isNotEmpty ? mnick : mname, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: _primaryDeep)),
+                            Text('$mpontos pts', style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                          ])),
+                          // Papel badge
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(color: roleColor.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                            child: Text(_roleLabels[memberRole] ?? '👤', style: TextStyle(color: roleColor, fontWeight: FontWeight.bold, fontSize: 11)),
+                          ),
+                          // Long press para gerir (só gestores)
+                          if (_canManage(myRole) && uid != user?.uid && memberRole != 'leader')
+                            GestureDetector(
+                              onTap: () { Navigator.pop(ctx); _showMemberOptions(context, uid, mname, memberRole, myRole); },
+                              child: const Padding(padding: EdgeInsets.only(left: 8), child: Icon(Icons.more_vert_rounded, color: Colors.grey, size: 18)),
+                            ),
+                        ]),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _infoBox(String icon, String value, String label) {
+    return Expanded(child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
+      child: Column(children: [
+        Text(icon, style: const TextStyle(fontSize: 20)),
+        const SizedBox(height: 4),
+        Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: _primaryDeep)),
+        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 10)),
+      ]),
+    ));
+  }
   Widget _buildMembersTab(String myRole, Map<String, dynamic> clanData) {
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance.collection('clans').doc(widget.clanId).snapshots(),
@@ -297,6 +440,12 @@ class _ClanDetailPageState extends State<ClanDetailPage>
             _optionTile(ctx, Icons.sports_esports_rounded, _primary,
                 'Propor Batalha de Quiz', 'Desafia este membro para um quiz!',
                 () => _proposeBattle(ctx, uid, name)),
+
+            // ── TRANSFERIR LIDERANÇA (só líder) ──────────────────────────
+            if (myRole == 'leader')
+              _optionTile(ctx, Icons.workspace_premium_rounded, const Color(0xFFFBBF24),
+                  'Transferir Liderança', 'Torna este membro o novo Líder',
+                  () => _transferLeadership(ctx, uid, name)),
 
             // ── EXPULSAR ──────────────────────────────────────────────────
             if (_canKick(myRole, memberRole))
@@ -469,22 +618,35 @@ class _ClanDetailPageState extends State<ClanDetailPage>
     final myDoc  = await FirebaseFirestore.instance.collection('users').doc(user?.uid).get();
     final myName = (myDoc.data()?['name'] ?? 'Desafiante') as String;
 
-    // Batalha aberta — sem "to" específico, qualquer um pode aceitar
-    final battleRef = await FirebaseFirestore.instance.collection('clan_battles').add({
+    // Cria a batalha
+    final battleRef = FirebaseFirestore.instance.collection('clan_battles').doc();
+    await battleRef.set({
       'from'      : user?.uid,
       'fromName'  : myName,
-      'to'        : null,    // aberta a qualquer membro
+      'to'        : null,
       'toName'    : null,
       'clanId'    : widget.clanId,
-      'status'    : 'open',  // open → in_progress → finished
+      'status'    : 'open',
       'tema'      : tema,
       'fromScore' : null,
       'toScore'   : null,
       'createdAt' : FieldValue.serverTimestamp(),
     });
 
-    // Mensagem visual no chat
-    await _sendSystemMessage('⚔️ $myName lançou um desafio de Quiz sobre "$tema"!\n🎯 Vai à aba Batalhas para aceitar!');
+    // Mensagem no chat com battleId — mostra botão de aceitar inline
+    await FirebaseFirestore.instance
+        .collection('clans').doc(widget.clanId).collection('messages').add({
+      'text'      : '⚔️ $myName lançou um desafio sobre "$tema"!\nToca em Aceitar para entrar na batalha!',
+      'uid'       : 'system',
+      'senderName': '📢 Sistema',
+      'isSystem'  : true,
+      'isBattle'  : true,          // flag especial
+      'battleId'  : battleRef.id,  // referência à batalha
+      'battleTema': tema,
+      'battleFrom': user?.uid,
+      'battleFromName': myName,
+      'timestamp' : FieldValue.serverTimestamp(),
+    });
 
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Desafio lançado sobre $tema! ⚔️'), backgroundColor: const Color(0xFFEA580C)),
@@ -519,10 +681,83 @@ class _ClanDetailPageState extends State<ClanDetailPage>
       ),
     );
     if (confirm != true || user == null) return;
+
+    final clanRef  = FirebaseFirestore.instance.collection('clans').doc(widget.clanId);
+    final clanSnap = await clanRef.get();
+    final data     = clanSnap.data() as Map<String, dynamic>? ?? {};
+    final createdBy = data['createdBy'] as String? ?? '';
+    final isLeader  = createdBy == user!.uid;
+    final members   = List<String>.from(data['memberIds'] ?? [])..remove(user!.uid);
+    final roles     = Map<String, dynamic>.from(data['roles'] ?? {});
+
     final batch = FirebaseFirestore.instance.batch();
     batch.update(FirebaseFirestore.instance.collection('users').doc(user!.uid), {'clanId': FieldValue.delete()});
-    batch.update(FirebaseFirestore.instance.collection('clans').doc(widget.clanId), {'memberIds': FieldValue.arrayRemove([user!.uid])});
+    batch.update(clanRef, {
+      'memberIds': FieldValue.arrayRemove([user!.uid]),
+      'roles.${user!.uid}': FieldValue.delete(), // Limpa o role do user que sai
+    });
+
+    // Se é líder, transfere automaticamente para o co-líder ou membro mais antigo
+    if (isLeader && members.isNotEmpty) {
+      String? newLeader;
+      // Prioridade: co-líder → ancião → membro
+      for (final role in ['co-leader', 'elder', 'member']) {
+        newLeader = members.firstWhere((m) => (roles[m] ?? 'member') == role, orElse: () => '');
+        if (newLeader.isNotEmpty) break;
+      }
+      newLeader ??= members.first;
+
+      batch.update(clanRef, {'createdBy': newLeader, 'roles.$newLeader': 'leader'});
+      await _sendSystemMessage('👑 Liderança transferida automaticamente para um novo líder.');
+    } else if (members.isEmpty) {
+      // Clã ficou vazio — apaga-o
+      batch.delete(clanRef);
+    }
+
     await batch.commit();
+    if (mounted) Navigator.pop(context);
+  }
+
+  // ── Transferir liderança (só o líder pode) ────────────────────────────────
+  Future<void> _transferLeadership(BuildContext context, String newLeaderUid, String newLeaderName) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Transferir Liderança', style: TextStyle(fontWeight: FontWeight.bold)),
+        content: Text('Tens a certeza que queres transferir a liderança para $newLeaderName?\n\nVais passar a ser Co-Líder.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar', style: TextStyle(color: Colors.grey))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFBBF24), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Confirmar', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    final clanRef = FirebaseFirestore.instance.collection('clans').doc(widget.clanId);
+    await clanRef.update({
+      'createdBy'                    : newLeaderUid,
+      'roles.$newLeaderUid'          : 'leader',
+      'roles.${user?.uid}'           : 'co-leader',
+    });
+
+    await _sendSystemMessage('👑 $newLeaderName é o novo Líder do clã!');
+
+    await FirebaseFirestore.instance.collection('users').doc(newLeaderUid).collection('notifications').add({
+      'title'    : '👑 És o novo Líder!',
+      'body'     : 'Foste promovido(a) a Líder do clã. Usa bem este poder!',
+      'type'     : 'clan_promoted',
+      'read'     : false,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('👑 $newLeaderName é o novo Líder!'), backgroundColor: const Color(0xFFFBBF24)),
+    );
   }
 
   // ── ABA CHAT ──────────────────────────────────────────────────────────────
@@ -566,19 +801,13 @@ class _ClanDetailPageState extends State<ClanDetailPage>
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 20),
               child: Row(children: [
                 // Botão emoji
-                GestureDetector(
-                  onTap: () => setState(() => _showEmojis = !_showEmojis),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 150),
-                    width: 40, height: 40,
-                    decoration: BoxDecoration(
-                      color: _showEmojis ? _primary.withOpacity(0.1) : const Color(0xFFF8FAFC),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: _showEmojis ? _primary.withOpacity(0.3) : const Color(0xFFE5E7EB)),
-                    ),
-                    child: Center(child: Text(_showEmojis ? '⌨️' : '😊', style: const TextStyle(fontSize: 18))),
-                  ),
-                ),
+                _chatBtn('😊', _showEmojis, () => setState(() => _showEmojis = !_showEmojis)),
+                const SizedBox(width: 6),
+                // ⚔️ Propor batalha
+                _chatBtn('⚔️', false, () => _proposeBattle(context, '', '')),
+                const SizedBox(width: 6),
+                // 📣 Notificação de motivação (só líder e co-líder)
+                _chatMotivationBtn(context),
                 const SizedBox(width: 8),
                 // Campo de texto
                 Expanded(child: Container(
@@ -591,19 +820,15 @@ class _ClanDetailPageState extends State<ClanDetailPage>
                       border: InputBorder.none,
                       contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     ),
-                    onSubmitted: (_) { _sendMessage(); setState(() => _showEmojis = false); },
+                    onSubmitted: (_) { _sendMessage(); setState(() => _showEmojis = false); FocusScope.of(context).unfocus(); },
                     maxLines: null,
                   ),
                 )),
                 const SizedBox(width: 8),
-                // Botão enviar
+                // Enviar
                 GestureDetector(
-                  onTap: () { _sendMessage(); setState(() => _showEmojis = false); },
-                  child: Container(
-                    width: 44, height: 44,
-                    decoration: BoxDecoration(color: _primary, borderRadius: BorderRadius.circular(12)),
-                    child: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
-                  ),
+                  onTap: () { _sendMessage(); setState(() => _showEmojis = false); FocusScope.of(context).unfocus(); },
+                  child: Container(width: 44, height: 44, decoration: BoxDecoration(color: _primary, borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.send_rounded, color: Colors.white, size: 20)),
                 ),
               ]),
             ),
@@ -611,6 +836,139 @@ class _ClanDetailPageState extends State<ClanDetailPage>
         ),
       ),
     ]);
+  }
+
+  Widget _chatBtn(String emoji, bool active, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        width: 40, height: 40,
+        decoration: BoxDecoration(
+          color: active ? _primary.withOpacity(0.1) : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: active ? _primary.withOpacity(0.3) : const Color(0xFFE5E7EB)),
+        ),
+        child: Center(child: Text(emoji == '😊' && active ? '⌨️' : emoji, style: const TextStyle(fontSize: 18))),
+      ),
+    );
+  }
+
+  // Botão de motivação — só líder/co-líder
+  Widget _chatMotivationBtn(BuildContext context) {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance.collection('clans').doc(widget.clanId).snapshots(),
+      builder: (_, snap) {
+        if (!snap.hasData) return const SizedBox.shrink();
+        final data      = snap.data!.data() as Map<String, dynamic>? ?? {};
+        final createdBy = data['createdBy'] as String? ?? '';
+        final roles     = Map<String, dynamic>.from(data['roles'] ?? {});
+        final myRole    = user?.uid == createdBy ? 'leader' : (roles[user?.uid] ?? 'member');
+        if (myRole != 'leader' && myRole != 'co-leader') return const SizedBox.shrink();
+
+        return GestureDetector(
+          onTap: () => _showMotivationDialog(context),
+          child: Container(
+            width: 40, height: 40,
+            decoration: BoxDecoration(color: const Color(0xFFFEF3C7), borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.4))),
+            child: const Center(child: Text('📣', style: TextStyle(fontSize: 18))),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showMotivationDialog(BuildContext context) async {
+    final msgs = [
+      '🔥 Vamos lá equipa! Façam mais quizzes e subamos na classificação!',
+      '💪 O nosso clã precisa de mais pontos! Cada quiz conta!',
+      '🏆 Estamos a um passo do topo! Quem faz o próximo quiz?',
+      '⚡ Desafio de hoje: cada membro faz pelo menos 1 quiz!',
+      '🎯 Foco total em Phishing esta semana — quem tem a melhor nota?',
+    ];
+
+    String? custom;
+    int selectedIdx = 0;
+
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setS) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: Padding(
+          padding: const EdgeInsets.all(22),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text('📣', style: TextStyle(fontSize: 36)),
+            const SizedBox(height: 8),
+            const Text('Mensagem de Motivação', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: Color(0xFF1E3A8A))),
+            const SizedBox(height: 4),
+            const Text('Será enviada como notificação a todos os membros', style: TextStyle(color: Colors.grey, fontSize: 11), textAlign: TextAlign.center),
+            const SizedBox(height: 16),
+            // Sugestões rápidas
+            ...msgs.asMap().entries.map((e) => GestureDetector(
+              onTap: () => setS(() { selectedIdx = e.key; custom = null; }),
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: selectedIdx == e.key && custom == null ? const Color(0xFFEFF6FF) : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: selectedIdx == e.key && custom == null ? const Color(0xFF1A56DB) : const Color(0xFFE5E7EB)),
+                ),
+                child: Text(e.value, style: TextStyle(fontSize: 12, color: selectedIdx == e.key && custom == null ? const Color(0xFF1A56DB) : const Color(0xFF374151))),
+              ),
+            )).toList(),
+            const SizedBox(height: 10),
+            // Mensagem personalizada
+            TextField(
+              onChanged: (v) => setS(() { custom = v.isNotEmpty ? v : null; }),
+              decoration: InputDecoration(
+                hintText: 'Ou escreve a tua mensagem...',
+                hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(children: [
+              Expanded(child: TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar', style: TextStyle(color: Colors.grey)))),
+              const SizedBox(width: 8),
+              Expanded(child: ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF59E0B), foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), elevation: 0),
+                onPressed: () => Navigator.pop(ctx, {'msg': custom ?? msgs[selectedIdx]}),
+                child: const Text('Enviar 📣', style: TextStyle(fontWeight: FontWeight.bold)),
+              )),
+            ]),
+          ]),
+        ),
+      )),
+    );
+
+    if (result == null) return;
+    final msg = result['msg'] as String;
+
+    // Envia para todos os membros como notificação
+    final clanSnap = await FirebaseFirestore.instance.collection('clans').doc(widget.clanId).get();
+    final members  = List<String>.from(clanSnap.data()?['memberIds'] ?? []);
+    final myDoc    = await FirebaseFirestore.instance.collection('users').doc(user?.uid).get();
+    final myName   = (myDoc.data()?['name'] ?? 'Líder') as String;
+
+    for (final uid in members) {
+      if (uid == user?.uid) continue;
+      await FirebaseFirestore.instance.collection('users').doc(uid).collection('notifications').add({
+        'title'    : '📣 $myName — Mensagem do clã',
+        'body'     : msg,
+        'type'     : 'clan_motivation',
+        'read'     : false,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
+
+    // Também aparece no chat
+    await _sendSystemMessage('📣 $myName: $msg');
+
+    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('📣 Mensagem enviada a todos os membros!'), backgroundColor: Colors.green),
+    );
   }
 
   // ── Emoji picker ──────────────────────────────────────────────────────────
@@ -673,29 +1031,124 @@ class _ClanDetailPageState extends State<ClanDetailPage>
   }
 
   Widget _buildMessage(Map<String, dynamic> msg, bool isMe) {
-    final text       = msg['text']       ?? '';
-    final senderName = msg['senderName'] ?? 'Jogador';
-    final ts         = msg['timestamp']  as Timestamp?;
-    final timeStr    = ts != null ? DateFormat('HH:mm').format(ts.toDate()) : '';
-    final isSystem   = msg['isSystem']   == true;
+    final text      = msg['text']      ?? '';
+    final sender    = msg['senderName']?? 'Jogador';
+    final ts        = msg['timestamp'] as Timestamp?;
+    final timeStr   = ts != null ? DateFormat('HH:mm').format(ts.toDate()) : '';
+    final isSystem  = msg['isSystem']  == true;
+    final isBattle  = msg['isBattle']  == true;
 
-    // ── Mensagem de sistema ────────────────────────────────────────────────
+    // ── Mensagem de batalha — card laranja com botão Aceitar ──────────────
+    if (isSystem && isBattle) {
+      final battleId  = msg['battleId']      as String? ?? '';
+      final tema      = msg['battleTema']    as String? ?? 'Phishing';
+      final fromUid   = msg['battleFrom']    as String? ?? '';
+      final fromName  = msg['battleFromName']as String? ?? 'Desafiante';
+      final isFromMe  = fromUid == user?.uid;
+
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+        child: StreamBuilder<DocumentSnapshot>(
+          stream: FirebaseFirestore.instance.collection('clan_battles').doc(battleId).snapshots(),
+          builder: (ctx, snap) {
+            final bd        = snap.hasData && snap.data!.exists ? snap.data!.data() as Map<String,dynamic>? ?? {} : {};
+            final status    = bd['status']    as String? ?? 'open';
+            final fromScore = bd['fromScore'] as int?;
+            final toScore   = bd['toScore']   as int?;
+            final toName    = bd['toName']    as String?;
+            final done      = fromScore != null && toScore != null;
+
+            return Container(
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(colors: [Color(0xFFEA580C), Color(0xFFDC2626)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [BoxShadow(color: const Color(0xFFEA580C).withOpacity(0.3), blurRadius: 10, offset: const Offset(0,4))],
+              ),
+              padding: const EdgeInsets.all(16),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                // Header
+                Row(children: [
+                  const Text('⚔️', style: TextStyle(fontSize: 24)),
+                  const SizedBox(width: 10),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    const Text('Desafio de Quiz!', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                    Text('Tema: $tema', style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12)),
+                  ])),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
+                    child: Text(
+                      done ? '✅ Fim' : status == 'open' ? '🔥 Aberto' : '⏳ Em curso',
+                      style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ]),
+
+                // Scores
+                if (fromScore != null || toScore != null) ...[
+                  const SizedBox(height: 12),
+                  Row(children: [
+                    Expanded(child: _miniScoreBox(fromName, fromScore, done && fromScore! >= (toScore ?? 0))),
+                    Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: Text('VS', style: TextStyle(color: Colors.white.withOpacity(0.7), fontWeight: FontWeight.bold, fontSize: 12))),
+                    Expanded(child: _miniScoreBox(toName ?? '???', toScore, done && toScore! > (fromScore ?? 0))),
+                  ]),
+                ],
+
+                // Resultado
+                if (done && fromScore != null && toScore != null) ...[
+                  const SizedBox(height: 10),
+                  Container(
+                    width: double.infinity, padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(10)),
+                    child: Text(
+                      fromScore > toScore ? '🏆 $fromName venceu!' : toScore > fromScore ? '🏆 ${toName ?? '???'} venceu!' : '🤝 Empate!',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                  ),
+                ],
+
+                // Botão — aceitar (outro membro)
+                if (!isFromMe && status == 'open') ...[
+                  const SizedBox(height: 12),
+                  SizedBox(width: double.infinity, child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: const Color(0xFFEA580C), padding: const EdgeInsets.symmetric(vertical: 11), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), elevation: 0),
+                    icon: const Icon(Icons.sports_esports_rounded, size: 18),
+                    label: const Text('Aceitar e Jogar!', style: TextStyle(fontWeight: FontWeight.bold)),
+                    onPressed: () => _acceptBattleFromChat(battleId, tema, fromName),
+                  )),
+                ],
+
+                // Botão — desafiante joga o seu turno
+                if (isFromMe && fromScore == null) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(width: double.infinity, child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: const Color(0xFF1A56DB), padding: const EdgeInsets.symmetric(vertical: 11), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), elevation: 0),
+                    icon: const Icon(Icons.play_arrow_rounded, size: 18),
+                    label: const Text('Jogar o meu turno', style: TextStyle(fontWeight: FontWeight.bold)),
+                    onPressed: () => _startBattle(battleId, tema, true),
+                  )),
+                ],
+
+                const SizedBox(height: 6),
+                Text(timeStr, style: TextStyle(color: Colors.white.withOpacity(0.55), fontSize: 10)),
+              ]),
+            );
+          },
+        ),
+      );
+    }
+
+    // ── Mensagem de sistema simples ────────────────────────────────────────
     if (isSystem) {
       return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
         child: Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF1F5F9),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            text,
-            textAlign: TextAlign.center,
-            softWrap: true,
-            style: const TextStyle(color: Color(0xFF6B7280), fontSize: 11, fontStyle: FontStyle.italic),
-          ),
+          decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(12)),
+          child: Text(text, textAlign: TextAlign.center, softWrap: true,
+              style: const TextStyle(color: Color(0xFF6B7280), fontSize: 11, fontStyle: FontStyle.italic)),
         ),
       );
     }
@@ -704,7 +1157,7 @@ class _ClanDetailPageState extends State<ClanDetailPage>
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        if (!isMe) Padding(padding: const EdgeInsets.only(bottom: 4, left: 2), child: Text(senderName, style: const TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.w500))),
+        if (!isMe) Padding(padding: const EdgeInsets.only(bottom: 4, left: 2), child: Text(sender, style: const TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.w500))),
         Row(mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start, children: [
           Container(
             constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
@@ -721,10 +1174,43 @@ class _ClanDetailPageState extends State<ClanDetailPage>
     );
   }
 
+  Widget _miniScoreBox(String name, int? score, bool isWinner) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+      decoration: BoxDecoration(
+        color: isWinner ? Colors.white.withOpacity(0.3) : Colors.white.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(8),
+        border: isWinner ? Border.all(color: Colors.white.withOpacity(0.5)) : null,
+      ),
+      child: Column(children: [
+        Text(name, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
+        const SizedBox(height: 2),
+        Text(score != null ? '$score pts' : '–', style: TextStyle(color: score != null ? Colors.white : Colors.white54, fontSize: 14, fontWeight: FontWeight.bold)),
+        if (isWinner && score != null) const Text('🏆', style: TextStyle(fontSize: 12)),
+      ]),
+    );
+  }
+
+  Future<void> _acceptBattleFromChat(String battleId, String tema, String fromName) async {
+    final myDoc  = await FirebaseFirestore.instance.collection('users').doc(user?.uid).get();
+    final myName = (myDoc.data()?['name'] ?? 'Oponente') as String;
+
+    await FirebaseFirestore.instance.collection('clan_battles').doc(battleId).update({
+      'to'    : user?.uid,
+      'toName': myName,
+      'status': 'in_progress',
+    });
+
+    await _sendSystemMessage('⚔️ $myName aceitou o desafio de $fromName sobre "$tema"!');
+    if (mounted) _startBattle(battleId, tema, false);
+  }
+
   Future<void> _sendMessage() async {
     final text = _msgCtrl.text.trim();
     if (text.isEmpty || user == null) return;
     _msgCtrl.clear();
+    // Fecha o teclado após enviar
+    FocusScope.of(context).unfocus();
     final userDoc = await FirebaseFirestore.instance.collection('users').doc(user!.uid).get();
     final data = userDoc.data() as Map<String, dynamic>? ?? {};
     final senderName = data['name'] ?? data['nickname'] ?? 'Jogador';
@@ -1067,19 +1553,26 @@ class _BattleQuizScreenState extends State<BattleQuizScreen> {
 
   void _answer(int index) {
     if (_answered) return;
+    final isCorrect = index == _questions[_idx]['c'];
     setState(() {
       _selected = index;
       _answered = true;
-      if (index == _questions[_idx]['c']) _correct++;
+      if (isCorrect) _correct++;
     });
+    if (isCorrect) {
+      SoundService.playCorrect();
+    } else {
+      SoundService.playWrong();
+    }
   }
 
   void _next() {
     if (_idx < _questions.length - 1) {
       setState(() { _idx++; _selected = null; _answered = false; });
     } else {
-      // Retorna os pontos: 20 pts por resposta certa
       final points = _correct * 20;
+      if (_correct >= 4) SoundService.playVictory();
+      else SoundService.playFail();
       Navigator.pop(context, {'points': points, 'correct': _correct, 'total': _questions.length});
     }
   }
