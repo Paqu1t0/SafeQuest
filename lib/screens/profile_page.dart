@@ -262,10 +262,13 @@ class _ProfilePageState extends State<ProfilePage> {
                     children: [
                       _streakBanner(streak),
                       const SizedBox(height: 25),
+                      
                       _menuPrincipal(context),
                       const SizedBox(height: 25),
+
                       _logoutButton(context),
                       const SizedBox(height: 12),
+                      
                       _deleteButton(context),
                       const SizedBox(height: 40),
                     ],
@@ -307,82 +310,84 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   void _showAvatarSelector(BuildContext context) {
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Alterar Avatar',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A))),
-            const SizedBox(height: 20),
+      barrierColor: Colors.black54,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 100),
+        child: Container(
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                const Expanded(child: Text('Alterar Avatar', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A)))),
+                GestureDetector(onTap: () => Navigator.pop(ctx), child: const Icon(Icons.close_rounded, color: Colors.grey)),
+              ]),
+              const SizedBox(height: 20),
 
-            // Opção 1 — Galeria do telemóvel
-            ListTile(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              tileColor: const Color(0xFFF0FDF4),
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: const Color(0xFF16A34A).withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-                child: const Icon(Icons.photo_library_rounded, color: Color(0xFF16A34A), size: 24),
+              // Galeria do telemóvel
+              _avatarOption(ctx,
+                icon: Icons.photo_library_rounded, color: const Color(0xFF16A34A),
+                bg: const Color(0xFFF0FDF4), title: 'Galeria do Telemóvel',
+                subtitle: 'Usa uma foto da galeria',
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final XFile? img = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 80);
+                  if (img != null) setState(() => _imageFile = File(img.path));
+                },
               ),
-              title: const Text('Foto do Telemóvel', style: TextStyle(fontWeight: FontWeight.w600)),
-              subtitle: const Text('Usa uma foto da tua galeria', style: TextStyle(fontSize: 12, color: Colors.grey)),
-              trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-              onTap: () async {
-                Navigator.pop(ctx);
-                final XFile? image = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 80);
-                if (image != null) setState(() => _imageFile = File(image.path));
-              },
-            ),
-            const SizedBox(height: 12),
+              const SizedBox(height: 10),
 
-            // Opção 2 — Câmara
-            ListTile(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              tileColor: const Color(0xFFF0F7FF),
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: const Color(0xFF1A56DB).withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-                child: const Icon(Icons.camera_alt_rounded, color: Color(0xFF1A56DB), size: 24),
+              // Câmara
+              _avatarOption(ctx,
+                icon: Icons.camera_alt_rounded, color: const Color(0xFF1A56DB),
+                bg: const Color(0xFFEFF6FF), title: 'Câmara',
+                subtitle: 'Tira uma nova foto',
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final XFile? img = await ImagePicker().pickImage(source: ImageSource.camera, imageQuality: 80);
+                  if (img != null) setState(() => _imageFile = File(img.path));
+                },
               ),
-              title: const Text('Câmara', style: TextStyle(fontWeight: FontWeight.w600)),
-              subtitle: const Text('Tira uma nova foto', style: TextStyle(fontSize: 12, color: Colors.grey)),
-              trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-              onTap: () async {
-                Navigator.pop(ctx);
-                final XFile? image = await ImagePicker().pickImage(source: ImageSource.camera, imageQuality: 80);
-                if (image != null) setState(() => _imageFile = File(image.path));
-              },
-            ),
-            const SizedBox(height: 12),
+              const SizedBox(height: 10),
 
-            // Opção 3 — Loja de avatares
-            ListTile(
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              tileColor: const Color(0xFFFEF3C7),
-              leading: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: const Color(0xFFF59E0B).withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
-                child: const Icon(Icons.storefront_rounded, color: Color(0xFFF59E0B), size: 24),
+              // Loja
+              _avatarOption(ctx,
+                icon: Icons.storefront_rounded, color: const Color(0xFFF59E0B),
+                bg: const Color(0xFFFEF3C7), title: 'Avatares da Loja',
+                subtitle: 'Escolhe um avatar desbloqueado',
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => AvatarStorePage()));
+                },
               ),
-              title: const Text('Avatares da Loja', style: TextStyle(fontWeight: FontWeight.w600)),
-              subtitle: const Text('Escolhe um avatar desbloqueado', style: TextStyle(fontSize: 12, color: Colors.grey)),
-              trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-              onTap: () {
-                Navigator.pop(ctx);
-                Navigator.push(context, MaterialPageRoute(builder: (_) => AvatarStorePage()));
-              },
-            ),
-            const SizedBox(height: 16),
-          ],
+            ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _avatarOption(BuildContext ctx, {required IconData icon, required Color color, required Color bg, required String title, required String subtitle, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(14), border: Border.all(color: color.withOpacity(0.25))),
+        child: Row(children: [
+          Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(10)), child: Icon(icon, color: color, size: 22)),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+            Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+          ])),
+          Icon(Icons.chevron_right, color: color.withOpacity(0.6), size: 20),
+        ]),
       ),
     );
   }
@@ -800,7 +805,7 @@ class _PrivacyPageState extends State<PrivacyPage> {
                       const Padding(padding: EdgeInsets.symmetric(horizontal: 20), child: Divider(height: 1, color: Color(0xFFF1F5F9))),
                       _buildRadioOption('amigos',   'Amigos',   'Apenas amigos podem ver'),
                       const Padding(padding: EdgeInsets.symmetric(horizontal: 20), child: Divider(height: 1, color: Color(0xFFF1F5F9))),
-                      _buildRadioOption('privado',  'Privado',  'Apenas você pode ver'),
+                      _buildRadioOption('privado',  'Privado',  'Apenas tu consegues ver'),
                     ]),
                   ),
                   const SizedBox(height: 12),
