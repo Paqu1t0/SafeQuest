@@ -113,95 +113,168 @@ class _AuthGate extends StatefulWidget {
 }
 
 class _AuthGateState extends State<_AuthGate> {
-  bool _internetChecked = false;
-  bool _hasInternet = true;
+  bool _isOnline = true;
+  bool _wasOffline = false; // track if we need to reload on reconnect
+
+  // Features que requerem internet
+  static const _offlineFeatures = [
+    ('🤖', 'Assistente IA'),
+    ('💬', 'Chat do Clã'),
+    ('⚔️', 'Batalhas de Quiz'),
+    ('🏆', 'Classificação'),
+    ('📊', 'Sincronização de dados'),
+  ];
 
   @override
   void initState() {
     super.initState();
-    _checkInternet();
+    _checkAndListen();
   }
 
-  Future<void> _checkInternet() async {
+  Future<void> _checkAndListen() async {
+    // Verificação inicial
     try {
       final result = await Connectivity().checkConnectivity();
       final online = result.any((r) => r != ConnectivityResult.none);
-      if (mounted) {
-        setState(() {
-          _hasInternet = online;
-          _internetChecked = true;
-        });
-        if (!online) {
-          _showNoInternetDialog();
-        }
-      }
+      if (mounted) setState(() => _isOnline = online);
     } catch (_) {
-      if (mounted) {
-        setState(() {
-          _hasInternet = false;
-          _internetChecked = true;
-        });
-        _showNoInternetDialog();
-      }
+      if (mounted) setState(() => _isOnline = false);
     }
-  }
 
-  void _showNoInternetDialog() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    // Ouve mudanças de conectividade em tempo real
+    Connectivity().onConnectivityChanged.listen((results) {
       if (!mounted) return;
-      showDialog(
-        context: context,
-        barrierDismissible: true,
-        builder: (ctx) => AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          icon: const Icon(Icons.wifi_off_rounded, color: Color(0xFFDC2626), size: 48),
-          title: const Text(
-            'Sem Ligação à Internet',
-            style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A)),
-          ),
-          content: const Text(
-            'Não foi detetada ligação à internet.\n\n'
-            '⚠️ O Assistente IA e algumas funcionalidades não estarão disponíveis sem internet.\n\n'
-            'Podes continuar a usar a app, mas com funcionalidades limitadas.',
-            style: TextStyle(fontSize: 14, color: Colors.grey, height: 1.5),
-          ),
-          actions: [
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1A56DB),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Entendido', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              ),
-            ),
-          ],
-        ),
-      );
+      final online = results.any((r) => r != ConnectivityResult.none);
+      final wasOffline = !_isOnline;
+      setState(() {
+        _isOnline = online;
+        if (online && wasOffline) _wasOffline = true;
+      });
+      // Auto-reload: quando internet volta, recarrega a página (reseta o estado)
+      if (online && wasOffline && mounted) {
+        Future.delayed(const Duration(milliseconds: 800), () {
+          if (mounted) setState(() => _wasOffline = false);
+        });
+      }
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(),
-      builder: (context, snapshot) {
-        // A inicializar
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator(color: Color(0xFF1A56DB))),
-          );
-        }
-        // Utilizador autenticado → verifica MFA
-        if (snapshot.hasData && snapshot.data != null) {
-          return _MfaGate(user: snapshot.data!);
-        }
-        // Não autenticado → Login
-        return const LoginPage();
-      },
+    return Stack(
+      children: [
+        StreamBuilder<User?>(
+          stream: FirebaseAuth.instance.authStateChanges(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Scaffold(
+                body: Center(child: CircularProgressIndicator(color: Color(0xFF1A56DB))),
+              );
+            }
+            if (snapshot.hasData && snapshot.data != null) {
+              return _MfaGate(user: snapshot.data!);
+            }
+            return const LoginPage();
+          },
+        ),
+        // ── Banner de sem internet (aparece por cima de tudo) ──────────────
+        if (!_isOnline) _buildOfflineBanner(),
+        // ── Banner de internet restaurada ──────────────────────────────────
+        if (_isOnline && _wasOffline) _buildOnlineBanner(),
+      ],
+    );
+  }
+
+  Widget _buildOfflineBanner() {
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      child: SafeArea(
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1E293B),
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.25), blurRadius: 20, offset: const Offset(0, 6))],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFDC2626),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                ),
+                child: const Row(children: [
+                  Icon(Icons.wifi_off_rounded, color: Colors.white, size: 18),
+                  SizedBox(width: 8),
+                  Expanded(child: Text('Sem ligação à internet', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14))),
+                  Text('⚠️', style: TextStyle(fontSize: 16)),
+                ]),
+              ),
+              // Body
+              Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text('Funcionalidades indisponíveis sem internet:',
+                        style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11, fontWeight: FontWeight.w600)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6, runSpacing: 6,
+                      children: _offlineFeatures.map((f) => Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF334155),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Text(f.$1, style: const TextStyle(fontSize: 12)),
+                          const SizedBox(width: 4),
+                          Text(f.$2, style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 11, fontWeight: FontWeight.w500)),
+                        ]),
+                      )).toList(),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text('Liga o Wi-Fi ou dados móveis para aceder a todas as funcionalidades.',
+                        style: TextStyle(color: Color(0xFF64748B), fontSize: 11, height: 1.4)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOnlineBanner() {
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      child: SafeArea(
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFF16A34A),
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [BoxShadow(color: const Color(0xFF16A34A).withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4))],
+          ),
+          child: const Row(children: [
+            Icon(Icons.wifi_rounded, color: Colors.white, size: 18),
+            SizedBox(width: 8),
+            Expanded(child: Text('Internet restaurada! Todas as funcionalidades estão disponíveis.',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13))),
+            Text('✅', style: TextStyle(fontSize: 16)),
+          ]),
+        ),
+      ),
     );
   }
 }
