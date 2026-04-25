@@ -102,7 +102,7 @@ class _RegisterPageState extends State<RegisterPage> {
               key: _formKey,
               child: Column(children: [
                 // Logo
-                const Icon(Icons.shield_rounded, size: 70, color: _primary),
+                Image.asset('assets/icon/icon.png', height: 180),
                 const SizedBox(height: 8),
                 const Text('SafeQuest', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: _primaryDeep)),
                 const Text('Comece a Sua Jornada Digital', style: TextStyle(fontSize: 13, color: _primary)),
@@ -156,11 +156,13 @@ class _RegisterPageState extends State<RegisterPage> {
                     _label('Palavra-passe'),
                     _passField(_passwordController, 'Crie uma palavra-passe', _obscurePw,
                         () => setState(() => _obscurePw = !_obscurePw),
-                        validator: (v) {
-                          if (v == null || v.isEmpty) return 'Crie uma palavra-passe';
-                          if (v.length < 8) return 'Mínimo 8 caracteres';
-                          return null;
-                        }),
+                        validator: _validatePassword,
+                        onChanged: (_) => setState(() {})),
+                    // Indicador de força em tempo real
+                    if (_passwordController.text.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      _buildPasswordStrength(_passwordController.text),
+                    ],
                     const SizedBox(height: 14),
 
                     // Confirmar
@@ -210,6 +212,53 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
+  // Validação de password moderna
+  String? _validatePassword(String? v) {
+    if (v == null || v.isEmpty) return 'Crie uma palavra-passe';
+    if (v.length < 8)                               return 'Mínimo 8 caracteres';
+    if (!RegExp(r'[A-Z]').hasMatch(v))              return 'Precisa de pelo menos 1 letra maiúscula';
+    if (!RegExp(r'[0-9]').hasMatch(v))              return 'Precisa de pelo menos 1 número';
+    return null;
+  }
+
+  // Indicador visual de força da password
+  Widget _buildPasswordStrength(String pw) {
+    final hasLen  = pw.length >= 8;
+    final hasUp   = RegExp(r'[A-Z]').hasMatch(pw);
+    final hasNum  = RegExp(r'[0-9]').hasMatch(pw);
+    final hasSpec = RegExp(r'[!@#\$&*~]').hasMatch(pw);
+    final score   = [hasLen, hasUp, hasNum, hasSpec].where((b) => b).length;
+    final color   = score <= 1 ? Colors.red : score == 2 ? Colors.orange : score == 3 ? Colors.blue : Colors.green;
+    final label   = score <= 1 ? 'Fraca' : score == 2 ? 'Razoável' : score == 3 ? 'Boa' : 'Forte 💪';
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Expanded(child: ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(value: score / 4, color: color, backgroundColor: const Color(0xFFE5E7EB), minHeight: 5),
+        )),
+        const SizedBox(width: 8),
+        Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.bold)),
+      ]),
+      const SizedBox(height: 6),
+      Wrap(spacing: 8, children: [
+        _pwRule(hasLen,  '8+ chars'),
+        _pwRule(hasUp,   'Maiúscula'),
+        _pwRule(hasNum,  'Número'),
+        _pwRule(hasSpec, 'Símbolo (bonus)'),
+      ]),
+    ]);
+  }
+
+  Widget _pwRule(bool ok, String label) {
+    return Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(ok ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded, size: 12,
+          color: ok ? Colors.green : Colors.grey),
+      const SizedBox(width: 3),
+      Text(label, style: TextStyle(fontSize: 10, color: ok ? Colors.green : Colors.grey)),
+    ]);
+  }
+
   Widget _label(String text) => Padding(
     padding: const EdgeInsets.only(bottom: 7),
     child: Text(text, style: const TextStyle(fontWeight: FontWeight.w600, color: _primaryDeep, fontSize: 13)),
@@ -225,8 +274,9 @@ class _RegisterPageState extends State<RegisterPage> {
 
   Widget _passField(TextEditingController ctrl, String hint, bool obscure, VoidCallback toggle, {
     String? Function(String?)? validator,
+    Function(String)? onChanged,
   }) => TextFormField(
-    controller: ctrl, obscureText: obscure, validator: validator,
+    controller: ctrl, obscureText: obscure, validator: validator, onChanged: onChanged,
     decoration: _dec(hint, Icons.lock_outline).copyWith(
       suffixIcon: IconButton(
         icon: Icon(obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: _primary, size: 20),
