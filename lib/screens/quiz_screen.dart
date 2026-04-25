@@ -317,6 +317,18 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
     } catch (_) {}
   }
 
+  /// Calcula moedas ganhas por percentagem — escala rigorosa
+  static int _calcMoedas(int percent) {
+    if (percent <  20) return 0;    // abaixo de 20% — sem moedas
+    if (percent <  40) return 15;   // 20–39%
+    if (percent <  60) return 30;   // 40–59%
+    if (percent <  70) return 50;   // 60–69%
+    if (percent <  80) return 80;   // 70–79%
+    if (percent <  90) return 100;  // 80–89%
+    if (percent < 100) return 120;  // 90–99%
+    return 150;                     // 100% perfeito
+  }
+
   Future<void> _saveResultAndShowSummary() async {
     final user         = FirebaseAuth.instance.currentUser;
     final percent      = ((_correctAnswers / _questions.length) * 100).round();
@@ -326,15 +338,14 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
     // ── Multiplicador de combo ────────────────────────────────────────────
     // Combo 2-3: ×1.2 | 4: ×1.5 | 5+: ×2.0
     double comboMultiplier = 1.0;
-    String comboLabel      = '';
-    if (_maxCombo >= 5) { comboMultiplier = 2.0; comboLabel = '🔥 ×2 COMBO MÁXIMO!'; }
-    else if (_maxCombo == 4) { comboMultiplier = 1.5; comboLabel = '⚡ ×1.5 Combo x4!'; }
-    else if (_maxCombo >= 2) { comboMultiplier = 1.2; comboLabel = '✨ ×1.2 Combo x$_maxCombo!'; }
+    if (_maxCombo >= 5)      comboMultiplier = 2.0;
+    else if (_maxCombo == 4) comboMultiplier = 1.5;
+    else if (_maxCombo >= 2) comboMultiplier = 1.2;
 
     final rawPoints    = (basePoints * (_correctAnswers / _questions.length)).round();
     final points       = (rawPoints * comboMultiplier).round();
     final timeStr      = _formattedTime;
-    final moedasGanhas = percent >= 70 ? 100 : 50;
+    final moedasGanhas = _calcMoedas(percent);
     final tipoQuizStr  = widget.quizType == QuizType.tempo ? 'tempo' : widget.quizType == QuizType.vf ? 'vf' : 'normal';
 
     final questionsData = List.generate(_questions.length, (i) {
@@ -359,6 +370,13 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
       else SoundService.playFail();
     }
 
+    // ── Verifica badges ANTES de abrir o dialog (fix: badge real em vez do combo) ──
+    final newBadgeName = await BadgesService.checkAndUnlock(
+      tema: widget.tema, percent: percent, tipoQuiz: tipoQuizStr,
+    );
+
+    if (!mounted) return;
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -366,7 +384,8 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
       builder: (_) => QuizResultDialog(
         percent: percent, points: points, correct: _correctAnswers,
         total: _questions.length, timeStr: timeStr, tema: widget.tema,
-        newBadge: comboLabel.isNotEmpty ? comboLabel : null,
+        newBadge: newBadgeName,   // badge real do Firestore
+        comboLabel: _maxCombo >= 2 ? (_maxCombo >= 5 ? '🔥 ×2 COMBO MÁXIMO!' : _maxCombo == 4 ? '⚡ ×1.5 Combo x4!' : '✨ ×1.2 Combo x$_maxCombo!') : null,
         wrongQuestions: wrongQuestions, moedasGanhas: moedasGanhas,
       ),
     );
@@ -426,10 +445,7 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
           tema: widget.tema,
           tipoQuiz: tipoQuizStr,
         );
-
-        await BadgesService.checkAndUnlock(
-          tema: widget.tema, percent: percent, tipoQuiz: tipoQuizStr,
-        );
+        // Nota: BadgesService.checkAndUnlock já foi chamado antes do dialog
       } catch (_) {}
     }
   }

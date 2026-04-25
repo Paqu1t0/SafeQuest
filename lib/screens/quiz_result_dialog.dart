@@ -9,9 +9,10 @@ class QuizResultDialog extends StatefulWidget {
   final int total;
   final String timeStr;
   final String tema;
-  final String? newBadge;
+  final String? newBadge;    // nome do emblema real desbloqueado
+  final String? comboLabel;  // texto do combo (ex: "✨ ×1.2 Combo x3!")
   final List<Map<String, dynamic>> wrongQuestions;
-  final int moedasGanhas; // ← novo
+  final int moedasGanhas;
 
   const QuizResultDialog({
     super.key,
@@ -22,8 +23,9 @@ class QuizResultDialog extends StatefulWidget {
     required this.timeStr,
     required this.tema,
     this.newBadge,
+    this.comboLabel,
     required this.wrongQuestions,
-    this.moedasGanhas = 50, // ← default
+    this.moedasGanhas = 0,
   });
 
   @override
@@ -36,21 +38,20 @@ class _QuizResultDialogState extends State<QuizResultDialog>
   late AnimationController _circleCtrl;
   late AnimationController _badgeCtrl;
   late AnimationController _starsCtrl;
-  late AnimationController _coinsCtrl; // ← novo
+  late AnimationController _coinsCtrl;
 
   late Animation<double> _fadeIn;
   late Animation<double> _slideUp;
   late Animation<double> _circleProgress;
   late Animation<double> _badgeScale;
   late Animation<double> _starsOpacity;
-  late Animation<double> _coinsScale;   // ← novo
-  late Animation<double> _coinsOpacity; // ← novo
+  late Animation<double> _coinsScale;
+  late Animation<double> _coinsOpacity;
 
   static const _primary     = Color(0xFF1A56DB);
   static const _primaryDeep = Color(0xFF1E3A8A);
   static const _gold        = Color(0xFFF59E0B);
 
-  // Partículas de moedas flutuantes
   late List<_CoinParticle> _particles;
 
   @override
@@ -59,39 +60,30 @@ class _QuizResultDialogState extends State<QuizResultDialog>
 
     _particles = List.generate(8, (i) => _CoinParticle(i));
 
-    _entryCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 500));
+    _entryCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
     _fadeIn  = CurvedAnimation(parent: _entryCtrl, curve: Curves.easeOut);
     _slideUp = Tween<double>(begin: 60, end: 0).animate(
         CurvedAnimation(parent: _entryCtrl, curve: Curves.easeOut));
 
-    _circleCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1200));
+    _circleCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200));
     _circleProgress = Tween<double>(begin: 0, end: widget.percent / 100)
         .animate(CurvedAnimation(parent: _circleCtrl, curve: Curves.easeInOut));
 
-    _starsCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 800));
-    _starsOpacity =
-        CurvedAnimation(parent: _starsCtrl, curve: Curves.easeIn);
+    _starsCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
+    _starsOpacity = CurvedAnimation(parent: _starsCtrl, curve: Curves.easeIn);
 
-    _badgeCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 600));
+    _badgeCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
     _badgeScale = Tween<double>(begin: 0.0, end: 1.0).animate(
         CurvedAnimation(parent: _badgeCtrl, curve: Curves.elasticOut));
 
-    // Animação das moedas — aparece depois do círculo
-    _coinsCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 800));
+    _coinsCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 800));
     _coinsScale   = Tween<double>(begin: 0.0, end: 1.0).animate(
         CurvedAnimation(parent: _coinsCtrl, curve: Curves.elasticOut));
     _coinsOpacity = CurvedAnimation(parent: _coinsCtrl, curve: Curves.easeIn);
 
-    // Sequência
     _entryCtrl.forward().then((_) {
       _starsCtrl.forward();
       _circleCtrl.forward().then((_) {
-        // Moedas aparecem após o círculo
         Future.delayed(const Duration(milliseconds: 200),
             () { if (mounted) _coinsCtrl.forward(); });
         if (widget.newBadge != null) {
@@ -165,7 +157,6 @@ class _QuizResultDialogState extends State<QuizResultDialog>
                       const SizedBox(height: 24),
                       _buildStatsRow(),
                       const SizedBox(height: 16),
-                      // ── Animação de moedas ganhas ─────────────────────
                       _buildCoinsAnimation(),
                       const SizedBox(height: 28),
                     ],
@@ -174,9 +165,13 @@ class _QuizResultDialogState extends State<QuizResultDialog>
 
                 const SizedBox(height: 16),
 
-                // ── Banner de novo emblema ────────────────────────────────
+                // ── Banner de novo emblema (badge real) ──────────────────
                 if (widget.newBadge != null) _buildBadgeBanner(),
                 if (widget.newBadge != null) const SizedBox(height: 12),
+
+                // ── Banner de combo (se houver) ────────────────────────────
+                if (widget.comboLabel != null) _buildComboLabel(),
+                if (widget.comboLabel != null) const SizedBox(height: 12),
 
                 // ── Botão: Rever com IA ───────────────────────────────────
                 if (widget.wrongQuestions.isNotEmpty) _buildReviewButton(context),
@@ -197,7 +192,6 @@ class _QuizResultDialogState extends State<QuizResultDialog>
   // ── HEADER COM GRADIENTE ───────────────────────────────────────────────────
 
   Widget _buildGradientHeader() {
-    // Cor do gradiente muda consoante o resultado
     final List<Color> gradientColors;
     if (widget.percent >= 70) {
       gradientColors = [const Color(0xFF1A56DB), const Color(0xFF1E40AF)];
@@ -223,142 +217,53 @@ class _QuizResultDialogState extends State<QuizResultDialog>
         child: Stack(
           clipBehavior: Clip.none,
           children: [
-            // ── Círculos decorativos de fundo ──────────────────────────
             Positioned(
-              top: -30,
-              right: -30,
+              top: -30, right: -30,
               child: Container(
-                width: 130,
-                height: 130,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.07),
-                ),
+                width: 130, height: 130,
+                decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withOpacity(0.07)),
               ),
             ),
             Positioned(
-              bottom: -20,
-              left: -20,
+              bottom: -20, left: -20,
               child: Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withOpacity(0.07),
-                ),
+                width: 100, height: 100,
+                decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withOpacity(0.07)),
               ),
             ),
-
-            // ── Estrelas animadas ──────────────────────────────────────
-            // topo esquerda
             Positioned(
-              left: 28,
-              top: 22,
-              child: Opacity(
-                opacity: _starsOpacity.value,
-                child: Transform.rotate(
-                  angle: -0.4,
-                  child: const Icon(Icons.star_rounded,
-                      color: Color(0xFFFDE68A), size: 22),
-                ),
-              ),
+              left: 28, top: 22,
+              child: Opacity(opacity: _starsOpacity.value, child: Transform.rotate(angle: -0.4, child: const Icon(Icons.star_rounded, color: Color(0xFFFDE68A), size: 22))),
             ),
-            // topo direita
             Positioned(
-              right: 28,
-              top: 18,
-              child: Opacity(
-                opacity: _starsOpacity.value,
-                child: Transform.rotate(
-                  angle: 0.4,
-                  child: const Icon(Icons.star_rounded,
-                      color: Color(0xFFFDE68A), size: 26),
-                ),
-              ),
+              right: 28, top: 18,
+              child: Opacity(opacity: _starsOpacity.value, child: Transform.rotate(angle: 0.4, child: const Icon(Icons.star_rounded, color: Color(0xFFFDE68A), size: 26))),
             ),
-            // meio esquerda (pequena)
             Positioned(
-              left: 55,
-              top: 55,
-              child: Opacity(
-                opacity: _starsOpacity.value * 0.7,
-                child: const Icon(Icons.star_rounded,
-                    color: Color(0xFFFDE68A), size: 14),
-              ),
+              left: 55, top: 55,
+              child: Opacity(opacity: _starsOpacity.value * 0.7, child: const Icon(Icons.star_rounded, color: Color(0xFFFDE68A), size: 14)),
             ),
-            // meio direita (pequena)
             Positioned(
-              right: 55,
-              top: 60,
-              child: Opacity(
-                opacity: _starsOpacity.value * 0.7,
-                child: const Icon(Icons.star_rounded,
-                    color: Color(0xFFFDE68A), size: 14),
-              ),
+              right: 55, top: 60,
+              child: Opacity(opacity: _starsOpacity.value * 0.7, child: const Icon(Icons.star_rounded, color: Color(0xFFFDE68A), size: 14)),
             ),
-
-            // ── Conteúdo central ──────────────────────────────────────
             Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const SizedBox(height: 8),
-                  // Troféu com halo
-                  Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // Halo exterior
-                      Container(
-                        width: 88,
-                        height: 88,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withOpacity(0.15),
-                        ),
-                      ),
-                      // Círculo interior
-                      Container(
-                        width: 72,
-                        height: 72,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withOpacity(0.25),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.15),
-                              blurRadius: 20,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.emoji_events_rounded,
-                          color: Colors.white,
-                          size: 40,
-                        ),
-                      ),
-                    ],
-                  ),
+                  Stack(alignment: Alignment.center, children: [
+                    Container(width: 88, height: 88, decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withOpacity(0.15))),
+                    Container(
+                      width: 72, height: 72,
+                      decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withOpacity(0.25), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 20, offset: const Offset(0, 8))]),
+                      child: const Icon(Icons.emoji_events_rounded, color: Colors.white, size: 40),
+                    ),
+                  ]),
                   const SizedBox(height: 14),
-                  // Título
-                  Text(
-                    _titulo,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
+                  Text(_titulo, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 0.3)),
                   const SizedBox(height: 4),
-                  // Subtítulo
-                  Text(
-                    _subtitulo,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.white.withOpacity(0.75),
-                    ),
-                  ),
+                  Text(_subtitulo, style: TextStyle(fontSize: 12, color: Colors.white.withOpacity(0.75))),
                 ],
               ),
             ),
@@ -368,11 +273,7 @@ class _QuizResultDialogState extends State<QuizResultDialog>
     );
   }
 
-  // ── TROFÉU + ESTRELAS (mantido por compatibilidade, já não usado) ──────────
 
-  Widget _buildTrofeuComEstrelas() => const SizedBox.shrink();
-
-  // ── CÍRCULO DE PERCENTAGEM ─────────────────────────────────────────────────
 
   Widget _buildCirclePercent() {
     return AnimatedBuilder(
@@ -380,47 +281,15 @@ class _QuizResultDialogState extends State<QuizResultDialog>
       builder: (_, __) {
         final pct = (_circleProgress.value * 100).round();
         return SizedBox(
-          width: 140,
-          height: 140,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              // Círculo de fundo
-              CircularProgressIndicator(
-                value: 1,
-                strokeWidth: 10,
-                valueColor:
-                    const AlwaysStoppedAnimation<Color>(Color(0xFFE2E8F0)),
-              ),
-              // Círculo de progresso
-              CircularProgressIndicator(
-                value: _circleProgress.value,
-                strokeWidth: 10,
-                strokeCap: StrokeCap.round,
-                valueColor: AlwaysStoppedAnimation<Color>(_circleColor),
-              ),
-              // Texto central
-              Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      '$pct%',
-                      style: const TextStyle(
-                        fontSize: 30,
-                        fontWeight: FontWeight.bold,
-                        color: _primaryDeep,
-                      ),
-                    ),
-                    const Text(
-                      'Pontuação',
-                      style: TextStyle(fontSize: 11, color: Colors.grey),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+          width: 140, height: 140,
+          child: Stack(fit: StackFit.expand, children: [
+            CircularProgressIndicator(value: 1, strokeWidth: 10, valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFE2E8F0))),
+            CircularProgressIndicator(value: _circleProgress.value, strokeWidth: 10, strokeCap: StrokeCap.round, valueColor: AlwaysStoppedAnimation<Color>(_circleColor)),
+            Center(child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Text('$pct%', style: const TextStyle(fontSize: 30, fontWeight: FontWeight.bold, color: _primaryDeep)),
+              const Text('Pontuação', style: TextStyle(fontSize: 11, color: Colors.grey)),
+            ])),
+          ]),
         );
       },
     );
@@ -431,13 +300,11 @@ class _QuizResultDialogState extends State<QuizResultDialog>
   Widget _buildStatsRow() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 24),
-      child: Row(
-        children: [
-          Expanded(child: _statBox('Corretas', '${widget.correct}/${widget.total}', false)),
-          const SizedBox(width: 12),
-          Expanded(child: _statBox('Pontos Ganhos', '+${widget.points}', true)),
-        ],
-      ),
+      child: Row(children: [
+        Expanded(child: _statBox('Corretas', '${widget.correct}/${widget.total}', false)),
+        const SizedBox(width: 12),
+        Expanded(child: _statBox('Tempo', widget.timeStr, false)),
+      ]),
     );
   }
 
@@ -447,85 +314,82 @@ class _QuizResultDialogState extends State<QuizResultDialog>
       decoration: BoxDecoration(
         color: highlight ? const Color(0xFFEFF6FF) : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: highlight
-              ? _primary.withOpacity(0.2)
-              : const Color(0xFFE5E7EB),
-        ),
+        border: Border.all(color: highlight ? _primary.withOpacity(0.2) : const Color(0xFFE5E7EB)),
       ),
-      child: Column(
-        children: [
-          Text(
-            label,
-            style: const TextStyle(fontSize: 11, color: Colors.grey),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: highlight ? _primary : _primaryDeep,
-            ),
-          ),
-        ],
-      ),
+      child: Column(children: [
+        Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+        const SizedBox(height: 6),
+        Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: highlight ? _primary : _primaryDeep)),
+      ]),
     );
   }
 
-  // ── BANNER EMBLEMA ─────────────────────────────────────────────────────────
+  // ── BANNER EMBLEMA (badge real) ────────────────────────────────────────────
 
   Widget _buildBadgeBanner() {
+    const badgeEmoji = <String, String>{
+      'Primeira Vitória': '🏆', 'Aprendiz Rápido': '⚡', 'Perfeccionista': '🎯',
+      'Guru da Segurança': '🎓', 'Estudante Dedicado': '📚', 'Velocista': '⏱️',
+      'Detetive': '🔍', 'Invicto': '👑', 'Madrugador': '🌟',
+      'Guerreiro do Clã': '⚔️', 'Iniciante em Phishing': '🛡️',
+      'Especialista em Phishing': '🔒', 'Mestre Anti-Phishing': '🦅',
+      'Caçador de Phishing': '🎯', 'Detetive Digital': '🔍',
+      'Guardião de Senhas': '🔑', 'Mestre das Palavras-passe': '🔐',
+      'Criador de Senhas Fortes': '💎', 'Vault Keeper': '🏦',
+      'Velocista das Senhas': '⚡', 'Surfista Web': '🌐',
+      'Navegador Seguro': '🛡️', 'Guardião da Web': '🦅',
+      'Hacker Ético': '💻', 'HTTPS Hero': '🔒',
+      'Navegador Social': '📱', 'Influencer Seguro': '⭐',
+      'Protetor Digital': '🛡️', 'Social Master': '🌟', 'Privacidade Pro': '🔐',
+    };
+    final emoji = badgeEmoji[widget.newBadge] ?? '🏅';
+
     return ScaleTransition(
       scale: _badgeScale,
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [Color(0xFF1A56DB), Color(0xFF1E40AF)],
-          ),
+          gradient: const LinearGradient(colors: [Color(0xFF7C3AED), Color(0xFF1A56DB)]),
           borderRadius: BorderRadius.circular(20),
         ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(Icons.military_tech_rounded,
-                  color: Colors.white, size: 26),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Novo Emblema Conquistado!',
-                    style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    widget.newBadge!,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold),
-                  ),
-                ],
-              ),
-            ),
-            // Faísca animada
-            _SparkleIcon(),
-          ],
-        ),
+        child: Row(children: [
+          Container(
+            width: 48, height: 48,
+            decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(14)),
+            child: Center(child: Text(emoji, style: const TextStyle(fontSize: 26))),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('🏅 Novo Emblema Desbloqueado!',
+                  style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w500)),
+              const SizedBox(height: 2),
+              Text(widget.newBadge!,
+                  style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+            ]),
+          ),
+          _SparkleIcon(),
+        ]),
       ),
+    );
+  }
+
+  // ── BANNER COMBO ───────────────────────────────────────────────────────────
+
+  Widget _buildComboLabel() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(colors: [Color(0xFFEA580C), Color(0xFFF59E0B)]),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        const Text('🔥', style: TextStyle(fontSize: 20)),
+        const SizedBox(width: 8),
+        Text(widget.comboLabel!, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+      ]),
     );
   }
 
@@ -533,8 +397,7 @@ class _QuizResultDialogState extends State<QuizResultDialog>
 
   Widget _buildReviewButton(BuildContext context) {
     final buffer = StringBuffer();
-    buffer.writeln(
-        'Olá! Acabei de fazer um quiz sobre "${widget.tema}" e errei as seguintes perguntas. Podes explicar-me cada uma?');
+    buffer.writeln('Olá! Acabei de fazer um quiz sobre "${widget.tema}" e errei as seguintes perguntas. Podes explicar-me cada uma?');
     buffer.writeln();
     for (int i = 0; i < widget.wrongQuestions.length; i++) {
       final q          = widget.wrongQuestions[i];
@@ -542,10 +405,8 @@ class _QuizResultDialogState extends State<QuizResultDialog>
       final correctIdx = (q['correctIndex'] ?? 0) as int;
       final userIdx    = q['userAnswer'] as int?;
       buffer.writeln('Pergunta ${i + 1}: ${q['question']}');
-      buffer.writeln(
-          '  • A minha resposta: ${userIdx != null && userIdx < options.length ? options[userIdx] : "—"}');
-      buffer.writeln(
-          '  • Resposta correta: ${correctIdx < options.length ? options[correctIdx] : "—"}');
+      buffer.writeln('  • A minha resposta: ${userIdx != null && userIdx < options.length ? options[userIdx] : "—"}');
+      buffer.writeln('  • Resposta correta: ${correctIdx < options.length ? options[correctIdx] : "—"}');
       buffer.writeln();
     }
 
@@ -556,25 +417,15 @@ class _QuizResultDialogState extends State<QuizResultDialog>
           backgroundColor: _primary,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 16),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
           elevation: 0,
         ),
         icon: const Icon(Icons.psychology_rounded, size: 20),
-        label: const Text(
-          'Rever com Assistente IA  →',
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
-        ),
+        label: const Text('Rever com Assistente IA  →', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
         onPressed: () {
-          Navigator.of(context).pop(); // fecha dialog
-          Navigator.of(context).pop(); // volta ao dashboard
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) =>
-                  AssistantPage(initialPrompt: buffer.toString()),
-            ),
-          );
+          Navigator.of(context).pop();
+          Navigator.of(context).pop();
+          Navigator.push(context, MaterialPageRoute(builder: (_) => AssistantPage(initialPrompt: buffer.toString())));
         },
       ),
     );
@@ -594,14 +445,7 @@ class _QuizResultDialogState extends State<QuizResultDialog>
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         ),
         icon: const Icon(Icons.home_rounded, color: Color(0xFF1A56DB), size: 20),
-        label: const Text(
-          'Voltar ao Início',
-          style: TextStyle(
-            color: Color(0xFF1A56DB),
-            fontSize: 15,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
+        label: const Text('Voltar ao Início', style: TextStyle(color: Color(0xFF1A56DB), fontSize: 15, fontWeight: FontWeight.bold)),
         onPressed: () {
           Navigator.of(context).pop();
           Navigator.of(context).pop();
@@ -610,75 +454,81 @@ class _QuizResultDialogState extends State<QuizResultDialog>
     );
   }
 
-  // ── ANIMAÇÃO DE MOEDAS GANHAS ──────────────────────────────────────────────
+  // ── ANIMAÇÃO DE MOEDAS GANHAS + XP ────────────────────────────────────────
 
   Widget _buildCoinsAnimation() {
+    final hasMoedas = widget.moedasGanhas > 0;
     return AnimatedBuilder(
       animation: _coinsCtrl,
       builder: (_, __) => Opacity(
         opacity: _coinsOpacity.value,
         child: Transform.scale(
           scale: _coinsScale.value,
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 24),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFEF3C7),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: _gold.withOpacity(0.4)),
-            ),
-            child: Stack(
-              clipBehavior: Clip.none,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Column(
               children: [
-                SizedBox(
-                  height: 40,
-                  child: Stack(
-                    children: _particles.map((p) {
-                      return Positioned(
-                        left: p.x,
-                        top: p.y * (1 - _coinsCtrl.value),
-                        child: Opacity(
-                          opacity:
-                              (_coinsCtrl.value * p.opacity).clamp(0.0, 1.0),
-                          child: Text(
-                            '🪙',
-                            style: TextStyle(fontSize: p.size),
-                          ),
-                        ),
-                      );
-                    }).toList(),
+                // ── XP ganho ────────────────────────────────────────────────
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: _primary.withOpacity(0.25)),
                   ),
+                  child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    const Text('⚡', style: TextStyle(fontSize: 18)),
+                    const SizedBox(width: 8),
+                    Text('+${widget.points} XP', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _primary)),
+                    const SizedBox(width: 8),
+                    const Text('ganhos', style: TextStyle(fontSize: 13, color: Colors.grey)),
+                  ]),
                 ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text('🪙', style: TextStyle(fontSize: 24)),
-                    const SizedBox(width: 10),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          '+${widget.moedasGanhas} Moedas',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF92400E),
+                const SizedBox(height: 10),
+                // ── Moedas ──────────────────────────────────────────────────
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: hasMoedas ? const Color(0xFFFEF3C7) : const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: hasMoedas ? _gold.withOpacity(0.4) : const Color(0xFFE5E7EB)),
+                  ),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      if (hasMoedas)
+                        SizedBox(
+                          height: 40,
+                          child: Stack(
+                            children: _particles.map((p) => Positioned(
+                              left: p.x,
+                              top: p.y * (1 - _coinsCtrl.value),
+                              child: Opacity(
+                                opacity: (_coinsCtrl.value * p.opacity).clamp(0.0, 1.0),
+                                child: Text('🪙', style: TextStyle(fontSize: p.size)),
+                              ),
+                            )).toList(),
                           ),
                         ),
-                        Text(
-                          widget.moedasGanhas >= 100
-                              ? 'Bónus por ≥ 70%! 🎯'
-                              : 'Completa com ≥ 70% para bónus!',
-                          style: TextStyle(
-                            fontSize: 11,
-                            color:
-                                const Color(0xFF92400E).withOpacity(0.7),
+                      Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                        Text(hasMoedas ? '🪙' : '😔', style: const TextStyle(fontSize: 24)),
+                        const SizedBox(width: 10),
+                        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(
+                            hasMoedas ? '+${widget.moedasGanhas} Moedas' : 'Sem moedas',
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: hasMoedas ? const Color(0xFF92400E) : Colors.grey),
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
+                          Text(
+                            hasMoedas
+                                ? (widget.percent >= 100 ? 'Pontuação perfeita! 🎯' : widget.percent >= 70 ? 'Excelente resultado! 🌟' : 'Chega a 70%+ para mais moedas!')
+                                : 'Passa os 20% para ganhar moedas!',
+                            style: TextStyle(fontSize: 11, color: hasMoedas ? const Color(0xFF92400E).withOpacity(0.7) : Colors.grey),
+                          ),
+                        ]),
+                      ]),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -723,10 +573,7 @@ class _SparkleIconState extends State<_SparkleIcon>
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(
-        vsync: this,
-        duration: const Duration(seconds: 2))
-      ..repeat();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(seconds: 2))..repeat();
     _rotate = Tween<double>(begin: 0, end: 2 * pi).animate(_ctrl);
   }
 
@@ -742,8 +589,7 @@ class _SparkleIconState extends State<_SparkleIcon>
       animation: _rotate,
       builder: (_, __) => Transform.rotate(
         angle: _rotate.value,
-        child: const Icon(Icons.auto_awesome_rounded,
-            color: Color(0xFFFBBF24), size: 26),
+        child: const Icon(Icons.auto_awesome_rounded, color: Color(0xFFFBBF24), size: 26),
       ),
     );
   }
