@@ -53,13 +53,25 @@ class _FriendsPageState extends State<FriendsPage>
     if (query.trim().length < 2) { setState(() { _searchResults = []; _searching = false; }); return; }
     setState(() => _searching = true);
     try {
+      // Busca até 150 utilizadores com mais pontos para filtrar localmente
+      // Isto permite pesquisa case-insensitive (maiúsculas/minúsculas) e parcial
       final snap = await FirebaseFirestore.instance
           .collection('users')
-          .where('name', isGreaterThanOrEqualTo: query)
-          .where('name', isLessThan: '${query}z')
-          .limit(10).get();
+          .orderBy('pontos', descending: true)
+          .limit(150)
+          .get();
+          
+      final qLower = query.toLowerCase();
+      final filteredDocs = snap.docs.where((d) {
+        if (d.id == user?.uid) return false;
+        final data = d.data();
+        final name = (data['name'] as String? ?? '').toLowerCase();
+        final nickname = (data['nickname'] as String? ?? '').toLowerCase();
+        return name.contains(qLower) || nickname.contains(qLower);
+      }).take(15).toList();
+
       if (mounted) setState(() {
-        _searchResults = snap.docs.where((d) => d.id != user?.uid).map((d) => {'uid': d.id, ...d.data()}).toList();
+        _searchResults = filteredDocs.map((d) => {'uid': d.id, ...d.data()}).toList();
         _searching = false;
       });
     } catch (_) { setState(() => _searching = false); }
@@ -225,11 +237,13 @@ class _FriendsPageState extends State<FriendsPage>
             if (!snap.hasData) return const SizedBox.shrink();
             final data     = snap.data!.data() as Map<String, dynamic>? ?? {};
             final name     = data['name']    ?? 'Jogador';
+            final nickname = data['nickname'] as String? ?? '';
+            final displayName = nickname.isNotEmpty ? nickname : name;
             final pontos   = (data['pontos'] ?? 0) as int;
             final avatarId = data['avatar']  ?? 'default';
             final nivel    = (pontos ~/ 250) + 1;
             return _userCard(
-              uid: uid, name: name, pontos: pontos, nivel: nivel, avatarId: avatarId,
+              uid: uid, name: displayName, pontos: pontos, nivel: nivel, avatarId: avatarId,
               trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                 // Botão remover visível
                 GestureDetector(
@@ -276,12 +290,14 @@ class _FriendsPageState extends State<FriendsPage>
           stream: FirebaseFirestore.instance.collection('users').doc(fromUid).snapshots(),
           builder: (context, snap) {
             final data     = snap.hasData && snap.data!.exists ? snap.data!.data() as Map<String, dynamic>? ?? {} : {};
+            final nickname = data['nickname'] as String? ?? '';
+            final displayName = nickname.isNotEmpty ? nickname : (data['name'] ?? fromName);
             final pontos   = (data['pontos'] ?? 0) as int;
             final avatarId = data['avatar']  ?? 'default';
             final nivel    = (pontos ~/ 250) + 1;
 
             return _userCard(
-              uid: fromUid, name: fromName, pontos: pontos, nivel: nivel, avatarId: avatarId,
+              uid: fromUid, name: displayName, pontos: pontos, nivel: nivel, avatarId: avatarId,
               trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                 // Rejeitar
                 GestureDetector(
@@ -348,12 +364,14 @@ class _FriendsPageState extends State<FriendsPage>
                 final name     = u['name']    ?? 'Jogador';
                 final pontos   = (u['pontos'] ?? 0) as int;
                 final avatarId = u['avatar']  ?? 'default';
+                final nickname = u['nickname'] as String? ?? '';
+                final displayName = nickname.isNotEmpty ? nickname : name;
                 final nivel    = (pontos ~/ 250) + 1;
                 final isFriend = friends.contains(uid);
                 final isPending = pendingUids.contains(uid);
 
                 return _userCard(
-                  uid: uid, name: name, pontos: pontos, nivel: nivel, avatarId: avatarId,
+                  uid: uid, name: displayName, pontos: pontos, nivel: nivel, avatarId: avatarId,
                   trailing: isFriend
                       ? Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: const Color(0xFFF0FDF4), borderRadius: BorderRadius.circular(10)), child: const Text('Amigo ✓', style: TextStyle(color: Color(0xFF16A34A), fontWeight: FontWeight.bold, fontSize: 12)))
                       : isPending
@@ -411,6 +429,63 @@ class _FriendsPageState extends State<FriendsPage>
         ],
       ),
     );
-    if (confirm == true) await _removeFriend(uid);
+    if (confirm == true) {
+      await _removeFriend(uid);
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (ctx) => Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF2F2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.person_remove_rounded, color: Colors.red, size: 40),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Amigo Removido',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: _primaryDeep,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '$name foi removido da tua lista de amigos com sucesso.',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _primary,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () => Navigator.pop(ctx),
+                      child: const Text('Entendido', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }
+    }
   }
 }
