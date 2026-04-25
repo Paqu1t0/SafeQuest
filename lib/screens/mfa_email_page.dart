@@ -197,17 +197,10 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
                   
                   const SizedBox(height: 30),
 
-                  // 2. ÍCONE DE EMAIL AZUL E TÍTULO
+                  // 2. LOGO SAFEQUEST E TÍTULO
                   Column(
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: primaryColor,
-                          borderRadius: BorderRadius.circular(25),
-                        ),
-                        child: const Icon(Icons.email_outlined, color: Colors.white, size: 40),
-                      ),
+                      Image.asset('assets/icon/icon.png', height: 180),
                       const SizedBox(height: 30),
                       const Text(
                         "Verifique o seu Email",
