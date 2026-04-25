@@ -343,19 +343,6 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               const SizedBox(height: 10),
 
-              // Câmara
-              _avatarOption(ctx,
-                icon: Icons.camera_alt_rounded, color: const Color(0xFF1A56DB),
-                bg: const Color(0xFFEFF6FF), title: 'Câmara',
-                subtitle: 'Tira uma nova foto',
-                onTap: () async {
-                  Navigator.pop(ctx);
-                  final XFile? img = await ImagePicker().pickImage(source: ImageSource.camera, imageQuality: 80);
-                  if (img != null) setState(() => _imageFile = File(img.path));
-                },
-              ),
-              const SizedBox(height: 10),
-
               // Loja
               _avatarOption(ctx,
                 icon: Icons.storefront_rounded, color: const Color(0xFFF59E0B),
@@ -502,6 +489,26 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _streakBanner(int streak) {
+    if (streak == 0) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(colors: [Color(0xFF1A56DB), Color(0xFF1E40AF)]),
+          borderRadius: BorderRadius.circular(25),
+        ),
+        child: Row(children: [
+          const Text('🔥', style: TextStyle(fontSize: 28)),
+          const SizedBox(width: 14),
+          const Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text("Começa a tua sequência!", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+              SizedBox(height: 4),
+              Text("Faz um quiz hoje para iniciar a tua streak diária.", style: TextStyle(color: Colors.white70, fontSize: 12)),
+            ]),
+          ),
+        ]),
+      );
+    }
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -584,7 +591,7 @@ class _ProfilePageState extends State<ProfilePage> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// EDIT PROFILE PAGE — igual ao original
+// EDIT PROFILE PAGE — com foto própria e dismiss de teclado
 // ─────────────────────────────────────────────────────────────────────────────
 class EditProfilePage extends StatefulWidget {
   final VoidCallback onPhotoTap;
@@ -600,6 +607,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
   final _nameController     = TextEditingController();
   final _bioController      = TextEditingController();
   bool _isSendingReset = false;
+  File? _imageFile;         // foto local selecionada
+  String _photoUrl = '';    // foto da rede
 
   @override
   void initState() {
@@ -616,16 +625,90 @@ class _EditProfilePageState extends State<EditProfilePage> {
           _nicknameController.text = data['nickname'] ?? data['name']?.split(" ").first ?? "";
           _nameController.text     = data['name'] ?? "";
           _bioController.text      = data['bio'] ?? "";
+          _photoUrl                = data['photoUrl'] ?? user?.photoURL ?? '';
         });
       }
     }
   }
 
+  void _showPhotoOptions() {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black54,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 120),
+        child: Container(
+          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(children: [
+                const Expanded(child: Text('Alterar Foto', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A)))),
+                GestureDetector(onTap: () => Navigator.pop(ctx), child: const Icon(Icons.close_rounded, color: Colors.grey)),
+              ]),
+              const SizedBox(height: 18),
+              _photoOption(ctx,
+                icon: Icons.photo_library_rounded, color: const Color(0xFF16A34A),
+                bg: const Color(0xFFF0FDF4), title: 'Galeria do Telemóvel',
+                subtitle: 'Usa uma foto da galeria',
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final XFile? img = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 80);
+                  if (img != null) setState(() => _imageFile = File(img.path));
+                },
+              ),
+              const SizedBox(height: 10),
+              _photoOption(ctx,
+                icon: Icons.storefront_rounded, color: const Color(0xFFF59E0B),
+                bg: const Color(0xFFFEF3C7), title: 'Avatares da Loja',
+                subtitle: 'Escolhe um avatar desbloqueado',
+                onTap: () {
+                  Navigator.pop(ctx);
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => AvatarStorePage()));
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _photoOption(BuildContext ctx, {required IconData icon, required Color color, required Color bg, required String title, required String subtitle, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(14), border: Border.all(color: color.withOpacity(0.25))),
+        child: Row(children: [
+          Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(10)), child: Icon(icon, color: color, size: 22)),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+            Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+          ])),
+          Icon(Icons.chevron_right, color: color.withOpacity(0.6), size: 20),
+        ]),
+      ),
+    );
+  }
+
   Future<void> _resetPassword() async {
-    if (user?.email == null) return;
+    if (user?.uid == null) return;
     setState(() => _isSendingReset = true);
     try {
-      await FirebaseAuth.instance.sendPasswordResetEmail(email: user!.email!);
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user!.uid)
+          .collection('passwordResetRequests')
+          .add({
+        'requestedAt': FieldValue.serverTimestamp(),
+        'processed': false,
+      });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Email de recuperação enviado! Verifica a tua caixa de entrada."), backgroundColor: Colors.green),
@@ -640,60 +723,99 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF9FAFB),
-      appBar: AppBar(title: const Text("Editar Perfil"), backgroundColor: Colors.white, foregroundColor: Colors.black, elevation: 0.5),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            _box("Foto de Perfil", Row(children: [
-              const CircleAvatar(radius: 35, backgroundColor: Color(0xFF2563EB), child: Icon(Icons.person, color: Colors.white, size: 35)),
-              const SizedBox(width: 15),
-              OutlinedButton(onPressed: widget.onPhotoTap, child: const Text("Alterar Foto")),
-            ])),
-            const SizedBox(height: 20),
-            _box("Informações Pessoais", Column(children: [
-              _field("Nickname (Visível no jogo)", _nicknameController, Icons.sports_esports),
-              _field("Nome Real", _nameController, Icons.person_outline),
-              MouseRegion(
-                cursor: SystemMouseCursors.forbidden,
-                child: _field("Email (Bloqueado)", TextEditingController(text: user?.email ?? ""), Icons.lock_outline, readOnly: true, isBlocked: true),
-              ),
-              _field("Biografia", _bioController, Icons.history_edu, maxLines: 3),
-            ])),
-            const SizedBox(height: 20),
-            _box("Segurança", Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text("Precisas de alterar a tua palavra-passe? Enviaremos um link seguro para o teu e-mail registado.", style: TextStyle(color: Colors.grey, fontSize: 13)),
-                const SizedBox(height: 15),
-                OutlinedButton.icon(
-                  onPressed: _isSendingReset ? null : _resetPassword,
-                  icon: _isSendingReset
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.lock_reset, color: Color(0xFF1D4ED8)),
-                  label: Text(_isSendingReset ? "A enviar..." : "Redefinir Palavra-passe"),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF1D4ED8),
-                    side: const BorderSide(color: Color(0xFF1D4ED8)),
-                    minimumSize: const Size(double.infinity, 50),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+    final hasPhoto = _imageFile != null;
+    final hasNetworkPhoto = _photoUrl.isNotEmpty;
+
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      behavior: HitTestBehavior.opaque,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF9FAFB),
+        appBar: AppBar(title: const Text("Editar Perfil"), backgroundColor: Colors.white, foregroundColor: Colors.black, elevation: 0.5),
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              // ── Foto de Perfil ───────────────────────────────────────────
+              _box("Foto de Perfil", Column(
+                children: [
+                  Center(
+                    child: Stack(
+                      children: [
+                        CircleAvatar(
+                          radius: 45,
+                          backgroundColor: const Color(0xFFE5E7EB),
+                          backgroundImage: hasPhoto
+                              ? FileImage(_imageFile!) as ImageProvider
+                              : hasNetworkPhoto ? NetworkImage(_photoUrl) : null,
+                          child: (!hasPhoto && !hasNetworkPhoto)
+                              ? const Icon(Icons.person, size: 50, color: Color(0xFF9CA3AF))
+                              : null,
+                        ),
+                        Positioned(
+                          bottom: 0, right: 0,
+                          child: GestureDetector(
+                            onTap: _showPhotoOptions,
+                            child: Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: const BoxDecoration(color: Color(0xFF2563EB), shape: BoxShape.circle),
+                              child: const Icon(Icons.edit, color: Colors.white, size: 16),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
+                  const SizedBox(height: 12),
+                  OutlinedButton(
+                    onPressed: _showPhotoOptions,
+                    child: const Text("Alterar Foto"),
+                  ),
+                ],
+              )),
+              const SizedBox(height: 20),
+              _box("Informações Pessoais", Column(children: [
+                _field("Nickname (Visível no jogo)", _nicknameController, Icons.sports_esports),
+                _field("Nome Real", _nameController, Icons.person_outline),
+                MouseRegion(
+                  cursor: SystemMouseCursors.forbidden,
+                  child: _field("Email (Bloqueado)", TextEditingController(text: user?.email ?? ""), Icons.lock_outline, readOnly: true, isBlocked: true),
                 ),
-              ],
-            )),
-            const SizedBox(height: 30),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 55), backgroundColor: const Color(0xFF1D4ED8), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-              onPressed: () async {
-                await FirebaseFirestore.instance.collection('users').doc(user?.uid).update({'nickname': _nicknameController.text, 'name': _nameController.text, 'bio': _bioController.text});
-                if (!mounted) return;
-                Navigator.pop(context);
-              },
-              child: const Text("Guardar Alterações", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            ),
-          ],
+                _field("Biografia", _bioController, Icons.history_edu, maxLines: 3),
+              ])),
+              const SizedBox(height: 20),
+              _box("Segurança", Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text("Precisas de alterar a tua palavra-passe? Enviaremos um link seguro para o teu e-mail registado.", style: TextStyle(color: Colors.grey, fontSize: 13)),
+                  const SizedBox(height: 15),
+                  OutlinedButton.icon(
+                    onPressed: _isSendingReset ? null : _resetPassword,
+                    icon: _isSendingReset
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                        : const Icon(Icons.lock_reset, color: Color(0xFF1D4ED8)),
+                    label: Text(_isSendingReset ? "A enviar..." : "Redefinir Palavra-passe"),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF1D4ED8),
+                      side: const BorderSide(color: Color(0xFF1D4ED8)),
+                      minimumSize: const Size(double.infinity, 50),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ],
+              )),
+              const SizedBox(height: 30),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 55), backgroundColor: const Color(0xFF1D4ED8), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                onPressed: () async {
+                  await FirebaseFirestore.instance.collection('users').doc(user?.uid).update({'nickname': _nicknameController.text, 'name': _nameController.text, 'bio': _bioController.text});
+                  if (!mounted) return;
+                  Navigator.pop(context);
+                },
+                child: const Text("Guardar Alterações", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
         ),
       ),
     );
