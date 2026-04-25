@@ -24,7 +24,7 @@ class _RecompensasPageState extends State<RecompensasPage>
     'Palavras-passe': Color(0xFF7C3AED),
     'Segurança Web' : Color(0xFF0F766E),
     'Redes Sociais' : Color(0xFFEA580C),
-    'basica'        : Color(0xFFF59E0B),
+    'basica'        : Color(0xFF3B82F6),
   };
 
   @override
