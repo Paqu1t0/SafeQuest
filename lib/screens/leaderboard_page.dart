@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:projeto_safequest/screens/member_profile_page.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // LEADERBOARD PAGE — Jogadores + Clãs
@@ -100,24 +101,24 @@ class _LeaderboardPageState extends State<LeaderboardPage>
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(Icons.person_rounded, size: 15),
-                    SizedBox(width: 4),
-                    Flexible(child: Text('Jogadores', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12), overflow: TextOverflow.ellipsis)),
+                    SizedBox(width: 5),
+                    Text('Jogadores', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   ],
                 )),
                 Tab(child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(Icons.groups_rounded, size: 15),
-                    SizedBox(width: 4),
-                    Flexible(child: Text('Clãs', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12), overflow: TextOverflow.ellipsis)),
+                    SizedBox(width: 5),
+                    Text('Clãs', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   ],
                 )),
                 Tab(child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(Icons.people_rounded, size: 15),
-                    SizedBox(width: 4),
-                    Flexible(child: Text('Amigos', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12), overflow: TextOverflow.ellipsis)),
+                    SizedBox(width: 5),
+                    Text('Amigos', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   ],
                 )),
               ],
@@ -221,8 +222,7 @@ class _LeaderboardPageState extends State<LeaderboardPage>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(isMe ? '$name (Você)' : name,
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isMe ? _primary : _primaryDeep),
-                  maxLines: 1, overflow: TextOverflow.ellipsis),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isMe ? _primary : _primaryDeep)),
               const SizedBox(height: 2),
               Text('Nível $nivel', style: const TextStyle(color: Colors.grey, fontSize: 12)),
             ],
@@ -293,7 +293,7 @@ class _LeaderboardPageState extends State<LeaderboardPage>
                 final points   = (data['points']    ?? 0) as num;
                 final members  = (data['memberIds'] as List?)?.length ?? 0;
                 final isMyC    = clanId == myClanId;
-                return _buildClanCard(index + 1, name, icon, points.toInt(), members, isMyC);
+                return _buildClanCard(clanId, index + 1, name, icon, points.toInt(), members, isMyC);
               },
             );
           },
@@ -302,76 +302,248 @@ class _LeaderboardPageState extends State<LeaderboardPage>
     );
   }
 
-  Widget _buildClanCard(int rank, String name, String icon, int points, int members, bool isMyClan) {
+  Widget _buildClanCard(String clanId, int rank, String name, String icon, int points, int members, bool isMyClan) {
     final rankColor = rank == 1 ? _gold : rank == 2 ? _silver : rank == 3 ? _bronze : const Color(0xFF94A3B8);
-
     Widget? medal;
     if (rank == 1) medal = const Text('🥇', style: TextStyle(fontSize: 18));
     if (rank == 2) medal = const Text('🥈', style: TextStyle(fontSize: 18));
     if (rank == 3) medal = const Text('🥉', style: TextStyle(fontSize: 18));
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      decoration: BoxDecoration(
-        color: isMyClan ? const Color(0xFFEFF6FF) : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isMyClan ? _primary : const Color(0xFFE5E7EB), width: isMyClan ? 2 : 1),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 2))],
-      ),
-      child: Row(
-        children: [
-          // Rank
+    return GestureDetector(
+      onTap: () => _showClanPreview(clanId, name, icon, points, members, isMyClan),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: isMyClan ? const Color(0xFFEFF6FF) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: isMyClan ? _primary : const Color(0xFFE5E7EB), width: isMyClan ? 2 : 1),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 2))],
+        ),
+        child: Row(children: [
           Container(
             width: 34, height: 34,
-            decoration: BoxDecoration(
-              color: rank <= 3 ? rankColor.withOpacity(0.15) : const Color(0xFFE2E8F0),
-              borderRadius: BorderRadius.circular(10),
-            ),
+            decoration: BoxDecoration(color: rank <= 3 ? rankColor.withOpacity(0.15) : const Color(0xFFE2E8F0), borderRadius: BorderRadius.circular(10)),
             child: Center(child: Text('#$rank', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: rank <= 3 ? rankColor : Colors.grey))),
           ),
           const SizedBox(width: 10),
-          // Ícone do clã
-          Container(
-            width: 44, height: 44,
-            decoration: BoxDecoration(color: _primary.withOpacity(0.08), borderRadius: BorderRadius.circular(13)),
-            child: Center(child: Text(icon, style: const TextStyle(fontSize: 24))),
-          ),
+          Container(width: 44, height: 44, decoration: BoxDecoration(color: _primary.withOpacity(0.08), borderRadius: BorderRadius.circular(13)), child: Center(child: Text(icon, style: const TextStyle(fontSize: 24)))),
           const SizedBox(width: 12),
-          // Info
-          Expanded(child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(children: [
-                Flexible(child: Text(isMyClan ? '$name (O teu)' : name,
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isMyClan ? _primary : _primaryDeep),
-                    maxLines: 1, overflow: TextOverflow.ellipsis)),
-                if (isMyClan) ...[
-                  const SizedBox(width: 6),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(color: _primary, borderRadius: BorderRadius.circular(6)),
-                    child: const Text('Meu', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
-                  ),
-                ],
-              ]),
-              const SizedBox(height: 2),
-              Row(children: [
-                const Icon(Icons.people_outline, size: 12, color: Colors.grey),
-                const SizedBox(width: 4),
-                Text('$members membros', style: const TextStyle(color: Colors.grey, fontSize: 12)),
-              ]),
-            ],
-          )),
-          // Pontos + medalha
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [
+              Flexible(child: Text(isMyClan ? '$name (O teu)' : name,
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isMyClan ? _primary : _primaryDeep),
+                  maxLines: 1, overflow: TextOverflow.ellipsis)),
+              if (isMyClan) ...[
+                const SizedBox(width: 6),
+                Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: _primary, borderRadius: BorderRadius.circular(6)), child: const Text('Meu', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold))),
+              ],
+            ]),
+            const SizedBox(height: 2),
+            Row(children: [const Icon(Icons.people_outline, size: 12, color: Colors.grey), const SizedBox(width: 4), Text('$members membros', style: const TextStyle(color: Colors.grey, fontSize: 12))]),
+          ])),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
             if (medal != null) medal,
-            Text('$points pts',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isMyClan ? _primary : const Color(0xFF3B82F6))),
+            Text('$points pts', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isMyClan ? _primary : const Color(0xFF3B82F6))),
           ]),
-        ],
+        ]),
       ),
     );
+  }
+
+  void _showClanPreview(String clanId, String name, String icon, int points, int memberCount, bool isMyClan) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => FutureBuilder<DocumentSnapshot>(
+        future: FirebaseFirestore.instance.collection('clans').doc(clanId).get(),
+        builder: (ctx, snap) {
+          if (!snap.hasData) return const SizedBox(height: 200, child: Center(child: CircularProgressIndicator()));
+          final clanData  = snap.data!.data() as Map<String, dynamic>? ?? {};
+          final memberIds = List<String>.from(clanData['memberIds'] ?? []);
+          final maxSize   = (clanData['maxSize']   ?? 50) as int;
+          final minPts    = (clanData['minPoints'] ?? 0)  as int;
+          final desc      = clanData['description'] ?? 'Sem descrição.';
+          final createdBy = clanData['createdBy']   ?? '';
+          final roles     = Map<String, dynamic>.from(clanData['roles'] ?? {});
+
+          return DraggableScrollableSheet(
+            initialChildSize: 0.78, minChildSize: 0.4, maxChildSize: 0.92,
+            builder: (_, scrollCtrl) => Container(
+              decoration: const BoxDecoration(color: Color(0xFFF8FAFC), borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+              child: Column(children: [
+                const SizedBox(height: 12),
+                Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: const Color(0xFFE5E7EB), borderRadius: BorderRadius.circular(10)))),
+                const SizedBox(height: 14),
+
+                // Header do clã
+                Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF1A56DB), Color(0xFF1E40AF)]), borderRadius: BorderRadius.circular(18)),
+                  child: Row(children: [
+                    Text(icon, style: const TextStyle(fontSize: 38)),
+                    const SizedBox(width: 14),
+                    Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                      const SizedBox(height: 4),
+                      Text(desc, style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12), maxLines: 2, overflow: TextOverflow.ellipsis),
+                    ])),
+                  ]),
+                ),
+
+                // Stats
+                Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Row(children: [
+                    _statBox('🏆', '$points', 'Pontos'),
+                    const SizedBox(width: 8),
+                    _statBox('👥', '${memberIds.length}/$maxSize', 'Membros'),
+                    const SizedBox(width: 8),
+                    _statBox('⭐', '$minPts', 'Mín. Pontos'),
+                  ]),
+                ),
+
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Row(children: [
+                    const Text('👥 Membros', style: TextStyle(fontWeight: FontWeight.bold, color: _primaryDeep, fontSize: 14)),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(8)),
+                      child: Text('${memberIds.length}', style: const TextStyle(color: _primary, fontWeight: FontWeight.bold, fontSize: 12)),
+                    ),
+                  ]),
+                ),
+
+                // Lista de membros (só leitura — clicar abre perfil)
+                Expanded(
+                  child: ListView.builder(
+                    controller: scrollCtrl,
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    itemCount: memberIds.length,
+                    itemBuilder: (ctx2, i) {
+                      final uid        = memberIds[i];
+                      final memberRole = uid == createdBy ? 'leader' : (roles[uid] ?? 'member') as String;
+                      const roleIcons  = {'leader': '👑', 'co-leader': '⭐', 'elder': '🔰', 'member': '👤'};
+                      const roleLabels = {'leader': 'Líder', 'co-leader': 'Co-Líder', 'elder': 'Ancião', 'member': 'Membro'};
+                      const roleColors = {'leader': Color(0xFFFBBF24), 'co-leader': Color(0xFF7C3AED), 'elder': Color(0xFF16A34A), 'member': Color(0xFF6B7280)};
+                      final rColor = roleColors[memberRole] ?? const Color(0xFF6B7280);
+
+                      return StreamBuilder<DocumentSnapshot>(
+                        stream: FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
+                        builder: (ctx3, mSnap) {
+                          if (!mSnap.hasData) return const SizedBox(height: 8);
+                          final d        = mSnap.data!.data() as Map<String,dynamic>? ?? {};
+                          final mname    = d['nickname'] ?? d['name'] ?? 'Jogador';
+                          final mpontos  = (d['pontos'] ?? 0) as int;
+                          final avatarId = d['avatar']  ?? 'default';
+                          final emoji    = _avatarEmoji[avatarId] ?? '👤';
+                          final eColor   = _avatarColor[avatarId] ?? _primary;
+
+                          return GestureDetector(
+                            onTap: () { Navigator.pop(ctx); Navigator.push(context, MaterialPageRoute(builder: (_) => MemberProfilePage(uid: uid))); },
+                            child: Container(
+                              margin: const EdgeInsets.only(bottom: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE5E7EB))),
+                              child: Row(children: [
+                                SizedBox(width: 22, child: Text('${i + 1}', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: i < 3 ? _gold : Colors.grey), textAlign: TextAlign.center)),
+                                const SizedBox(width: 6),
+                                Container(width: 38, height: 38, decoration: BoxDecoration(color: eColor.withOpacity(0.12), borderRadius: BorderRadius.circular(10)), child: Center(child: Text(emoji, style: const TextStyle(fontSize: 20)))),
+                                const SizedBox(width: 10),
+                                Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                  Text(mname, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _primaryDeep)),
+                                  Text('$mpontos pts', style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                                ])),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                  decoration: BoxDecoration(color: rColor.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                                  child: Text('${roleIcons[memberRole] ?? ''} ${roleLabels[memberRole] ?? ''}', style: TextStyle(color: rColor, fontWeight: FontWeight.bold, fontSize: 10)),
+                                ),
+                              ]),
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ),
+
+                // Botão de entrada — só se NÃO está em nenhum clã
+                if (!isMyClan)
+                  FutureBuilder<DocumentSnapshot>(
+                    future: FirebaseFirestore.instance.collection('users').doc(currentUser?.uid).get(),
+                    builder: (_, uSnap) {
+                      if (!uSnap.hasData) return const SizedBox.shrink();
+                      final ud      = uSnap.data!.data() as Map<String,dynamic>? ?? {};
+                      final inClan  = (ud['clanId'] as String?)?.isNotEmpty == true;
+                      if (inClan) return const SizedBox.shrink(); // já tem clã → nada
+
+                      final myPts   = (ud['pontos'] ?? 0) as int;
+                      final isFull  = memberIds.length >= maxSize;
+                      final canJoin = myPts >= minPts && !isFull;
+
+                      return Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+                        decoration: const BoxDecoration(color: Color(0xFFF8FAFC), border: Border(top: BorderSide(color: Color(0xFFE5E7EB)))),
+                        child: Column(children: [
+                          if (!canJoin && !isFull) Padding(
+                            padding: const EdgeInsets.only(bottom: 6),
+                            child: Text('Precisas de $minPts pontos (tens $myPts)', style: const TextStyle(color: Colors.orange, fontSize: 12), textAlign: TextAlign.center),
+                          ),
+                          if (isFull) const Padding(
+                            padding: EdgeInsets.only(bottom: 6),
+                            child: Text('Este clã está cheio!', style: TextStyle(color: Colors.red, fontSize: 12), textAlign: TextAlign.center),
+                          ),
+                          ElevatedButton.icon(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: canJoin ? const Color(0xFF22C55E) : Colors.grey.shade400,
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size(double.infinity, 52),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                              elevation: 0,
+                            ),
+                            icon: const Icon(Icons.group_add_rounded, size: 20),
+                            label: Text(isFull ? 'Clã Cheio' : !canJoin ? 'Pontos Insuficientes' : 'Juntar-me a $name',
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                            onPressed: canJoin ? () async {
+                              Navigator.pop(ctx);
+                              final batch = FirebaseFirestore.instance.batch();
+                              batch.update(FirebaseFirestore.instance.collection('users').doc(currentUser!.uid), {'clanId': clanId});
+                              batch.update(FirebaseFirestore.instance.collection('clans').doc(clanId), {'memberIds': FieldValue.arrayUnion([currentUser!.uid])});
+                              await batch.commit();
+                              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Entraste no clã $name! 🎉'), backgroundColor: const Color(0xFF22C55E)),
+                              );
+                            } : null,
+                          ),
+                        ]),
+                      );
+                    },
+                  ),
+              ]),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _statBox(String icon, String value, String label) {
+    return Expanded(child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: const Color(0xFFE5E7EB))),
+      child: Column(children: [
+        Text(icon, style: const TextStyle(fontSize: 20)),
+        const SizedBox(height: 4),
+        Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _primaryDeep)),
+        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 10)),
+      ]),
+    ));
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -474,12 +646,11 @@ class _LeaderboardPageState extends State<LeaderboardPage>
                         const SizedBox(width: 12),
                         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                           Row(children: [
-                            Flexible(child: Text(
+                            Text(
                               u['nickname'] ?? u['name'] ?? 'Jogador',
                               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14,
                                   color: isMe ? _primary : _primaryDeep),
-                              maxLines: 1, overflow: TextOverflow.ellipsis,
-                            )),
+                            ),
                             if (isMe) ...[
                               const SizedBox(width: 6),
                               Container(
