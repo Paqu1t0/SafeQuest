@@ -50,12 +50,15 @@ class _MemberProfilePageState extends State<MemberProfilePage>
     return map[bannerId] ?? map['default']!;
   }
 
-  // Cores para os cards de conquista
-  static const _badgeCardColors = [
-    Color(0xFF1A56DB), Color(0xFFEA580C), Color(0xFF16A34A),
-    Color(0xFF7C3AED), Color(0xFF0F766E), Color(0xFFDC2626),
-    Color(0xFFDB2777), Color(0xFFB45309),
-  ];
+  // Cores para os cards de conquista — por tema (sincronizado com recompensas_page)
+  static const _themeColors = <String, Color>{
+    'Phishing'      : Color(0xFF1A56DB),
+    'Palavras-passe': Color(0xFF7C3AED),
+    'Segurança Web' : Color(0xFF0F766E),
+    'Redes Sociais' : Color(0xFFEA580C),
+    'basica'        : Color(0xFF3B82F6),
+  };
+  static const _fallbackColor = Color(0xFF1A56DB);
 
   static const _badgeEmojis = [
     '🎯', '🔥', '⭐', '🏆', '💡', '🛡️', '🚀', '🌟',
@@ -534,11 +537,10 @@ class _MemberProfilePageState extends State<MemberProfilePage>
   }
 
   Widget _buildBadgeCard(Map<String, dynamic> badge, int index) {
-    final cardColor  = _badgeCardColors[index % _badgeCardColors.length];
-    final badgeEmoji = _badgeEmojis[index % _badgeEmojis.length];
-    final name       = badge['nome'] as String;
-    final desc       = badge['desc'] as String;
     final categoria  = badge['categoria'] as String;
+    final cardColor  = _themeColors[categoria] ?? _fallbackColor;
+    final icon       = badge['icon'] as String? ?? '🏅';
+    final name       = badge['nome'] as String;
 
     return Container(
       decoration: BoxDecoration(
@@ -564,7 +566,7 @@ class _MemberProfilePageState extends State<MemberProfilePage>
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Center(
-                child: Text(badgeEmoji,
+                child: Text(icon,
                     style: const TextStyle(fontSize: 28)),
               ),
             ),
