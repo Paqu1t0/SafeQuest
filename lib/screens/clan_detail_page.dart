@@ -251,33 +251,61 @@ class _ClanDetailPageState extends State<ClanDetailPage>
                       final emoji     = _avatarEmoji[avatarId] ?? '👤';
                       final roleColor = _roleColors[memberRole] ?? _primary;
 
-                      return Container(
-                        margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE5E7EB))),
-                        child: Row(children: [
-                          // Rank
-                          SizedBox(width: 22, child: Text('${i + 1}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: i < 3 ? _gold : Colors.grey))),
-                          // Avatar
-                          Text(emoji, style: const TextStyle(fontSize: 26)),
-                          const SizedBox(width: 10),
-                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Text(mnick.isNotEmpty ? mnick : mname, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: _primaryDeep)),
-                            Text('$mpontos pts', style: const TextStyle(color: Colors.grey, fontSize: 11)),
-                          ])),
-                          // Papel badge
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(color: roleColor.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                            child: Text(_roleLabels[memberRole] ?? '👤', style: TextStyle(color: roleColor, fontWeight: FontWeight.bold, fontSize: 11)),
-                          ),
-                          // Long press para gerir (só gestores)
-                          if (_canManage(myRole) && uid != user?.uid && memberRole != 'leader')
-                            GestureDetector(
-                              onTap: () { Navigator.pop(ctx); _showMemberOptions(context, uid, mname, memberRole, myRole); },
-                              child: const Padding(padding: EdgeInsets.only(left: 8), child: Icon(Icons.more_vert_rounded, color: Colors.grey, size: 18)),
+                      final isCurrentUser = uid == user?.uid;
+                      return GestureDetector(
+                        onTap: isCurrentUser ? null : () {
+                          Navigator.pop(ctx); // Fecha a modal
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => MemberProfilePage(uid: uid)));
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: isCurrentUser ? const Color(0xFFEFF6FF) : Colors.white,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: isCurrentUser ? _primary.withOpacity(0.5) : const Color(0xFFE5E7EB),
+                              width: isCurrentUser ? 1.5 : 1.0,
                             ),
-                        ]),
+                          ),
+                          child: Row(children: [
+                            // Rank
+                            SizedBox(width: 22, child: Text('${i + 1}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: i < 3 ? _gold : Colors.grey))),
+                            // Avatar
+                            Text(emoji, style: const TextStyle(fontSize: 26)),
+                            const SizedBox(width: 10),
+                            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                              Row(children: [
+                                Text(mnick.isNotEmpty ? mnick : mname,
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14,
+                                        color: isCurrentUser ? _primary : _primaryDeep)),
+                                if (isCurrentUser) ...[
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                    decoration: BoxDecoration(color: _primary, borderRadius: BorderRadius.circular(6)),
+                                    child: const Text('Tu', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold)),
+                                  ),
+                                ],
+                              ]),
+                              Text('$mpontos pts', style: TextStyle(color: isCurrentUser ? _primary.withOpacity(0.7) : Colors.grey, fontSize: 11)),
+                            ])),
+                            // Papel badge
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(color: roleColor.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                              child: Text(_roleLabels[memberRole] ?? '👤', style: TextStyle(color: roleColor, fontWeight: FontWeight.bold, fontSize: 11)),
+                            ),
+                            // Seta de navegação (só para outros membros) / Long press gestores
+                            if (!isCurrentUser && _canManage(myRole) && memberRole != 'leader')
+                              GestureDetector(
+                                onTap: () { Navigator.pop(ctx); _showMemberOptions(context, uid, mname, memberRole, myRole); },
+                                child: const Padding(padding: EdgeInsets.only(left: 8), child: Icon(Icons.more_vert_rounded, color: Colors.grey, size: 18)),
+                              )
+                            else if (!isCurrentUser)
+                              const Padding(padding: EdgeInsets.only(left: 8), child: Icon(Icons.chevron_right_rounded, color: Colors.grey, size: 18)),
+                          ]),
+                        ),
                       );
                     },
                   );
@@ -399,62 +427,103 @@ class _ClanDetailPageState extends State<ClanDetailPage>
 
   // ── Menu de opções do membro (líder/co-líder) ─────────────────────────────
   void _showMemberOptions(BuildContext context, String uid, String name, String memberRole, String myRole) {
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(children: [
-              const Icon(Icons.person_rounded, color: _primaryDeep, size: 20),
-              const SizedBox(width: 8),
-              Text(name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _primaryDeep)),
-            ]),
-            const SizedBox(height: 4),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-              decoration: BoxDecoration(color: (_roleColors[memberRole] ?? _primary).withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-              child: Text(_roleLabels[memberRole] ?? '', style: TextStyle(color: _roleColors[memberRole] ?? _primary, fontWeight: FontWeight.bold, fontSize: 12)),
+      barrierColor: Colors.black54,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 80),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 30, offset: const Offset(0, 10))],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header do membro
+                Row(children: [
+                  Container(
+                    width: 46, height: 46,
+                    decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(13)),
+                    child: const Center(child: Icon(Icons.person_rounded, color: Color(0xFF1A56DB))),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text(name, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A))),
+                    Container(
+                      margin: const EdgeInsets.only(top: 4),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(color: (_roleColors[memberRole] ?? _primary).withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+                      child: Text(_roleLabels[memberRole] ?? '', style: TextStyle(color: _roleColors[memberRole] ?? _primary, fontWeight: FontWeight.bold, fontSize: 11)),
+                    ),
+                  ])),
+                  GestureDetector(onTap: () => Navigator.pop(ctx), child: const Icon(Icons.close_rounded, color: Colors.grey)),
+                ]),
+                const SizedBox(height: 20),
+                const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                const SizedBox(height: 12),
+
+                // Opções
+                if (_canPromote(myRole, memberRole))
+                  _dialogOption(ctx, Icons.arrow_upward_rounded, const Color(0xFF7C3AED),
+                      'Promover para ${_nextRole(memberRole)}',
+                      memberRole == 'member' ? 'Torna-se Ancião' : 'Torna-se Co-Líder',
+                      () => _promoteUser(ctx, uid, memberRole)),
+
+                if (_canDemote(myRole, memberRole))
+                  _dialogOption(ctx, Icons.arrow_downward_rounded, const Color(0xFFD97706),
+                      memberRole == 'elder' ? 'Rebaixar → Membro' : 'Rebaixar → Ancião',
+                      'Reduz o papel deste membro',
+                      () => _demoteUser(ctx, uid, memberRole)),
+
+                _dialogOption(ctx, Icons.sports_esports_rounded, _primary,
+                    'Propor Batalha de Quiz', 'Desafia para um quiz!',
+                    () => _proposeBattle(ctx, uid, name)),
+
+                if (myRole == 'leader')
+                  _dialogOption(ctx, Icons.workspace_premium_rounded, const Color(0xFFFBBF24),
+                      'Transferir Liderança', 'Torna este membro o novo Líder',
+                      () => _transferLeadership(ctx, uid, name)),
+
+                if (_canKick(myRole, memberRole))
+                  _dialogOption(ctx, Icons.person_remove_rounded, const Color(0xFFDC2626),
+                      'Expulsar do Clã', 'Remove permanentemente',
+                      () => _kickUser(ctx, uid, name)),
+              ],
             ),
-            const SizedBox(height: 20),
-
-            // ── PROMOVER ─────────────────────────────────────────────────
-            if (_canPromote(myRole, memberRole))
-              _optionTile(ctx, Icons.arrow_upward_rounded, const Color(0xFF7C3AED),
-                  'Promover para ${_nextRole(memberRole)}',
-                  memberRole == 'member' ? 'Torna-se Ancião' : 'Torna-se Co-Líder (apenas Líderes)',
-                  () => _promoteUser(ctx, uid, memberRole)),
-
-            // ── REBAIXAR com aviso de expulsão ────────────────────────────
-            if (_canDemote(myRole, memberRole))
-              _optionTile(ctx, Icons.arrow_downward_rounded, const Color(0xFFD97706),
-                  memberRole == 'elder' ? 'Rebaixar para Membro' : 'Rebaixar para Ancião',
-                  memberRole == 'elder' ? 'Se continuar a falhar, pode ser expulso' : 'Reduz o papel deste membro',
-                  () => _demoteUser(ctx, uid, memberRole)),
-
-            // ── PROPOR BATALHA ────────────────────────────────────────────
-            _optionTile(ctx, Icons.sports_esports_rounded, _primary,
-                'Propor Batalha de Quiz', 'Desafia este membro para um quiz!',
-                () => _proposeBattle(ctx, uid, name)),
-
-            // ── TRANSFERIR LIDERANÇA (só líder) ──────────────────────────
-            if (myRole == 'leader')
-              _optionTile(ctx, Icons.workspace_premium_rounded, const Color(0xFFFBBF24),
-                  'Transferir Liderança', 'Torna este membro o novo Líder',
-                  () => _transferLeadership(ctx, uid, name)),
-
-            // ── EXPULSAR ──────────────────────────────────────────────────
-            if (_canKick(myRole, memberRole))
-              _optionTile(ctx, Icons.person_remove_rounded, const Color(0xFFDC2626),
-                  'Expulsar do Clã',
-                  memberRole == 'co-leader' ? 'Rebaixa primeiro antes de expulsar' : 'Remove permanentemente',
-                  memberRole == 'co-leader' ? null : () => _kickUser(ctx, uid, name)),
-          ],
+          ),
         ),
+      ),
+    );
+  }
+
+  Widget _dialogOption(BuildContext ctx, IconData icon, Color color, String title, String subtitle, VoidCallback? onTap) {
+    final disabled = onTap == null;
+    return GestureDetector(
+      onTap: disabled ? null : () { Navigator.pop(ctx); onTap(); },
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: disabled ? const Color(0xFFF9FAFB) : color.withOpacity(0.06),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: disabled ? const Color(0xFFE5E7EB) : color.withOpacity(0.2)),
+        ),
+        child: Row(children: [
+          Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(10)), child: Icon(icon, color: disabled ? Colors.grey : color, size: 20)),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(title, style: TextStyle(fontWeight: FontWeight.bold, color: disabled ? Colors.grey : color, fontSize: 14)),
+            Text(subtitle, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+          ])),
+          if (!disabled) Icon(Icons.chevron_right_rounded, color: color.withOpacity(0.6), size: 18),
+        ]),
       ),
     );
   }
@@ -481,17 +550,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
     if (role == 'member') return '🔰 Ancião';
     if (role == 'elder')  return '⭐ Co-Líder';
     return '';
-  }
-
-  Widget _optionTile(BuildContext ctx, IconData icon, Color color, String title, String subtitle, VoidCallback? onTap) {
-    final disabled = onTap == null;
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Container(padding: const EdgeInsets.all(10), decoration: BoxDecoration(color: color.withOpacity(disabled ? 0.05 : 0.1), borderRadius: BorderRadius.circular(12)), child: Icon(icon, color: disabled ? Colors.grey : color, size: 22)),
-      title: Text(title, style: TextStyle(fontWeight: FontWeight.bold, color: disabled ? Colors.grey : color)),
-      subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-      onTap: disabled ? null : () { Navigator.pop(ctx); onTap(); },
-    );
   }
 
   // ── Envia mensagem de sistema no chat ────────────────────────────────────
@@ -692,10 +750,7 @@ class _ClanDetailPageState extends State<ClanDetailPage>
 
     final batch = FirebaseFirestore.instance.batch();
     batch.update(FirebaseFirestore.instance.collection('users').doc(user!.uid), {'clanId': FieldValue.delete()});
-    batch.update(clanRef, {
-      'memberIds': FieldValue.arrayRemove([user!.uid]),
-      'roles.${user!.uid}': FieldValue.delete(), // Limpa o role do user que sai
-    });
+    batch.update(clanRef, {'memberIds': FieldValue.arrayRemove([user!.uid])});
 
     // Se é líder, transfere automaticamente para o co-líder ou membro mais antigo
     if (isLeader && members.isNotEmpty) {
@@ -820,14 +875,14 @@ class _ClanDetailPageState extends State<ClanDetailPage>
                       border: InputBorder.none,
                       contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     ),
-                    onSubmitted: (_) { _sendMessage(); setState(() => _showEmojis = false); FocusScope.of(context).unfocus(); },
+                    onSubmitted: (_) { _sendMessage(); setState(() => _showEmojis = false); },
                     maxLines: null,
                   ),
                 )),
                 const SizedBox(width: 8),
                 // Enviar
                 GestureDetector(
-                  onTap: () { _sendMessage(); setState(() => _showEmojis = false); FocusScope.of(context).unfocus(); },
+                  onTap: () { _sendMessage(); setState(() => _showEmojis = false); },
                   child: Container(width: 44, height: 44, decoration: BoxDecoration(color: _primary, borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.send_rounded, color: Colors.white, size: 20)),
                 ),
               ]),
@@ -1141,6 +1196,60 @@ class _ClanDetailPageState extends State<ClanDetailPage>
 
     // ── Mensagem de sistema simples ────────────────────────────────────────
     if (isSystem) {
+      // Mensagens especiais — promoção do clã (📣)
+      final isMotivation = text.startsWith('📣');
+      // Mensagem de resultado de batalha
+      final isBattleResult = text.contains('venceu a batalha') || text.contains('Empate na batalha');
+
+      if (isBattleResult) {
+        final isWin  = text.contains('venceu');
+        final color  = isWin  ? const Color(0xFF16A34A) : const Color(0xFF0891B2);
+        final bgColor= isWin  ? const Color(0xFFF0FDF4) : const Color(0xFFEFF6FF);
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: color.withOpacity(0.4)),
+            ),
+            child: Column(children: [
+              Text(isWin ? '🏆' : '🤝', style: const TextStyle(fontSize: 24)),
+              const SizedBox(height: 4),
+              Text(text, textAlign: TextAlign.center, softWrap: true,
+                  style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.bold, height: 1.4)),
+            ]),
+          ),
+        );
+      }
+
+      if (isMotivation) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(colors: [Color(0xFFFEF3C7), Color(0xFFFFFBEB)]),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.5)),
+            ),
+            child: Row(children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(color: const Color(0xFFF59E0B).withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+                child: const Text('📣', style: TextStyle(fontSize: 18)),
+              ),
+              const SizedBox(width: 10),
+              Expanded(child: Text(text, softWrap: true,
+                  style: const TextStyle(color: Color(0xFF92400E), fontSize: 13, fontWeight: FontWeight.w600, height: 1.4))),
+            ]),
+          ),
+        );
+      }
+
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
         child: Container(
@@ -1209,8 +1318,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
     final text = _msgCtrl.text.trim();
     if (text.isEmpty || user == null) return;
     _msgCtrl.clear();
-    // Fecha o teclado após enviar
-    FocusScope.of(context).unfocus();
     final userDoc = await FirebaseFirestore.instance.collection('users').doc(user!.uid).get();
     final data = userDoc.data() as Map<String, dynamic>? ?? {};
     final senderName = data['name'] ?? data['nickname'] ?? 'Jogador';
@@ -1571,8 +1678,7 @@ class _BattleQuizScreenState extends State<BattleQuizScreen> {
       setState(() { _idx++; _selected = null; _answered = false; });
     } else {
       final points = _correct * 20;
-      if (_correct >= 4) SoundService.playVictory();
-      else SoundService.playFail();
+      // Sem som de vitória/derrota na batalha — os sons são do quiz normal
       Navigator.pop(context, {'points': points, 'correct': _correct, 'total': _questions.length});
     }
   }
