@@ -9,14 +9,14 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
     <application
-        android:label="projeto_safequest"
+        android:label="SafeQuest"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@mipmap/launcher_icon"
         android:hardwareAccelerated="true">
 
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
-            android:resource="@mipmap/ic_launcher" />
+            android:resource="@mipmap/launcher_icon" />
 
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
