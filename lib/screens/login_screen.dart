@@ -148,7 +148,7 @@ class _LoginPageState extends State<LoginPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Icons.shield, size: 90, color: Color(0xFF1A56DB)),
+                    Image.asset('assets/icon/icon.png', height: 180),
                     const Text(
                       'SafeQuest',
                       style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A)),
