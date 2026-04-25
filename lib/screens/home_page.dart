@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-// 👇 Adicionado o import do Messaging 👇
-import 'package:firebase_messaging/firebase_messaging.dart'; 
-
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:projeto_safequest/screens/profile_page.dart';
 import 'package:projeto_safequest/screens/assistent_page.dart';
 import 'package:projeto_safequest/screens/history_page.dart';
@@ -52,7 +50,6 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-
     _pageCtrl = PageController(initialPage: 0);
     _pages = [
       const QuizzesDashboard(),
@@ -62,9 +59,9 @@ class _HomePageState extends State<HomePage> {
       const HistoryPage(),
       const ProfilePage(),
     ];
-
-    // 👇 CHAMA A FUNÇÃO DAS NOTIFICAÇÕES AQUI 👇
-    _setupPushNotifications();
+    // Regista a hora de abertura da app (usado pelas Cloud Functions
+    // para não enviar notificações a quem já entrou hoje)
+    _atualizarUltimaVisita();
   }
 
   @override
@@ -86,7 +83,7 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       body: PageView(
         controller: _pageCtrl,
-        physics: const ClampingScrollPhysics(), // evita bounce excessivo
+        physics: const ClampingScrollPhysics(), // swipe ativado entre páginas
         onPageChanged: (i) => setState(() => _currentIndex = i),
         children: _pages,
       ),
@@ -108,47 +105,30 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // 👇 FUNÇÕES PARA GUARDAR O TOKEN FCM NO FIRESTORE 👇
-  // ─────────────────────────────────────────────────────────────────────────────
-  
-  Future<void> _setupPushNotifications() async {
-    FirebaseMessaging messaging = FirebaseMessaging.instance;
-    User? user = FirebaseAuth.instance.currentUser;
-
-    if (user == null) return; // Se não houver utilizador logado, não avança
-
-    // 1. Pede permissão
-    NotificationSettings settings = await messaging.requestPermission(
-      alert: true, badge: true, sound: true,
-    );
-
-    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
-      print('Permissão para notificações concedida!');
-
-      // 2. Pega no token atual e guarda no Firestore
-      String? token = await messaging.getToken();
-      if (token != null) {
-        await _guardarTokenNoFirestore(user.uid, token);
-      }
-
-      // 3. Fica à escuta se o token mudar no futuro
-      FirebaseMessaging.instance.onTokenRefresh.listen((novoToken) {
-        _guardarTokenNoFirestore(user.uid, novoToken);
-      });
-    } else {
-      print('O utilizador recusou as notificações.');
-    }
-  }
-
-  Future<void> _guardarTokenNoFirestore(String uid, String token) async {
+  // Grava no Firestore a hora em que o utilizador abriu a app e o FCM Token.
+  // As Cloud Functions verificam este valor para enviar notificações.
+  Future<void> _atualizarUltimaVisita() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
     try {
-      await FirebaseFirestore.instance.collection('users').doc(uid).set({
-        'fcmToken': token,
-      }, SetOptions(merge: true)); // O merge não deixa apagar os outros dados!
-      print('Token FCM guardado com sucesso: $token');
-    } catch (e) {
-      print('Erro ao guardar o token FCM: $e');
+      final token = await FirebaseMessaging.instance.getToken();
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .set({
+            'lastOpenedAt': FieldValue.serverTimestamp(),
+            if (token != null) 'fcmToken': token,
+          }, SetOptions(merge: true));
+          
+      // Opcional: Atualizar se o token mudar enquanto a app está aberta
+      FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
+        FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .set({'fcmToken': newToken}, SetOptions(merge: true));
+      });
+    } catch (_) {
+      // Falha silenciosa — não é crítico para o utilizador
     }
   }
 }
@@ -255,28 +235,9 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
                 onTap: () async {
                   Navigator.pop(ctx);
                   final img = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 80);
-                  if (img != null && user.uid.isNotEmpty) {
-                    // Guarda path local — visível só neste device
-                    // Para persistir no Firestore precisas de Firebase Storage
-                    // Por agora mostramos a foto localmente
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Foto selecionada! Para guardar no perfil usa a página de Perfil.'), backgroundColor: Colors.green),
-                    );
-                  }
-                },
-              ),
-              const SizedBox(height: 10),
-
-              // Câmara
-              _avatarOption(ctx,
-                icon: Icons.camera_alt_rounded, color: _primary, bg: const Color(0xFFEFF6FF),
-                title: 'Câmara', subtitle: 'Tira uma nova foto',
-                onTap: () async {
-                  Navigator.pop(ctx);
-                  final img = await ImagePicker().pickImage(source: ImageSource.camera, imageQuality: 80);
                   if (img != null) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Foto tirada! Para guardar no perfil usa a página de Perfil.'), backgroundColor: Colors.green),
+                      const SnackBar(content: Text('Para guardar a foto vai ao separador Perfil.'), backgroundColor: Colors.green),
                     );
                   }
                 },
@@ -332,6 +293,7 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
           Expanded(
             child: TabBarView(
               controller: _tabController,
+              physics: const NeverScrollableScrollPhysics(),
               children: [
                 _buildQuizzesTab(user),
                 const LeaderboardPage(),
@@ -409,17 +371,28 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
             // Mostra nickname se existir, senão o primeiro nome
             nome = data?['nickname'] ?? (data?['name'] as String?)?.split(' ').first ?? nome;
           }
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('SafeQuest',
-                  style: TextStyle(
-                      color: _primaryDeep,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18)),
-              Text('Olá, $nome!',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
-            ],
+          return GestureDetector(
+            onTap: () {
+              // Navega para a aba Perfil (índice 5)
+              final homeState = context.findAncestorStateOfType<_HomePageState>();
+              homeState?._goTo(5);
+            },
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('SafeQuest',
+                    style: TextStyle(
+                        color: _primaryDeep,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18)),
+                Row(children: [
+                  Text('Olá, $nome!',
+                      style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  const SizedBox(width: 3),
+                  const Icon(Icons.arrow_forward_ios_rounded, size: 9, color: Colors.grey),
+                ]),
+              ],
+            ),
           );
         },
       ),
@@ -556,14 +529,12 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
             int    pontos   = 0;
             String bannerId = 'default';
             int    nivel    = 1;
-            int    streak   = 0;
 
             if (userSnap.hasData && userSnap.data!.exists) {
               final data = userSnap.data!.data() as Map<String, dynamic>?;
               pontos   = data?['pontos']  ?? 0;
               bannerId = data?['banner']  ?? 'default';
               nivel    = ((pontos ~/ 250) + 1);
-              streak   = data?['streak']  ?? 0;
             }
 
             final progressoGeral = _calcProgressoGeral(quizDocs, _topics);
@@ -575,9 +546,9 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildMainScoreCard(pontos, progressoGeral, nivel, bannerColors),
-
+                  const SizedBox(height: 28),
                   const DailyMissionsWidget(),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 28),
                   Text('🎮 Arenas de Treino',
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: bannerColors[1])),
                   const SizedBox(height: 15),
@@ -596,14 +567,12 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
     );
   }
 
-  // ── Sino de notificações ──────────────────────────────────────────────────
+  // ── Sino de notificações — só clã e batalhas ──────────────────────────────
   Widget _buildNotificationBell(BuildContext context, User? user) {
     if (user == null) return const SizedBox.shrink();
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users').doc(user.uid).collection('notifications')
-          .where('read', isEqualTo: false)
-          .snapshots(),
+      // Usa o stream filtrado: só conta notificações de clã/batalhas (não as automáticas)
+      stream: NotificationService.unreadStream(user.uid),
       builder: (context, snap) {
         final count = snap.hasData ? snap.data!.docs.length : 0;
         return GestureDetector(
@@ -722,11 +691,7 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
   Widget _buildTopicCard(BuildContext context, String title,
       int doneSoFar, double progress, IconData icon, [Color? accent]) {
     final accentColor = accent ?? _primary;
-    final barColor = progress >= 0.7
-        ? const Color(0xFF16A34A)
-        : progress >= 0.3
-            ? const Color(0xFFD97706)
-            : accentColor;
+    final barColor = Colors.grey.shade400;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 15),
@@ -737,38 +702,33 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(9),
             decoration: BoxDecoration(
               color: accentColor.withOpacity(0.1),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, color: accentColor, size: 28),
+            child: Icon(icon, color: accentColor, size: 22),
           ),
-          const SizedBox(width: 15),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: _primaryDeep)),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: doneSoFar > 0 ? barColor.withOpacity(0.1) : accentColor.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        '$doneSoFar/$_totalQuizzesPerTopic quizzes',
-                        style: TextStyle(fontSize: 11, color: doneSoFar > 0 ? barColor : accentColor, fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ],
+                Text(
+                  title,
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: _primaryDeep),
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
+                Text(
+                  '$doneSoFar/$_totalQuizzesPerTopic · ${doneSoFar == 0 ? 'Começa agora!' : '${(progress * 100).toInt()}% completo'}',
+                  style: TextStyle(fontSize: 11, color: doneSoFar == 0 ? Colors.grey : barColor, fontWeight: FontWeight.w500),
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 6),
                 TweenAnimationBuilder<double>(
                   tween: Tween(begin: 0, end: progress),
                   duration: const Duration(milliseconds: 600),
@@ -776,32 +736,25 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
                   builder: (_, val, __) => ClipRRect(
                     borderRadius: BorderRadius.circular(10),
                     child: LinearProgressIndicator(
-                      value: val, minHeight: 6,
+                      value: val, minHeight: 5,
                       backgroundColor: const Color(0xFFF1F5F9),
                       color: barColor,
                     ),
                   ),
                 ),
-                const SizedBox(height: 4),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    doneSoFar == 0 ? 'Começa agora!' : '${(progress * 100).toInt()}% completo',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: doneSoFar == 0 ? Colors.grey : barColor),
-                  ),
-                ),
               ],
             ),
           ),
+          const SizedBox(width: 10),
           GestureDetector(
             onTap: () => _showDifficultySelector(context, title),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
                 color: accentColor,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: const Text('Jogar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+              child: const Text('Jogar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
             ),
           ),
         ],

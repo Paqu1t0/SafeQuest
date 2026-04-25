@@ -7,7 +7,6 @@ import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:projeto_safequest/screens/quiz_detail_page.dart';
-import 'package:flutter_markdown/flutter_markdown.dart';
 
 class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});
@@ -150,141 +149,238 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
   }
 
   // ── ABA ANÁLISE IA ─────────────────────────────────────────────────────────
- Widget _buildAITab(List<Map<String, dynamic>> data) {
-  if (data.isEmpty) {
-    return const Center(child: Padding(
-      padding: EdgeInsets.all(32),
-      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Text('🤖', style: TextStyle(fontSize: 48)),
-        SizedBox(height: 16),
-        Text('Faz alguns quizzes primeiro!', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: _primaryDeep)),
-        SizedBox(height: 8),
-        Text('A IA precisa de dados para te dar recomendações.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 13)),
-      ]),
-    ));
-  }
+  Widget _buildAITab(List<Map<String, dynamic>> data) {
+    // Largura real do ecrã — acesso direto ao context do State
+    final screenW = MediaQuery.of(context).size.width;
+    final textW   = screenW - 80; // scrollview 20+20, card 20+20
 
-  return SingleChildScrollView(
-    padding: const EdgeInsets.all(20),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // 1. Card do Mentor (Botão de Analisar)
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(colors: [Color(0xFF7C3AED), Color(0xFF4F46E5)]),
-            borderRadius: BorderRadius.circular(20),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Row(children: [
-                Text('🤖', style: TextStyle(fontSize: 28)),
-                SizedBox(width: 12),
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Análise do Mentor SafeQuest', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-                  Text('IA personalizada para o teu desempenho', style: TextStyle(color: Colors.white70, fontSize: 11)),
-                ]),
-              ]),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: const Color(0xFF7C3AED),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    elevation: 0,
-                  ),
-                  onPressed: _aiLoading ? null : () => _fetchAIAnalysis(data),
-                  child: _aiLoading
-                      ? const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                          SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF7C3AED))),
-                          SizedBox(width: 10),
-                          Text('A analisar...', style: TextStyle(fontWeight: FontWeight.bold)),
-                        ])
-                      : const Text('Analisar o meu desempenho', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                ),
-              ),
-            ],
-          ),
-        ),
+    if (data.isEmpty) {
+      return const Center(child: Padding(
+        padding: EdgeInsets.all(32),
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Text('🤖', style: TextStyle(fontSize: 48)),
+          SizedBox(height: 16),
+          Text('Faz alguns quizzes primeiro!', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: _primaryDeep)),
+          SizedBox(height: 8),
+          Text('A IA precisa de dados para te dar recomendações.', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey, fontSize: 13)),
+        ]),
+      ));
+    }
 
-        // 2. Resposta da IA (Markdown)
-        if (_aiAnalysis != null) ...[
-          const SizedBox(height: 20),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // 1. Card do Mentor
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 3))],
+              gradient: const LinearGradient(colors: [Color(0xFF7C3AED), Color(0xFF4F46E5)]),
+              borderRadius: BorderRadius.circular(20),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Row(children: [
-                  Icon(Icons.auto_awesome_rounded, color: Color(0xFF7C3AED), size: 20),
-                  SizedBox(width: 8),
-                  Text('Recomendações do Mentor', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: _primaryDeep)),
+                  Text('🤖', style: TextStyle(fontSize: 28)),
+                  SizedBox(width: 12),
+                  Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Text('Análise do Mentor SafeQuest', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+                    Text('IA personalizada para o teu desempenho', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                  ]),
                 ]),
                 const SizedBox(height: 16),
-                MarkdownBody(
-                  data: _aiAnalysis!,
-                  styleSheet: MarkdownStyleSheet(
-                    h1: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A)),
-                    h2: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A), height: 2),
-                    p: const TextStyle(fontSize: 14, height: 1.5, color: Color(0xFF374151)),
-                    strong: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF7C3AED)),
-                    listBullet: const TextStyle(color: Color(0xFF7C3AED), fontWeight: FontWeight.bold),
-                    blockSpacing: 12,
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: const Color(0xFF7C3AED),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      elevation: 0,
+                    ),
+                    onPressed: _aiLoading ? null : () => _fetchAIAnalysis(data),
+                    child: _aiLoading
+                        ? const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                            SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF7C3AED))),
+                            SizedBox(width: 10),
+                            Text('A analisar...', style: TextStyle(fontWeight: FontWeight.bold)),
+                          ])
+                        : const Text('Analisar o meu desempenho', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                   ),
                 ),
               ],
             ),
           ),
+
+          // 2. Resposta da IA
+          if (_aiAnalysis != null) ...[
+            const SizedBox(height: 20),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 3))],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(children: [
+                    Icon(Icons.auto_awesome_rounded, color: Color(0xFF7C3AED), size: 20),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text('Recomendações do Mentor',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: _primaryDeep)),
+                    ),
+                  ]),
+                  const SizedBox(height: 16),
+                  _renderAIText(_aiAnalysis!, textW),
+                ],
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 25),
+          _buildThemeBreakdown(data),
         ],
-
-        const SizedBox(height: 25),
-
-        // 3. Gráfico de desempenho por tema
-        _buildThemeBreakdown(data),
-      ],
-    ),
-  );
+      ),
+    );
 }
 
-  Widget _buildFormattedAnalysis(String text) {
-    // Divide por linhas e formata
-    final lines = text.split('\n').where((l) => l.trim().isNotEmpty).toList();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: lines.map((line) {
-        final trimmed = line.trim();
-        // Bullet points
-        if (trimmed.startsWith('•') || trimmed.startsWith('-') || trimmed.startsWith('*')) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('•  ', style: TextStyle(color: Color(0xFF7C3AED), fontWeight: FontWeight.bold)),
-              Expanded(child: Text(trimmed.replaceAll(RegExp(r'^[•\-\*]\s*'), ''), style: const TextStyle(fontSize: 14, height: 1.5, color: Color(0xFF374151)))),
-            ]),
-          );
-        }
-        // Títulos (linhas com **)
-        if (trimmed.startsWith('**') && trimmed.endsWith('**')) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 6, top: 10),
-            child: Text(trimmed.replaceAll('**', ''), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: _primaryDeep)),
-          );
-        }
-        return Padding(
+  // ── Renderizador com largura explícita (LayoutBuilder) ────────────────────
+  Widget _renderAIText(String text, double maxW) {
+    final lines = text.split('\n');
+    final widgets = <Widget>[];
+
+    for (final line in lines) {
+      final t = line.trim();
+
+      if (t.isEmpty) { widgets.add(const SizedBox(height: 6)); continue; }
+
+      if (t == '---') {
+        widgets.add(Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Divider(color: Colors.grey.shade200, thickness: 1),
+        ));
+        continue;
+      }
+
+      if (t.startsWith('# ')) {
+        widgets.add(Padding(
+          padding: const EdgeInsets.only(top: 6, bottom: 8),
+          child: SizedBox(width: maxW, child: Text(
+            t.substring(2).trim(),
+            style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A), height: 1.4),
+            softWrap: true,
+          )),
+        ));
+        continue;
+      }
+
+      if (t.startsWith('## ')) {
+        widgets.add(Padding(
+          padding: const EdgeInsets.only(top: 12, bottom: 6),
+          child: SizedBox(width: maxW, child: Text(
+            t.substring(3).trim(),
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A), height: 1.4),
+            softWrap: true,
+          )),
+        ));
+        continue;
+      }
+
+      if (t.startsWith('### ')) {
+        widgets.add(Padding(
+          padding: const EdgeInsets.only(top: 8, bottom: 4),
+          child: SizedBox(width: maxW, child: Text(
+            t.substring(4).trim(),
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF374151), height: 1.4),
+            softWrap: true,
+          )),
+        ));
+        continue;
+      }
+
+      // Bullet point
+      if ((t.startsWith('• ') || t.startsWith('- ') || t.startsWith('* ')) && !t.startsWith('**')) {
+        final content = t.replaceFirst(RegExp(r'^[•\-\*]\s+'), '');
+        final bulletW = maxW - 18.0;
+        widgets.add(Padding(
           padding: const EdgeInsets.only(bottom: 6),
-          child: Text(trimmed, style: const TextStyle(fontSize: 14, height: 1.5, color: Color(0xFF374151))),
-        );
-      }).toList(),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(top: 2),
+                child: Text('• ', style: TextStyle(color: Color(0xFF7C3AED), fontWeight: FontWeight.bold, fontSize: 14)),
+              ),
+              SizedBox(width: bulletW, child: _inlineText(content, bulletW)),
+            ],
+          ),
+        ));
+        continue;
+      }
+
+      // Parágrafo normal
+      widgets.add(Padding(
+        padding: const EdgeInsets.only(bottom: 6),
+        child: SizedBox(width: maxW, child: _inlineText(t, maxW)),
+      ));
+    }
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: widgets);
+  }
+
+  // Texto inline com **bold** — largura explícita
+  Widget _inlineText(String text, double maxW) {
+    final regex = RegExp(r'\*\*(.+?)\*\*');
+    final matches = regex.allMatches(text).toList();
+
+    if (matches.isEmpty) {
+      return SizedBox(
+        width: maxW,
+        child: Text(
+          text,
+          style: const TextStyle(fontSize: 14, height: 1.6, color: Color(0xFF374151)),
+          softWrap: true,
+          overflow: TextOverflow.clip,
+        ),
+      );
+    }
+
+    final spans = <TextSpan>[];
+    int last = 0;
+    for (final m in matches) {
+      if (m.start > last) {
+        spans.add(TextSpan(
+          text: text.substring(last, m.start),
+          style: const TextStyle(fontSize: 14, height: 1.6, color: Color(0xFF374151)),
+        ));
+      }
+      spans.add(TextSpan(
+        text: m.group(1),
+        style: const TextStyle(fontSize: 14, height: 1.6, fontWeight: FontWeight.bold, color: Color(0xFF7C3AED)),
+      ));
+      last = m.end;
+    }
+    if (last < text.length) {
+      spans.add(TextSpan(
+        text: text.substring(last),
+        style: const TextStyle(fontSize: 14, height: 1.6, color: Color(0xFF374151)),
+      ));
+    }
+
+    return SizedBox(
+      width: maxW,
+      child: RichText(
+        text: TextSpan(children: spans),
+        softWrap: true,
+        overflow: TextOverflow.clip,
+      ),
     );
   }
 
@@ -343,60 +439,69 @@ Future<void> _fetchAIAnalysis(List<Map<String, dynamic>> data) async {
     }
 
     final temas = ['Phishing', 'Palavras-passe', 'Redes Sociais', 'Segurança Web'];
-    final temaStats = <String, Map<String, dynamic>>{};
     final buffer = StringBuffer();
 
-    // PROMPT DE PERSONALIDADE E CONHECIMENTO
-    buffer.writeln('AGE COMO O MENTOR SAFEQUEST, UM ESPECIALISTA EM CIBERSEGURANÇA.');
-    buffer.writeln('USA O SEGUINTE CONHECIMENTO BASE PARA AS TUAS DICAS:');
-    buffer.writeln(docSafeQuest);
-    buffer.writeln('\n---');
-    buffer.writeln('ANALISA O DESEMPENHO DESTE ALUNO E DÁ CONSELHOS EM PORTUGUÊS DE PORTUGAL:');
-
+    // Calcula estatísticas por tema
+    final temaStats = <String, Map<String, dynamic>>{};
     for (final tema in temas) {
       final themed = data.where((d) => d['theme'] == tema).toList();
       if (themed.isEmpty) continue;
       final avg = themed.fold<double>(0, (s, d) => s + (d['percent'] ?? 0).toDouble()) / themed.length;
       temaStats[tema] = {'count': themed.length, 'avg': avg.toInt()};
-      buffer.writeln('• Tema $tema: ${themed.length} quizzes feitos, média de ${avg.toInt()}% de acerto.');
     }
 
-    buffer.writeln('\nREGRAS DE RESPOSTA:');
-    buffer.writeln('1. Começa com uma frase motivadora personalizada.');
-    buffer.writeln('2. No ponto "O que deves estudar", identifica o tema com menor média e dá uma dica técnica específica baseada no teu conhecimento base.');
-    buffer.writeln('3. Sê direto. Não uses introduções longas como "Com base nos dados...".');
-    buffer.writeln('4. Usa estritamente o formato Markdown abaixo.');
+    // Identifica tema mais fraco
+    String? temaFraco;
+    int avgFraco = 101;
+    for (final entry in temaStats.entries) {
+      final avg = entry.value['avg'] as int;
+      if (avg < avgFraco) { avgFraco = avg; temaFraco = entry.key; }
+    }
+
+    // Recolhe perguntas erradas dos últimos 10 quizzes
+    final ultimosQuizzes = data.take(10).toList();
+    final perguntasErradas = <String>[];
+    for (final quiz in ultimosQuizzes) {
+      final questions = quiz['questions'] as List? ?? [];
+      for (final q in questions) {
+        final qMap = q as Map<String, dynamic>;
+        if (qMap['isCorrect'] == false) {
+          perguntasErradas.add('• [${quiz['theme']}] ${qMap['question']}');
+        }
+      }
+    }
+
+    buffer.writeln('És o Mentor SafeQuest. Analisa o desempenho deste aluno em cibersegurança.');
+    buffer.writeln('Contexto: $docSafeQuest');
+    buffer.writeln('---');
+    buffer.writeln('DESEMPENHO:');
+
+    for (final entry in temaStats.entries) {
+      final avg = entry.value['avg'] as int;
+      final count = entry.value['count'] as int;
+      buffer.writeln('• ${entry.key}: $avg% de média ($count quizzes)');
+    }
+
+    if (perguntasErradas.isNotEmpty) {
+      buffer.writeln('\nErros recentes:');
+      for (final p in perguntasErradas.take(5)) {
+        buffer.writeln(p);
+      }
+    }
 
     buffer.writeln('''
-\nRESPONDE APENAS NESTE FORMATO MARKDOWN (SEM OUTROS SÍMBOLOS):
-# INSTRUÇÕES DO SISTEMA: TUTOR DE PERFORMANCE AI
 
-Como um Tutor de IA, a tua função é analisar os resultados de quizzes do utilizador e fornecer um roteiro de melhoria imediata.
+INSTRUÇÃO: Responde em Português de Portugal, de forma MUITO CURTA e direta (máximo 8-10 linhas).
+Usa EXATAMENTE este formato:
 
-## DADOS DE ENTRADA ESPERADOS
-O utilizador irá fornecer:
-1. Percentagem de acerto (ex: 65%).
-2. Temas das perguntas erradas.
-3. Nome do quiz realizado.
+## ⚠️ Quiz Recomendado
+[Diz qual o tema onde está a falhar mais e porquê, em 1-2 frases. Recomenda fazer esse quiz.]
 
-## REGRAS DE RESPOSTA
-Deves seguir rigorosamente este template de Markdown:
+## ✅ Onde te sais bem
+[Lista os temas com boa média, em 1 linha apenas.]
 
----
-# 📊 Análise do teu Desempenho
-[Inserir aqui 1 frase curta de incentivo baseada no score:
-- < 50%: Focada em persistência e base teórica.
-- 50-80%: Focada em ajuste de detalhes e prática.
-- > 80%: Focada em perfeccionismo e consistência.]
-
-## 🎯 O que deves estudar
-• **[Tema mais fraco identificado nos erros]**: [Inserir aqui uma dica técnica curta, explicando o conceito-chave que o utilizador parece ter falhado].
-
-## 📈 Métricas e Evolução
-* **Score Atual:** [X]%
-* **Próximo Objetivo:** [X+15]% 
-* **Recomendação:** Se o score for < 70%, recomenda refazer este mesmo quiz. Se for > 70%, recomenda avançar para o quiz de nível seguinte ou tema complementar.
-
+## 🎯 Próximo Passo
+[1 frase com ação concreta para melhorar.]
 ''');
 
     final apiKey = dotenv.env['GEMINI_API_KEY'] ?? '';
@@ -405,7 +510,7 @@ Deves seguir rigorosamente este template de Markdown:
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({
         'contents': [{'role': 'user', 'parts': [{'text': buffer.toString()}]}],
-        'generationConfig': {'maxOutputTokens': 800, 'temperature': 0.7},
+        'generationConfig': {'maxOutputTokens': 500, 'temperature': 0.7},
       }),
     );
 
