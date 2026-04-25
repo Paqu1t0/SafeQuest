@@ -369,17 +369,7 @@ class _MissionCard extends StatelessWidget {
             onTap: () async {
               await DailyMissionsService.claimReward(uid, mission.id, mission.rewardMoedas);
               if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Row(children: [
-                      const Text('🪙', style: TextStyle(fontSize: 20)),
-                      const SizedBox(width: 10),
-                      Text('+${mission.rewardMoedas} moedas! ${mission.title} completa!', style: const TextStyle(fontWeight: FontWeight.bold)),
-                    ]),
-                    backgroundColor: _gold,
-                    duration: const Duration(seconds: 3),
-                  ),
-                );
+                _showPremiumRewardDialog(context, mission);
               }
             },
             child: Container(
@@ -399,6 +389,102 @@ class _MissionCard extends StatelessWidget {
           const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 24),
         ],
       ]),
+    );
+  }
+  void _showPremiumRewardDialog(BuildContext context, DailyMission mission) {
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Fechar',
+      transitionDuration: const Duration(milliseconds: 400),
+      pageBuilder: (context, anim1, anim2) {
+        return Align(
+          alignment: Alignment.center,
+          child: Material(
+            color: Colors.transparent,
+            child: Container(
+              width: 320,
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFFFDE68A), Color(0xFFF59E0B)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(color: const Color(0xFFF59E0B).withOpacity(0.4), blurRadius: 20, offset: const Offset(0, 10))
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('🎉', style: TextStyle(fontSize: 60)),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Missão Cumprida!',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                      color: Color(0xFF78350F),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    mission.title,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 16, color: Color(0xFF92400E), fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 20),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text('🪙', style: TextStyle(fontSize: 28)),
+                        const SizedBox(width: 8),
+                        Text(
+                          '+${mission.rewardMoedas}',
+                          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Color(0xFFD97706)),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF78350F),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        elevation: 0,
+                      ),
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Incrível!', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+      transitionBuilder: (context, anim1, anim2, child) {
+        return Transform.scale(
+          scale: CurvedAnimation(parent: anim1, curve: Curves.elasticOut).value,
+          child: Opacity(
+            opacity: anim1.value,
+            child: child,
+          ),
+        );
+      },
     );
   }
 }
