@@ -7,6 +7,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:provider/provider.dart';
 import 'package:projeto_safequest/services/app_settings.dart';
 import 'package:projeto_safequest/screens/avatar_store_page.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'login_screen.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -31,6 +32,7 @@ class _ProfilePageState extends State<ProfilePage> {
       final userDoc = FirebaseFirestore.instance.collection('users').doc(user!.uid);
       final doc = await userDoc.get();
       if (!doc.exists) {
+        // Novo utilizador: guarda a foto do Google no Firestore desde o início
         await userDoc.set({
           'uid'     : user!.uid,
           'nickname': user!.displayName?.split(" ").first ?? "Jogador",
@@ -42,6 +44,13 @@ class _ProfilePageState extends State<ProfilePage> {
           'bio'     : "Olá! Estou a aprender cibersegurança no SafeQuest.",
           'streak'  : 0,
         });
+      } else {
+        // Utilizador existente: se ainda não tem photoUrl no Firestore mas tem no Google, sincronizar
+        final data = doc.data() as Map<String, dynamic>? ?? {};
+        final firestorePhoto = data['photoUrl'] as String? ?? '';
+        if (firestorePhoto.isEmpty && (user!.photoURL?.isNotEmpty ?? false)) {
+          await userDoc.update({'photoUrl': user!.photoURL});
+        }
       }
     }
   }
@@ -262,7 +271,8 @@ class _ProfilePageState extends State<ProfilePage> {
                     children: [
                       _streakBanner(streak),
                       const SizedBox(height: 25),
-                      
+                      _buildProgressCharts(user?.uid),
+                      const SizedBox(height: 25),
                       _menuPrincipal(context),
                       const SizedBox(height: 25),
 
@@ -384,9 +394,10 @@ class _ProfilePageState extends State<ProfilePage> {
       String bannerId, String bio) {
     final emoji = _avatarEmoji[avatarId] ?? '👤';
     final color = _avatarColor[avatarId] ?? const Color(0xFF1A56DB);
-    final hasPhonePhoto  = _imageFile != null;
-    final hasNetworkPhoto = photoUrl.isNotEmpty || user?.photoURL != null;
-    final useStoreAvatar = !hasPhonePhoto && avatarId != 'default';
+    final hasPhonePhoto   = _imageFile != null;
+    // Usa sempre a photoUrl do Firestore (que já inclui a do Google sincronizada)
+    final hasNetworkPhoto = photoUrl.isNotEmpty;
+    final useStoreAvatar  = !hasPhonePhoto && avatarId != 'default';
 
     // Cores do banner
     final bannerColors = _getBannerColors(bannerId);
@@ -424,7 +435,7 @@ class _ProfilePageState extends State<ProfilePage> {
                             backgroundColor: const Color(0xFFE5E7EB),
                             backgroundImage: hasPhonePhoto
                                 ? FileImage(_imageFile!) as ImageProvider
-                                : (photoUrl.isNotEmpty ? NetworkImage(photoUrl) : (user?.photoURL != null ? NetworkImage(user!.photoURL!) : null)),
+                                : (photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null),
                             child: (!hasPhonePhoto && !hasNetworkPhoto)
                                 ? const Icon(Icons.person, size: 60, color: Color(0xFF9CA3AF)) : null,
                           ),
@@ -588,6 +599,156 @@ class _ProfilePageState extends State<ProfilePage> {
       child: const Text("Apagar Conta", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
     );
   }
+
+  // ── Gráfico de Progresso por Tema ─────────────────────────────────────────
+  static const _temaColors2 = {
+    'Phishing'       : Color(0xFF1A56DB),
+    'Palavras-passe' : Color(0xFF7C3AED),
+    'Segurança Web'  : Color(0xFF0F766E),
+    'Redes Sociais'  : Color(0xFFEA580C),
+  };
+  static const _temas2 = ['Phishing', 'Palavras-passe', 'Segurança Web', 'Redes Sociais'];
+
+  Widget _buildProgressCharts(String? uid) {
+    if (uid == null) return const SizedBox.shrink();
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users').doc(uid).collection('quiz_results')
+          .snapshots(),
+      builder: (context, snap) {
+        if (!snap.hasData || snap.data!.docs.isEmpty) {
+          return Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
+            child: const Column(children: [
+              Row(children: [
+                Icon(Icons.bar_chart_rounded, color: Color(0xFF1A56DB), size: 20),
+                SizedBox(width: 8),
+                Text('Progresso por Tema', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              ]),
+              SizedBox(height: 16),
+              Text('📊 Faz alguns quizzes para ver o teu progresso aqui!',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey, fontSize: 13)),
+            ]),
+          );
+        }
+
+        final Map<String, List<double>> temasData = {};
+        for (final doc in snap.data!.docs) {
+          final d = doc.data() as Map<String, dynamic>;
+          final tema = d['theme'] as String? ?? '';
+          if (_temas2.contains(tema)) {
+            temasData.putIfAbsent(tema, () => []);
+            temasData[tema]!.add((d['percent'] ?? 0).toDouble());
+          }
+        }
+
+        final barGroups = <BarChartGroupData>[];
+        final labels = <String>[];
+        int idx = 0;
+        for (final tema in _temas2) {
+          if (temasData.containsKey(tema)) {
+            final avg = temasData[tema]!.fold(0.0, (s, v) => s + v) / temasData[tema]!.length;
+            final color = _temaColors2[tema] ?? const Color(0xFF1A56DB);
+            barGroups.add(BarChartGroupData(
+              x: idx,
+              barRods: [BarChartRodData(
+                toY: avg,
+                color: color,
+                width: 22,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+                backDrawRodData: BackgroundBarChartRodData(
+                  show: true, toY: 100,
+                  color: color.withOpacity(0.08),
+                ),
+              )],
+            ));
+            labels.add(tema.split(' ')[0]);
+            idx++;
+          }
+        }
+
+        if (barGroups.isEmpty) return const SizedBox.shrink();
+
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Row(children: [
+              Icon(Icons.bar_chart_rounded, color: Color(0xFF1A56DB), size: 20),
+              SizedBox(width: 8),
+              Text('Progresso por Tema', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            ]),
+            const SizedBox(height: 4),
+            const Text('Média de acerto por categoria de quiz', style: TextStyle(color: Colors.grey, fontSize: 11)),
+            const SizedBox(height: 20),
+            SizedBox(
+              height: 180,
+              child: BarChart(BarChartData(
+                alignment: BarChartAlignment.spaceAround,
+                maxY: 100,
+                barGroups: barGroups,
+                gridData: FlGridData(
+                  show: true,
+                  drawVerticalLine: false,
+                  horizontalInterval: 25,
+                  getDrawingHorizontalLine: (_) => const FlLine(color: Color(0xFFE5E7EB), strokeWidth: 1),
+                ),
+                borderData: FlBorderData(show: false),
+                titlesData: FlTitlesData(
+                  leftTitles: AxisTitles(sideTitles: SideTitles(
+                    showTitles: true, reservedSize: 36, interval: 25,
+                    getTitlesWidget: (val, _) => Text('${val.toInt()}%',
+                        style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                  )),
+                  bottomTitles: AxisTitles(sideTitles: SideTitles(
+                    showTitles: true, reservedSize: 32,
+                    getTitlesWidget: (val, _) {
+                      final i = val.toInt();
+                      if (i < 0 || i >= labels.length) return const SizedBox.shrink();
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text(labels[i], style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: Color(0xFF374151))),
+                      );
+                    },
+                  )),
+                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                ),
+                barTouchData: BarTouchData(
+                  touchTooltipData: BarTouchTooltipData(
+                    getTooltipItem: (group, groupIndex, rod, rodIndex) => BarTooltipItem(
+                      '${rod.toY.toInt()}%',
+                      const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                    ),
+                  ),
+                ),
+              )),
+            ),
+            const SizedBox(height: 12),
+            Wrap(spacing: 12, runSpacing: 6, children: _temas2.where(temasData.containsKey).map((t) {
+              final color = _temaColors2[t] ?? const Color(0xFF1A56DB);
+              final count = temasData[t]!.length;
+              return Row(mainAxisSize: MainAxisSize.min, children: [
+                Container(width: 10, height: 10, decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3))),
+                const SizedBox(width: 4),
+                Text('$t ($count)', style: const TextStyle(fontSize: 10, color: Colors.grey)),
+              ]);
+            }).toList()),
+          ]),
+        );
+      },
+    );
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -606,7 +767,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
   final _nicknameController = TextEditingController();
   final _nameController     = TextEditingController();
   final _bioController      = TextEditingController();
-  bool _isSendingReset = false;
   File? _imageFile;         // foto local selecionada
   String _photoUrl = '';    // foto da rede
 
@@ -697,29 +857,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
   }
 
-  Future<void> _resetPassword() async {
-    if (user?.uid == null) return;
-    setState(() => _isSendingReset = true);
-    try {
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user!.uid)
-          .collection('passwordResetRequests')
-          .add({
-        'requestedAt': FieldValue.serverTimestamp(),
-        'processed': false,
-      });
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Email de recuperação enviado! Verifica a tua caixa de entrada."), backgroundColor: Colors.green),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Erro ao enviar email: $e"), backgroundColor: Colors.red));
-    } finally {
-      if (mounted) setState(() => _isSendingReset = false);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -783,27 +920,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 ),
                 _field("Biografia", _bioController, Icons.history_edu, maxLines: 3),
               ])),
-              const SizedBox(height: 20),
-              _box("Segurança", Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text("Precisas de alterar a tua palavra-passe? Enviaremos um link seguro para o teu e-mail registado.", style: TextStyle(color: Colors.grey, fontSize: 13)),
-                  const SizedBox(height: 15),
-                  OutlinedButton.icon(
-                    onPressed: _isSendingReset ? null : _resetPassword,
-                    icon: _isSendingReset
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.lock_reset, color: Color(0xFF1D4ED8)),
-                    label: Text(_isSendingReset ? "A enviar..." : "Redefinir Palavra-passe"),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF1D4ED8),
-                      side: const BorderSide(color: Color(0xFF1D4ED8)),
-                      minimumSize: const Size(double.infinity, 50),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                  ),
-                ],
-              )),
               const SizedBox(height: 30),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 55), backgroundColor: const Color(0xFF1D4ED8), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
@@ -858,11 +974,12 @@ class PrivacyPage extends StatefulWidget {
 
 class _PrivacyPageState extends State<PrivacyPage> {
   final user = FirebaseAuth.instance.currentUser;
-  String _visibility = 'publico';
-  bool   _emailNotifs = true;
-  bool   _pushNotifs  = true;
-  bool   _loading     = true;
-  bool   _saving      = false;
+  String _visibility    = 'publico';
+  bool   _emailNotifs   = true;
+  bool   _pushNotifs    = true;
+  bool   _loading       = true;
+  bool   _saving        = false;
+  bool   _isSendingReset = false;
 
   @override
   void initState() {
@@ -900,6 +1017,30 @@ class _PrivacyPageState extends State<PrivacyPage> {
         const SnackBar(content: Text('✅ Definições guardadas!'), backgroundColor: Colors.green),
       );
       Navigator.pop(context);
+    }
+  }
+
+  Future<void> _resetPassword() async {
+    if (user?.uid == null) return;
+    setState(() => _isSendingReset = true);
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user!.uid)
+          .collection('passwordResetRequests')
+          .add({
+        'requestedAt': FieldValue.serverTimestamp(),
+        'processed': false,
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Email de recuperação enviado! Verifica a tua caixa de entrada.'), backgroundColor: Colors.green),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro ao enviar email: $e'), backgroundColor: Colors.red));
+    } finally {
+      if (mounted) setState(() => _isSendingReset = false);
     }
   }
 
@@ -985,6 +1126,38 @@ class _PrivacyPageState extends State<PrivacyPage> {
                         style: TextStyle(color: Color(0xFF92400E), fontSize: 12),
                       )),
                     ]),
+                  ),
+                  const SizedBox(height: 20),
+                  // ── Segurança ──────────────────────────────────────────────
+                  _buildSection(
+                    title: 'Segurança',
+                    icon: Icons.lock_outline,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Precisas de alterar a tua palavra-passe? Enviaremos um link seguro para o teu e-mail registado.',
+                            style: TextStyle(color: Colors.grey, fontSize: 13),
+                          ),
+                          const SizedBox(height: 14),
+                          OutlinedButton.icon(
+                            onPressed: _isSendingReset ? null : _resetPassword,
+                            icon: _isSendingReset
+                                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                                : const Icon(Icons.lock_reset, color: Color(0xFF1D4ED8)),
+                            label: Text(_isSendingReset ? 'A enviar...' : 'Redefinir Palavra-passe'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: const Color(0xFF1D4ED8),
+                              side: const BorderSide(color: Color(0xFF1D4ED8)),
+                              minimumSize: const Size(double.infinity, 50),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 35),
                   SizedBox(
