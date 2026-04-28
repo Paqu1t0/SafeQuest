@@ -8,6 +8,7 @@ import 'package:projeto_safequest/services/app_settings.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'package:projeto_safequest/screens/home_page.dart';
+import 'package:projeto_safequest/screens/onboarding_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -78,7 +79,7 @@ Future<void> _configurarNotificacoes() async {
   );
 
   FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-     print("Recebi mensagem com a app aberta!");
+     debugPrint("Recebi mensagem com a app aberta!");
   });
 }
 
@@ -332,7 +333,21 @@ class _MfaGateState extends State<_MfaGate> {
     if (_needsMfa) {
       return const MFAEmailPage();
     }
-    return const HomePage();
+    // Verifica se deve mostrar o onboarding
+    return FutureBuilder<bool>(
+      future: OnboardingScreen.shouldShow(),
+      builder: (context, snap) {
+        if (!snap.hasData) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator(color: Color(0xFF1A56DB))),
+          );
+        }
+        if (snap.data == true) {
+          return const OnboardingScreen();
+        }
+        return const HomePage();
+      },
+    );
   }
 }
 
