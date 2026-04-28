@@ -1,6 +1,10 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:projeto_safequest/screens/assistent_page.dart';
+import 'package:confetti/confetti.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class QuizResultDialog extends StatefulWidget {
   final int percent;
@@ -13,6 +17,8 @@ class QuizResultDialog extends StatefulWidget {
   final String? comboLabel;  // texto do combo (ex: "✨ ×1.2 Combo x3!")
   final List<Map<String, dynamic>> wrongQuestions;
   final int moedasGanhas;
+  final bool leveledUp;      // se o utilizador subiu de nível
+  final int newNivel;        // novo nível atingido
 
   const QuizResultDialog({
     super.key,
@@ -26,6 +32,8 @@ class QuizResultDialog extends StatefulWidget {
     this.comboLabel,
     required this.wrongQuestions,
     this.moedasGanhas = 0,
+    this.leveledUp = false,
+    this.newNivel  = 1,
   });
 
   @override
@@ -39,6 +47,9 @@ class _QuizResultDialogState extends State<QuizResultDialog>
   late AnimationController _badgeCtrl;
   late AnimationController _starsCtrl;
   late AnimationController _coinsCtrl;
+  late AnimationController _levelUpCtrl;   // ← level up banner
+  late ConfettiController _confettiCtrl;
+  late ConfettiController _levelUpConfettiCtrl; // ← confetti extra level up
 
   late Animation<double> _fadeIn;
   late Animation<double> _slideUp;
@@ -47,6 +58,8 @@ class _QuizResultDialogState extends State<QuizResultDialog>
   late Animation<double> _starsOpacity;
   late Animation<double> _coinsScale;
   late Animation<double> _coinsOpacity;
+  late Animation<double> _levelUpScale;
+  late Animation<double> _levelUpOpacity;
 
   static const _primary     = Color(0xFF1A56DB);
   static const _primaryDeep = Color(0xFF1E3A8A);
@@ -81,14 +94,38 @@ class _QuizResultDialogState extends State<QuizResultDialog>
         CurvedAnimation(parent: _coinsCtrl, curve: Curves.elasticOut));
     _coinsOpacity = CurvedAnimation(parent: _coinsCtrl, curve: Curves.easeIn);
 
+    // Level Up banner
+    _levelUpCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
+    _levelUpScale   = Tween<double>(begin: 0.0, end: 1.0).animate(
+        CurvedAnimation(parent: _levelUpCtrl, curve: Curves.elasticOut));
+    _levelUpOpacity = CurvedAnimation(parent: _levelUpCtrl, curve: Curves.easeIn);
+
+    // Confetti principal — dispara quando a pontuação é boa
+    _confettiCtrl = ConfettiController(duration: const Duration(seconds: 3));
+    // Confetti extra para Level Up
+    _levelUpConfettiCtrl = ConfettiController(duration: const Duration(seconds: 4));
+
     _entryCtrl.forward().then((_) {
       _starsCtrl.forward();
       _circleCtrl.forward().then((_) {
         Future.delayed(const Duration(milliseconds: 200),
             () { if (mounted) _coinsCtrl.forward(); });
+        if (widget.percent >= 70) {
+          Future.delayed(const Duration(milliseconds: 300),
+              () { if (mounted) _confettiCtrl.play(); });
+        }
         if (widget.newBadge != null) {
           Future.delayed(const Duration(milliseconds: 600),
               () { if (mounted) _badgeCtrl.forward(); });
+        }
+        // Level Up — dispara após o badge (ou logo após os coins)
+        if (widget.leveledUp) {
+          Future.delayed(const Duration(milliseconds: 900), () {
+            if (mounted) {
+              _levelUpCtrl.forward();
+              _levelUpConfettiCtrl.play();
+            }
+          });
         }
       });
     });
@@ -101,6 +138,9 @@ class _QuizResultDialogState extends State<QuizResultDialog>
     _badgeCtrl.dispose();
     _starsCtrl.dispose();
     _coinsCtrl.dispose();
+    _levelUpCtrl.dispose();
+    _confettiCtrl.dispose();
+    _levelUpConfettiCtrl.dispose();
     super.dispose();
   }
 
@@ -128,66 +168,118 @@ class _QuizResultDialogState extends State<QuizResultDialog>
     return Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-      child: AnimatedBuilder(
-        animation: _entryCtrl,
-        builder: (_, child) => Opacity(
-          opacity: _fadeIn.value,
-          child: Transform.translate(
-            offset: Offset(0, _slideUp.value),
-            child: child,
-          ),
-        ),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxHeight: screenHeight * 0.88),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // ── Card principal ───────────────────────────────────────
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(28),
-                  ),
-                  child: Column(
-                    children: [
-                      _buildGradientHeader(),
-                      const SizedBox(height: 28),
-                      _buildCirclePercent(),
-                      const SizedBox(height: 24),
-                      _buildStatsRow(),
-                      const SizedBox(height: 16),
-                      _buildCoinsAnimation(),
-                      const SizedBox(height: 28),
-                    ],
-                  ),
+      child: Stack(
+        alignment: Alignment.topCenter,
+        clipBehavior: Clip.none,
+        children: [
+          AnimatedBuilder(
+            animation: _entryCtrl,
+            builder: (_, child) => Opacity(
+              opacity: _fadeIn.value,
+              child: Transform.translate(
+                offset: Offset(0, _slideUp.value),
+                child: child,
+              ),
+            ),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: screenHeight * 0.88),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // ── Card principal ───────────────────────────────────────
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(28),
+                      ),
+                      child: Column(
+                        children: [
+                          _buildGradientHeader(),
+                          const SizedBox(height: 28),
+                          _buildCirclePercent(),
+                          const SizedBox(height: 24),
+                          _buildStatsRow(),
+                          const SizedBox(height: 16),
+                          _buildCoinsAnimation(),
+                          const SizedBox(height: 28),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // ── Banner de Level Up ────────────────────────────────────
+                    if (widget.leveledUp) _buildLevelUpBanner(),
+                    if (widget.leveledUp) const SizedBox(height: 12),
+
+                    // ── Banner de novo emblema (badge real) ──────────────────
+                    if (widget.newBadge != null) _buildBadgeBanner(),
+                    if (widget.newBadge != null) const SizedBox(height: 12),
+
+                    // ── Banner de combo (se houver) ────────────────────────────
+                    if (widget.comboLabel != null) _buildComboLabel(),
+                    if (widget.comboLabel != null) const SizedBox(height: 12),
+
+                    // ── Botão: Partilhar no Clã ───────────────────────────────
+                    _buildShareToClanButton(context),
+                    const SizedBox(height: 10),
+
+                    // ── Botão: Partilhar resultado ────────────────────────────
+                    _buildShareButton(),
+                    const SizedBox(height: 10),
+
+                    // ── Botão: Rever com IA ───────────────────────────────────
+                    if (widget.wrongQuestions.isNotEmpty) _buildReviewButton(context),
+                    if (widget.wrongQuestions.isNotEmpty) const SizedBox(height: 10),
+
+                    // ── Botão: Voltar ao início ───────────────────────────────
+                    _buildBackButton(context),
+
+                    const SizedBox(height: 16),
+                  ],
                 ),
-
-                const SizedBox(height: 16),
-
-                // ── Banner de novo emblema (badge real) ──────────────────
-                if (widget.newBadge != null) _buildBadgeBanner(),
-                if (widget.newBadge != null) const SizedBox(height: 12),
-
-                // ── Banner de combo (se houver) ────────────────────────────
-                if (widget.comboLabel != null) _buildComboLabel(),
-                if (widget.comboLabel != null) const SizedBox(height: 12),
-
-                // ── Botão: Rever com IA ───────────────────────────────────
-                if (widget.wrongQuestions.isNotEmpty) _buildReviewButton(context),
-                if (widget.wrongQuestions.isNotEmpty) const SizedBox(height: 10),
-
-                // ── Botão: Voltar ao início ───────────────────────────────
-                _buildBackButton(context),
-
-                const SizedBox(height: 16),
+              ),
+            ),
+          ),
+          // ── Confetti principal ────────────────────────────────────────────
+          Align(
+            alignment: Alignment.topCenter,
+            child: ConfettiWidget(
+              confettiController: _confettiCtrl,
+              blastDirectionality: BlastDirectionality.explosive,
+              particleDrag: 0.05,
+              emissionFrequency: 0.08,
+              numberOfParticles: 22,
+              gravity: 0.2,
+              colors: const [
+                Color(0xFF1A56DB), Color(0xFFF59E0B), Color(0xFF16A34A),
+                Color(0xFF7C3AED), Color(0xFFEA580C), Color(0xFFDB2777),
               ],
             ),
           ),
-        ),
+          // ── Confetti extra Level Up (dourado) ────────────────────────────
+          if (widget.leveledUp)
+            Align(
+              alignment: Alignment.topCenter,
+              child: ConfettiWidget(
+                confettiController: _levelUpConfettiCtrl,
+                blastDirectionality: BlastDirectionality.explosive,
+                particleDrag: 0.03,
+                emissionFrequency: 0.12,
+                numberOfParticles: 35,
+                gravity: 0.15,
+                colors: const [
+                  Color(0xFFF59E0B), Color(0xFFFBBF24), Color(0xFFFDE68A),
+                  Color(0xFFFFD700), Color(0xFFF97316), Color(0xFFFFFFFF),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }
+
 
   // ── HEADER COM GRADIENTE ───────────────────────────────────────────────────
 
@@ -324,6 +416,94 @@ class _QuizResultDialogState extends State<QuizResultDialog>
     );
   }
 
+  // ── BANNER LEVEL UP ──────────────────────────────────────────────────────────
+
+  Widget _buildLevelUpBanner() {
+    return ScaleTransition(
+      scale: _levelUpScale,
+      child: FadeTransition(
+        opacity: _levelUpOpacity,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [Color(0xFFB45309), Color(0xFFF59E0B), Color(0xFFFFD700)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFFF59E0B).withOpacity(0.5),
+                blurRadius: 20,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              // Ícone pulsante
+              _PulseIcon(),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '⬆️  SUBISTE DE NÍVEL!',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Bem-vindo ao Nível ${widget.newNivel}! 🏆',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 17,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Continua a fazer quizzes para subir ainda mais!',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.85),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Badge do nível
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.25),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white.withOpacity(0.5), width: 1.5),
+                ),
+                child: Column(
+                  children: [
+                    const Text('NÍV.', style: TextStyle(color: Colors.white70, fontSize: 8, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                    Text(
+                      '${widget.newNivel}',
+                      style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold, height: 1),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   // ── BANNER EMBLEMA (badge real) ────────────────────────────────────────────
 
   Widget _buildBadgeBanner() {
@@ -405,7 +585,10 @@ class _QuizResultDialogState extends State<QuizResultDialog>
       final correctIdx = (q['correctIndex'] ?? 0) as int;
       final userIdx    = q['userAnswer'] as int?;
       buffer.writeln('Pergunta ${i + 1}: ${q['question']}');
-      buffer.writeln('  • A minha resposta: ${userIdx != null && userIdx < options.length ? options[userIdx] : "—"}');
+      final myAnswer = (userIdx == null || userIdx < 0)
+          ? (userIdx == -1 ? '(Tempo esgotado)' : '—')
+          : (userIdx < options.length ? options[userIdx] : '—');
+      buffer.writeln('  • A minha resposta: $myAnswer');
       buffer.writeln('  • Resposta correta: ${correctIdx < options.length ? options[correctIdx] : "—"}');
       buffer.writeln();
     }
@@ -426,6 +609,107 @@ class _QuizResultDialogState extends State<QuizResultDialog>
           Navigator.of(context).pop();
           Navigator.of(context).pop();
           Navigator.push(context, MaterialPageRoute(builder: (_) => AssistantPage(initialPrompt: buffer.toString())));
+        },
+      ),
+    );
+  }
+
+  // ── BOTÃO PARTILHAR NO CLÃ ────────────────────────────────────────────────
+
+  Widget _buildShareToClanButton(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return const SizedBox.shrink();
+
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        style: OutlinedButton.styleFrom(
+          backgroundColor: Colors.white,
+          foregroundColor: const Color(0xFF7C3AED),
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          side: const BorderSide(color: Color(0xFF7C3AED), width: 1.5),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        ),
+        icon: const Icon(Icons.groups_rounded, color: Color(0xFF7C3AED), size: 20),
+        label: const Text('Partilhar no Clã', style: TextStyle(color: Color(0xFF7C3AED), fontSize: 15, fontWeight: FontWeight.bold)),
+        onPressed: () async {
+          // 1. Lê o clanId do utilizador
+          final userDoc = await FirebaseFirestore.instance
+              .collection('users').doc(user.uid).get();
+          final userData   = userDoc.data() as Map<String, dynamic>? ?? {};
+          final clanId     = userData['clanId'] as String?;
+          final senderName = userData['nickname'] ?? userData['name'] ?? 'Jogador';
+
+          if (clanId == null || clanId.isEmpty) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Não estás em nenhum clã! Junta-te a um clã primeiro.'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+            }
+            return;
+          }
+
+          // 2. Compila a mensagem formatada
+          final medal = widget.percent == 100 ? '🥇' : widget.percent >= 70 ? '🥈' : '🥉';
+          final text = '📊 $senderName partilhou um resultado:\n'
+              '$medal Quiz de ${widget.tema}\n'
+              '✅ ${widget.correct}/${widget.total} corretas (${widget.percent}%)\n'
+              '⚡ +${widget.points} XP\n'
+              '⏱️ ${widget.timeStr}';
+
+          // 3. Publica no chat do clã
+          await FirebaseFirestore.instance
+              .collection('clans').doc(clanId).collection('messages').add({
+            'text'      : text,
+            'uid'       : user.uid,
+            'senderName': senderName,
+            'isSystem'  : false,
+            'isResult'  : true,
+            'timestamp' : FieldValue.serverTimestamp(),
+          });
+
+          if (context.mounted) {
+            Navigator.of(context).pop();
+            Navigator.of(context).pop();
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('🎉 Resultado partilhado no chat do clã!'),
+                backgroundColor: Color(0xFF7C3AED),
+              ),
+            );
+          }
+        },
+      ),
+    );
+  }
+
+  // ── BOTÃO PARTILHAR ────────────────────────────────────────────────────────
+
+  Widget _buildShareButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: OutlinedButton.icon(
+        style: OutlinedButton.styleFrom(
+          backgroundColor: Colors.white,
+          foregroundColor: const Color(0xFF16A34A),
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          side: const BorderSide(color: Color(0xFF16A34A), width: 1.5),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        ),
+        icon: const Icon(Icons.share_rounded, color: Color(0xFF16A34A), size: 20),
+        label: const Text('Partilhar Resultado', style: TextStyle(color: Color(0xFF16A34A), fontSize: 15, fontWeight: FontWeight.bold)),
+        onPressed: () {
+          final medal = widget.percent == 100 ? '🥇' : widget.percent >= 70 ? '🥈' : '🥉';
+          final msg = '$medal Completei o quiz de ${widget.tema} no SafeQuest!\n\n'
+              '📊 Pontuação: ${widget.percent}%\n'
+              '✅ Corretas: ${widget.correct}/${widget.total}\n'
+              '⚡ XP ganho: +${widget.points}\n'
+              '⏱️ Tempo: ${widget.timeStr}\n\n'
+              '🛡️ Aprende cibersegurança comigo no SafeQuest! #SafeQuest #Cibersegurança';
+          Share.share(msg, subject: 'O meu resultado no SafeQuest!');
         },
       ),
     );
@@ -590,6 +874,60 @@ class _SparkleIconState extends State<_SparkleIcon>
       builder: (_, __) => Transform.rotate(
         angle: _rotate.value,
         child: const Icon(Icons.auto_awesome_rounded, color: Color(0xFFFBBF24), size: 26),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PULSE ICON — ícone de estrela pulsante para o banner de Level Up
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _PulseIcon extends StatefulWidget {
+  @override
+  State<_PulseIcon> createState() => _PulseIconState();
+}
+
+class _PulseIconState extends State<_PulseIcon>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _scale;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    )..repeat(reverse: true);
+    _scale = Tween<double>(begin: 0.85, end: 1.15).animate(
+        CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _scale,
+      builder: (_, __) => Transform.scale(
+        scale: _scale.value,
+        child: Container(
+          width: 52,
+          height: 52,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.25),
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white.withOpacity(0.5), width: 2),
+          ),
+          child: const Center(
+            child: Text('⭐', style: TextStyle(fontSize: 28)),
+          ),
+        ),
       ),
     );
   }
