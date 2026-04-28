@@ -146,6 +146,7 @@ class QuizzesDashboard extends StatefulWidget {
 
 class _QuizzesDashboardState extends State<QuizzesDashboard>
     with SingleTickerProviderStateMixin {
+  bool _tipVisible = false; // dica do dia oculta por defeito
   static const _primary     = Color(0xFF1A56DB);
   static const _primaryDeep = Color(0xFF1E3A8A);
   static const _gold        = Color(0xFFF59E0B);
@@ -548,6 +549,8 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
                   _buildMainScoreCard(pontos, progressoGeral, nivel, bannerColors),
                   const SizedBox(height: 28),
                   const DailyMissionsWidget(),
+                  const SizedBox(height: 20),
+                  _buildDailyTipCard(),
                   const SizedBox(height: 28),
                   Text('🎮 Arenas de Treino',
                       style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: bannerColors[1])),
@@ -564,6 +567,110 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
           },
         );
       },
+    );
+  }
+
+  // ── Dica do Dia ──────────────────────────────────────────────────────────
+  static const _tips = [
+    ('🔐', 'Palavras-passe', 'Usa uma frase longa em vez de uma palavra. Ex: "t@l@p3g@rom@2024!" é muito mais segura que "senha123".'),
+    ('🎣', 'Phishing', 'Verifica SEMPRE o remetente de emails antes de clicar em links. Um endereço ligeiramente diferente pode ser uma armadilha.'),
+    ('📱', 'Redes Sociais', 'Não partilhes a tua localização em tempo real nas redes sociais. Podes estar a dizer a desconhecidos onde estás.'),
+    ('🔒', 'Autenticação', 'Ativa a autenticação de dois fatores (2FA) em todas as tuas contas importantes. É a tua segunda linha de defesa.'),
+    ('🌐', 'Wi-Fi Público', 'Evita fazer operações bancárias em Wi-Fi público. Usa sempre uma VPN se precisares de usar redes abertas.'),
+    ('💾', 'Backups', 'Faz backups regulares dos teus dados importantes. Se sofreres um ataque de ransomware, terás os dados a salvo.'),
+    ('🖥️', 'Atualizações', 'Mantém o teu sistema operativo e apps sempre atualizados. As atualizações corrigem vulnerabilidades de segurança.'),
+    ('🔑', 'Gestor de Passwords', 'Usa um gestor de palavras-passe para criar e armazenar senhas únicas para cada serviço. Nunca repitas passwords!'),
+    ('📧', 'Email Seguro', 'Desconfia de emails urgentes que pedem dados pessoais ou financeiros. Bancos e empresas legítimas nunca pedem isso por email.'),
+    ('🛡️', 'Antivírus', 'Instala um antivírus atualizado no teu dispositivo. Mesmo sendo cauteloso, podes encontrar malware em sites legítimos.'),
+    ('👁️', 'Privacidade', 'Revê periodicamente as permissões das tuas apps. Muitas pedem acesso ao microfone e câmara sem necessidade real.'),
+    ('🔗', 'Links Suspeitos', 'Antes de clicar num link, passa o rato por cima para ver o URL real. Se não reconheces o domínio, não cliques!'),
+    ('💻', 'HTTPS', 'Verifica se os sites têm "https://" e o cadeado no browser antes de inserires dados pessoais ou de pagamento.'),
+    ('🧩', 'Engenharia Social', 'Atenção a chamadas inesperadas de "suporte técnico". Empresas legítimas nunca pedem acesso remoto ao teu computador.'),
+    ('📲', 'Apps Oficiais', 'Descarrega aplicações apenas das lojas oficiais (App Store, Google Play). Apps de fontes desconhecidas podem conter malware.'),
+    ('🗑️', 'Dados Antigos', 'Apaga contas antigas que já não usas. Cada conta abandonada é um potencial ponto de entrada para atacantes.'),
+    ('🤝', 'Partilha Segura', 'Nunca partilhes as tuas palavras-passe, mesmo com pessoas de confiança. Cada conta deve ser exclusivamente tua.'),
+    ('🔎', 'Pesquisa Segura', 'Pesquisa sobre ti próprio(a) online regularmente. Se encontrares dados sensíveis expostos, toma medidas para os remover.'),
+    ('⚡', 'Incidentes', 'Se suspeitares que a tua conta foi comprometida, altera imediatamente a password e ativa o 2FA sem esperar.'),
+    ('🌍', 'VPN', 'Uma VPN encripta o teu tráfego de internet, protegendo-te em redes públicas. Vale o investimento para uso regular.'),
+  ];
+
+  Widget _buildDailyTipCard() {
+    final dayOfYear = DateTime.now().difference(DateTime(DateTime.now().year, 1, 1)).inDays;
+    final tip = _tips[dayOfYear % _tips.length];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // ── Botão para revelar/esconder a dica ───────────────────────────
+        GestureDetector(
+          onTap: () => setState(() => _tipVisible = !_tipVisible),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF0891B2), Color(0xFF0E7490)],
+                begin: Alignment.topLeft, end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [BoxShadow(color: const Color(0xFF0891B2).withOpacity(0.25), blurRadius: 10, offset: const Offset(0, 3))],
+            ),
+            child: Row(children: [
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(9)),
+                child: const Text('💡', style: TextStyle(fontSize: 16)),
+              ),
+              const SizedBox(width: 10),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('Dica do Dia', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                Text(_tipVisible ? 'Toca para esconder' : 'Toca para revelar a dica!',
+                    style: const TextStyle(color: Colors.white70, fontSize: 11)),
+              ])),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+                child: Text(tip.$2, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(width: 8),
+              AnimatedRotation(
+                turns: _tipVisible ? 0.5 : 0,
+                duration: const Duration(milliseconds: 250),
+                child: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white, size: 22),
+              ),
+            ]),
+          ),
+        ),
+
+        // ── Conteúdo da dica (colapsável) ────────────────────────────────
+        AnimatedCrossFade(
+          firstChild: const SizedBox.shrink(),
+          secondChild: GestureDetector(
+            // Toca no conteúdo da dica para a fechar
+            onTap: () => setState(() => _tipVisible = false),
+            child: Container(
+              margin: const EdgeInsets.only(top: 6),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0891B2).withOpacity(0.08),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFF0891B2).withOpacity(0.25)),
+              ),
+              child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(tip.$1, style: const TextStyle(fontSize: 22)),
+                const SizedBox(width: 12),
+                Expanded(child: Text(tip.$3,
+                  style: const TextStyle(color: Color(0xFF0E7490), fontSize: 13, height: 1.55),
+                )),
+                const SizedBox(width: 6),
+                const Icon(Icons.close_rounded, size: 16, color: Color(0xFF0891B2)),
+              ]),
+            ),
+          ),
+          crossFadeState: _tipVisible ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+          duration: const Duration(milliseconds: 280),
+          sizeCurve: Curves.easeInOut,
+        ),
+      ],
     );
   }
 
