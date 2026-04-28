@@ -149,8 +149,7 @@ exports.notificacaoDiaria = functions.pubsub
       if (userData.pushNotifs === false) continue;
       
       // Só notifica quem NÃO abriu a app hoje
-      // ⚠️ COMENTADO PARA PODERES TESTAR "FORÇAR AÇÃO" AGORA MESMO COM O JOGO ABERTO:
-      // if (abriuHoje(userData, today)) continue; 
+      if (abriuHoje(userData, today)) continue;
 
       const notifRef = admin.firestore()
         .collection('users').doc(doc.id)
