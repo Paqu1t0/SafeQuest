@@ -13,7 +13,8 @@ class AssistantPage extends StatefulWidget {
   State<AssistantPage> createState() => _AssistantPageState();
 }
 
-class _AssistantPageState extends State<AssistantPage> {
+class _AssistantPageState extends State<AssistantPage>
+    with AutomaticKeepAliveClientMixin {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   final List<Map<String, dynamic>> _messages = [];
@@ -29,6 +30,9 @@ class _AssistantPageState extends State<AssistantPage> {
   static const borderColor  = Color(0xFFE5E7EB);
   static const textDark     = Color(0xFF111827);
   static const textMuted    = Color(0xFF6B7280);
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void initState() {
@@ -220,6 +224,7 @@ class _AssistantPageState extends State<AssistantPage> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // necessário para AutomaticKeepAliveClientMixin
     return Scaffold(
       backgroundColor: bgPage,
       body: SafeArea(
