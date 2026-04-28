@@ -99,26 +99,29 @@ class _LeaderboardPageState extends State<LeaderboardPage>
               tabs: const [
                 Tab(child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.person_rounded, size: 15),
-                    SizedBox(width: 5),
-                    Text('Jogadores', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    Icon(Icons.person_rounded, size: 14),
+                    SizedBox(width: 4),
+                    Text('Jogadores', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                   ],
                 )),
                 Tab(child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.groups_rounded, size: 15),
-                    SizedBox(width: 5),
-                    Text('Clãs', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    Icon(Icons.groups_rounded, size: 14),
+                    SizedBox(width: 4),
+                    Text('Clãs', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                   ],
                 )),
                 Tab(child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.people_rounded, size: 15),
-                    SizedBox(width: 5),
-                    Text('Amigos', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    Icon(Icons.people_rounded, size: 14),
+                    SizedBox(width: 4),
+                    Text('Amigos', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                   ],
                 )),
               ],
@@ -222,7 +225,8 @@ class _LeaderboardPageState extends State<LeaderboardPage>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(isMe ? '$name (Você)' : name,
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isMe ? _primary : _primaryDeep)),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isMe ? _primary : _primaryDeep),
+                  overflow: TextOverflow.ellipsis, maxLines: 1),
               const SizedBox(height: 2),
               Text('Nível $nivel', style: const TextStyle(color: Colors.grey, fontSize: 12)),
             ],
@@ -444,7 +448,7 @@ class _LeaderboardPageState extends State<LeaderboardPage>
                           final eColor   = _avatarColor[avatarId] ?? _primary;
 
                           return GestureDetector(
-                            onTap: () { Navigator.pop(ctx); Navigator.push(context, MaterialPageRoute(builder: (_) => MemberProfilePage(uid: uid))); },
+                            onTap: uid == currentUser?.uid ? null : () { Navigator.pop(ctx); Navigator.push(context, MaterialPageRoute(builder: (_) => MemberProfilePage(uid: uid))); },
                             child: Container(
                               margin: const EdgeInsets.only(bottom: 8),
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
