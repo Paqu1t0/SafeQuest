@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -6,6 +7,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:projeto_safequest/screens/quiz_detail_page.dart';
 
 class HistoryPage extends StatefulWidget {
@@ -15,13 +17,16 @@ class HistoryPage extends StatefulWidget {
   State<HistoryPage> createState() => _HistoryPageState();
 }
 
-class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStateMixin {
+class _HistoryPageState extends State<HistoryPage>
+    with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   static const _primary     = Color(0xFF1A56DB);
   static const _primaryDeep = Color(0xFF1E3A8A);
 
   late TabController _tabCtrl;
   String? _aiAnalysis;
   bool    _aiLoading = false;
+  String  _searchQuery = '';
+  String  _filterTema  = 'Todos';
 
   static IconData _classIcon(double p) {
     if (p >= 0.70) return Icons.check_circle_rounded;
@@ -42,6 +47,9 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
   }
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   void initState() {
     super.initState();
     _tabCtrl = TabController(length: 2, vsync: this);
@@ -53,8 +61,45 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
     super.dispose();
   }
 
+  /// Processa os documentos Firestore e devolve (displayData, total, media%, somaPontos)
+  (List<Map<String, dynamic>>, int, double, int) _processResults(
+      List<QueryDocumentSnapshot> docs) {
+    final List<Map<String, dynamic>> displayData = [];
+    int totalQuizzes = 0;
+    double somaPercent = 0;
+    int somaPontos = 0;
+
+    if (docs.isNotEmpty) {
+      totalQuizzes = docs.length;
+      // Ordena manualmente pelo campo 'date' (caso não haja índice)
+      final sorted = List<QueryDocumentSnapshot>.from(docs)
+        ..sort((a, b) {
+          final aDate = (a.data() as Map<String, dynamic>)['date'] as Timestamp?;
+          final bDate = (b.data() as Map<String, dynamic>)['date'] as Timestamp?;
+          if (aDate == null && bDate == null) return 0;
+          if (aDate == null) return 1;
+          if (bDate == null) return -1;
+          return bDate.compareTo(aDate); // descending
+        });
+
+      for (var doc in sorted) {
+        final d = Map<String, dynamic>.from(doc.data() as Map<String, dynamic>);
+        somaPercent += (d['percent'] ?? 0).toDouble();
+        somaPontos += ((d['points'] ?? 0) as num).toInt();
+        final ts = d['date'] as Timestamp?;
+        final date = ts != null ? ts.toDate() : DateTime.now();
+        d['dateStr'] = DateFormat('dd MMM yyyy').format(date);
+        displayData.add(d);
+      }
+    }
+
+    final media = totalQuizzes > 0 ? somaPercent / totalQuizzes : 0.0;
+    return (displayData, totalQuizzes, media, somaPontos);
+  }
+
   @override
   Widget build(BuildContext context) {
+    super.build(context); // necessário para AutomaticKeepAliveClientMixin
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
@@ -79,32 +124,49 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
             .collection('users').doc(user?.uid).collection('quiz_results')
             .orderBy('date', descending: true).snapshots(),
         builder: (context, snapshot) {
-          List<Map<String, dynamic>> displayData = [];
-          int    totalQuizzes = 0;
-          double media        = 0;
-          int    somaPontos   = 0;
-
-          if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
-            final results = snapshot.data!.docs;
-            totalQuizzes  = results.length;
-            double somaPercent = 0;
-            for (var doc in results) {
-              var d = Map<String, dynamic>.from(doc.data() as Map<String, dynamic>);
-              somaPercent += (d['percent'] ?? 0).toDouble();
-              somaPontos  += ((d['points'] ?? 0) as num).toInt();
-              DateTime date = d['date'] != null ? (d['date'] as Timestamp).toDate() : DateTime.now();
-              d['dateStr'] = DateFormat('dd MMM yyyy').format(date);
-              displayData.add(d);
-            }
-            media = totalQuizzes > 0 ? somaPercent / totalQuizzes : 0;
+          // Estado de carregamento
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(color: Color(0xFF1A56DB)),
+            );
           }
 
-          return TabBarView(
-            controller: _tabCtrl,
-            children: [
-              _buildActivityTab(displayData, totalQuizzes, media, somaPontos),
-              _buildAITab(displayData),
-            ],
+          // Erro (p.ex. índice em falta no Firestore — tenta sem ordenação)
+          if (snapshot.hasError) {
+            return StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('users').doc(user?.uid).collection('quiz_results')
+                  .snapshots(),
+              builder: (ctx2, snap2) {
+                if (snap2.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator(color: Color(0xFF1A56DB)));
+                }
+                final data2 = _processResults(snap2.data?.docs ?? []);
+                return AnimatedBuilder(
+                  animation: _tabCtrl,
+                  builder: (context, _) => IndexedStack(
+                    index: _tabCtrl.index,
+                    children: [
+                      _buildActivityTab(data2.$1, data2.$2, data2.$3, data2.$4),
+                      _buildAITab(data2.$1),
+                    ],
+                  ),
+                );
+              },
+            );
+          }
+
+          final data = _processResults(snapshot.data?.docs ?? []);
+
+          return AnimatedBuilder(
+            animation: _tabCtrl,
+            builder: (context, _) => IndexedStack(
+              index: _tabCtrl.index,
+              children: [
+                _buildActivityTab(data.$1, data.$2, data.$3, data.$4),
+                _buildAITab(data.$1),
+              ],
+            ),
           );
         },
       ),
@@ -114,34 +176,112 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
 
   // ── ABA ATIVIDADE ──────────────────────────────────────────────────────────
   Widget _buildActivityTab(List<Map<String, dynamic>> displayData, int total, double media, int pontos) {
+    // Aplica pesquisa + filtro por tema
+    final filtered = displayData.where((d) {
+      final tema = (d['theme'] ?? '').toString().toLowerCase();
+      final matchesTema = _filterTema == 'Todos' || d['theme'] == _filterTema;
+      final matchesSearch = _searchQuery.isEmpty ||
+          tema.contains(_searchQuery.toLowerCase());
+      return matchesTema && matchesSearch;
+    }).toList();
+
+    final temas = ['Todos', 'Phishing', 'Palavras-passe', 'Redes Sociais', 'Segurança Web'];
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Row(children: [
             _statCard("$total",                          "Quizzes", Icons.calendar_today_outlined),
+            const SizedBox(width: 10),
             _statCard("${media.toStringAsFixed(0)}%",   "Média",   Icons.trending_up),
+            const SizedBox(width: 10),
             _statCard(NumberFormat.decimalPattern().format(pontos), "Pontos", Icons.emoji_events_outlined),
           ]),
-          const SizedBox(height: 35),
-          const Text("Atividade Recente", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _primaryDeep)),
-          const SizedBox(height: 15),
-          if (displayData.isEmpty)
-            const Center(child: Padding(
-              padding: EdgeInsets.all(32),
+          const SizedBox(height: 20),
+
+          // ── Barra de pesquisa ───────────────────────────────────
+          TextField(
+            onChanged: (v) => setState(() => _searchQuery = v),
+            decoration: InputDecoration(
+              hintText: 'Pesquisar quiz...',
+              hintStyle: const TextStyle(color: Colors.grey, fontSize: 13),
+              prefixIcon: const Icon(Icons.search_rounded, color: Colors.grey, size: 20),
+              suffixIcon: _searchQuery.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 18),
+                      onPressed: () => setState(() => _searchQuery = ''),
+                    )
+                  : null,
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFFE5E7EB))),
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: _primary, width: 1.5)),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // ── Filtros por tema ─────────────────────────────────
+          SizedBox(
+            height: 36,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              children: temas.map((t) {
+                final isSelected = t == _filterTema;
+                return GestureDetector(
+                  onTap: () => setState(() => _filterTema = t),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: const EdgeInsets.only(right: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: isSelected ? _primary : Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: isSelected ? _primary : const Color(0xFFE5E7EB)),
+                    ),
+                    child: Text(t, style: TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w600,
+                      color: isSelected ? Colors.white : Colors.grey,
+                    )),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Text("Atividade ${_filterTema == 'Todos' ? 'Recente' : '— $_filterTema'}",
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: _primaryDeep)),
+            if (filtered.length != displayData.length)
+              Text('${filtered.length} resultado${filtered.length == 1 ? '' : 's'}',
+                  style: const TextStyle(color: Colors.grey, fontSize: 12)),
+          ]),
+          const SizedBox(height: 12),
+
+          if (filtered.isEmpty)
+            Center(child: Padding(
+              padding: const EdgeInsets.all(32),
               child: Column(children: [
-                Text('📋', style: TextStyle(fontSize: 40)),
-                SizedBox(height: 12),
-                Text('Nenhum quiz realizado ainda.', style: TextStyle(color: Colors.grey)),
+                const Text('📋', style: TextStyle(fontSize: 40)),
+                const SizedBox(height: 12),
+                Text(
+                  _searchQuery.isNotEmpty || _filterTema != 'Todos'
+                      ? 'Nenhum resultado encontrado.'
+                      : 'Nenhum quiz realizado ainda.',
+                  style: const TextStyle(color: Colors.grey),
+                ),
               ]),
             ))
           else
             ListView.builder(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
-              itemCount: displayData.length,
-              itemBuilder: (context, i) => _activityItem(context, displayData[i]),
+              itemCount: filtered.length,
+              itemBuilder: (context, i) => _activityItem(context, filtered[i]),
             ),
         ],
       ),
@@ -150,9 +290,6 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
 
   // ── ABA ANÁLISE IA ─────────────────────────────────────────────────────────
   Widget _buildAITab(List<Map<String, dynamic>> data) {
-    // Largura real do ecrã — acesso direto ao context do State
-    final screenW = MediaQuery.of(context).size.width;
-    final textW   = screenW - 80; // scrollview 20+20, card 20+20
 
     if (data.isEmpty) {
       return const Center(child: Padding(
@@ -224,7 +361,7 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(18),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 3))],
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 3))],
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -238,7 +375,17 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
                     ),
                   ]),
                   const SizedBox(height: 16),
-                  _renderAIText(_aiAnalysis!, textW),
+                  MarkdownBody(
+                    data: _aiAnalysis!,
+                    softLineBreak: true,
+                    styleSheet: MarkdownStyleSheet(
+                      h2: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A), height: 1.5),
+                      p: const TextStyle(fontSize: 14, height: 1.6, color: Color(0xFF374151)),
+                      strong: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF7C3AED)),
+                      listBullet: const TextStyle(fontSize: 14, color: Color(0xFF7C3AED)),
+                      blockSpacing: 8,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -251,8 +398,8 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
     );
 }
 
-  // ── Renderizador com largura explícita (LayoutBuilder) ────────────────────
-  Widget _renderAIText(String text, double maxW) {
+  // ── Renderizador Markdown simples ────────────────────────────────────────
+  Widget _renderAIText(String text) {
     final lines = text.split('\n');
     final widgets = <Widget>[];
 
@@ -272,11 +419,11 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
       if (t.startsWith('# ')) {
         widgets.add(Padding(
           padding: const EdgeInsets.only(top: 6, bottom: 8),
-          child: SizedBox(width: maxW, child: Text(
+          child: Text(
             t.substring(2).trim(),
             style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A), height: 1.4),
             softWrap: true,
-          )),
+          ),
         ));
         continue;
       }
@@ -284,11 +431,11 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
       if (t.startsWith('## ')) {
         widgets.add(Padding(
           padding: const EdgeInsets.only(top: 12, bottom: 6),
-          child: SizedBox(width: maxW, child: Text(
+          child: Text(
             t.substring(3).trim(),
             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A), height: 1.4),
             softWrap: true,
-          )),
+          ),
         ));
         continue;
       }
@@ -296,19 +443,18 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
       if (t.startsWith('### ')) {
         widgets.add(Padding(
           padding: const EdgeInsets.only(top: 8, bottom: 4),
-          child: SizedBox(width: maxW, child: Text(
+          child: Text(
             t.substring(4).trim(),
             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF374151), height: 1.4),
             softWrap: true,
-          )),
+          ),
         ));
         continue;
       }
 
       // Bullet point
-      if ((t.startsWith('• ') || t.startsWith('- ') || t.startsWith('* ')) && !t.startsWith('**')) {
-        final content = t.replaceFirst(RegExp(r'^[•\-\*]\s+'), '');
-        final bulletW = maxW - 18.0;
+      if ((t.startsWith('\u2022 ') || t.startsWith('- ') || t.startsWith('* ')) && !t.startsWith('**')) {
+        final content = t.replaceFirst(RegExp(r'^[\u2022\-\*]\s+'), '');
         widgets.add(Padding(
           padding: const EdgeInsets.only(bottom: 6),
           child: Row(
@@ -316,9 +462,9 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
             children: [
               const Padding(
                 padding: EdgeInsets.only(top: 2),
-                child: Text('• ', style: TextStyle(color: Color(0xFF7C3AED), fontWeight: FontWeight.bold, fontSize: 14)),
+                child: Text('\u2022 ', style: TextStyle(color: Color(0xFF7C3AED), fontWeight: FontWeight.bold, fontSize: 14)),
               ),
-              SizedBox(width: bulletW, child: _inlineText(content, bulletW)),
+              Expanded(child: _inlineText(content)),
             ],
           ),
         ));
@@ -328,27 +474,23 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
       // Parágrafo normal
       widgets.add(Padding(
         padding: const EdgeInsets.only(bottom: 6),
-        child: SizedBox(width: maxW, child: _inlineText(t, maxW)),
+        child: _inlineText(t),
       ));
     }
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: widgets);
   }
 
-  // Texto inline com **bold** — largura explícita
-  Widget _inlineText(String text, double maxW) {
+  // Texto inline com **bold** — sem largura fixa, texto cresce livremente
+  Widget _inlineText(String text) {
     final regex = RegExp(r'\*\*(.+?)\*\*');
     final matches = regex.allMatches(text).toList();
 
     if (matches.isEmpty) {
-      return SizedBox(
-        width: maxW,
-        child: Text(
-          text,
-          style: const TextStyle(fontSize: 14, height: 1.6, color: Color(0xFF374151)),
-          softWrap: true,
-          overflow: TextOverflow.clip,
-        ),
+      return Text(
+        text,
+        style: const TextStyle(fontSize: 14, height: 1.6, color: Color(0xFF374151)),
+        softWrap: true,
       );
     }
 
@@ -374,13 +516,9 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
       ));
     }
 
-    return SizedBox(
-      width: maxW,
-      child: RichText(
-        text: TextSpan(children: spans),
-        softWrap: true,
-        overflow: TextOverflow.clip,
-      ),
+    return RichText(
+      text: TextSpan(children: spans),
+      softWrap: true,
     );
   }
 
@@ -391,7 +529,7 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 3))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 3))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -427,14 +565,13 @@ class _HistoryPageState extends State<HistoryPage> with SingleTickerProviderStat
       ),
     );
   }
-Future<void> _fetchAIAnalysis(List<Map<String, dynamic>> data) async {
-  setState(() { _aiLoading = true; _aiAnalysis = null; });
+  Future<void> _fetchAIAnalysis(List<Map<String, dynamic>> data) async {
+    setState(() { _aiLoading = true; _aiAnalysis = null; });
 
-  try {
     String docSafeQuest = '';
     try {
       docSafeQuest = await rootBundle.loadString('assets/conhecimento_safequest.txt');
-    } catch (_) {
+    } catch (e) {
       docSafeQuest = 'Conhecimento base: Foca-te em Phishing, Passwords, Redes Sociais e Segurança Web.';
     }
 
@@ -450,13 +587,6 @@ Future<void> _fetchAIAnalysis(List<Map<String, dynamic>> data) async {
       temaStats[tema] = {'count': themed.length, 'avg': avg.toInt()};
     }
 
-    // Identifica tema mais fraco
-    String? temaFraco;
-    int avgFraco = 101;
-    for (final entry in temaStats.entries) {
-      final avg = entry.value['avg'] as int;
-      if (avg < avgFraco) { avgFraco = avg; temaFraco = entry.key; }
-    }
 
     // Recolhe perguntas erradas dos últimos 10 quizzes
     final ultimosQuizzes = data.take(10).toList();
@@ -505,44 +635,83 @@ Usa EXATAMENTE este formato:
 ''');
 
     final apiKey = dotenv.env['GEMINI_API_KEY'] ?? '';
-    final response = await http.post(
-      Uri.parse('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'contents': [{'role': 'user', 'parts': [{'text': buffer.toString()}]}],
-        'generationConfig': {'maxOutputTokens': 500, 'temperature': 0.7},
-      }),
-    );
-
-    if (response.statusCode == 200) {
-      final json = jsonDecode(response.body);
-      final text = json['candidates'][0]['content']['parts'][0]['text'] as String;
-      setState(() { _aiAnalysis = text; _aiLoading = false; });
-    } else {
-      setState(() { _aiAnalysis = 'Erro ao contactar o Mentor. Tenta novamente.'; _aiLoading = false; });
+    if (apiKey.isEmpty) {
+      setState(() {
+        _aiAnalysis = '## ⚠️ Chave de API em falta\n\nA GEMINI_API_KEY não está configurada. Verifica o ficheiro .env.';
+        _aiLoading = false;
+      });
+      return;
     }
-  } catch (e) {
-    setState(() { _aiAnalysis = 'Erro de ligação: $e'; _aiLoading = false; });
+
+    try {
+      final response = await http.post(
+        Uri.parse('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'contents': [{'role': 'user', 'parts': [{'text': buffer.toString()}]}],
+          'generationConfig': {'maxOutputTokens': 1200, 'temperature': 0.6},
+        }),
+      ).timeout(const Duration(seconds: 60));
+
+      if (response.statusCode == 200) {
+        final json = jsonDecode(response.body);
+        final candidates = json['candidates'] as List?;
+        if (candidates == null || candidates.isEmpty) {
+          setState(() {
+            _aiAnalysis = '## ⚠️ Sem resposta\n\nO Mentor não gerou conteúdo. Tenta novamente.';
+            _aiLoading = false;
+          });
+          return;
+        }
+        final parts = (candidates[0] as Map<String, dynamic>)['content']['parts'] as List;
+        // Gemini 2.5-flash tem "thinking" parts com thought:true — apanha só a resposta real
+        final responseParts = parts.where((p) {
+          final pMap = p as Map<String, dynamic>;
+          return pMap['thought'] != true && (pMap['text'] as String? ?? '').isNotEmpty;
+        }).toList();
+        final text = responseParts.isNotEmpty
+            ? (responseParts.last as Map<String, dynamic>)['text'] as String
+            : (parts.last as Map<String, dynamic>)['text'] as String;
+        setState(() { _aiAnalysis = text.trim(); _aiLoading = false; });
+      } else {
+        // Log do erro real para diagnóstico
+        debugPrint('🚨 Gemini API error ${response.statusCode}: ${response.body}');
+        setState(() {
+          _aiAnalysis = '## ⚠️ Erro (${response.statusCode})\n\nNão foi possível contactar o Mentor. Verifica a tua ligação e tenta novamente.';
+          _aiLoading = false;
+        });
+      }
+    } on TimeoutException {
+      setState(() {
+        _aiAnalysis = '## ⏱️ Tempo esgotado\n\nA ligação demorou demasiado. Verifica a tua internet e tenta novamente.';
+        _aiLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _aiAnalysis = '## ⚠️ Erro de ligação\n\nNão foi possível contactar o Mentor. Verifica a tua internet.';
+        _aiLoading = false;
+      });
+    }
   }
-}
 
   // ── STAT CARD ──────────────────────────────────────────────────────────────
   Widget _statCard(String value, String label, IconData icon) {
-    return Container(
-      width: 105,
-      padding: const EdgeInsets.symmetric(vertical: 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
+        ),
+        child: Column(children: [
+          Icon(icon, color: const Color(0xFF3B82F6), size: 26),
+          const SizedBox(height: 12),
+          Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: _primaryDeep), textAlign: TextAlign.center),
+          const SizedBox(height: 4),
+          Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        ]),
       ),
-      child: Column(children: [
-        Icon(icon, color: const Color(0xFF3B82F6), size: 26),
-        const SizedBox(height: 12),
-        Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _primaryDeep)),
-        const SizedBox(height: 4),
-        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-      ]),
     );
   }
 
