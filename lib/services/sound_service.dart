@@ -1,4 +1,5 @@
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/foundation.dart';
 
 class SoundService {
   // Um player por tipo de som para evitar conflitos
@@ -29,27 +30,27 @@ class SoundService {
     try {
       await _configure(_correctPlayer);
       await _correctPlayer.play(AssetSource('sounds/correct.wav'));
-    } catch (e) { print('SoundService: $e'); }
+    } catch (e) { debugPrint('SoundService: $e'); }
   }
 
   static Future<void> playWrong() async {
     try {
       await _configure(_wrongPlayer);
       await _wrongPlayer.play(AssetSource('sounds/wrong.wav'));
-    } catch (e) { print('SoundService: $e'); }
+    } catch (e) { debugPrint('SoundService: $e'); }
   }
 
   static Future<void> playVictory() async {
     try {
       await _configure(_victoryPlayer);
       await _victoryPlayer.play(AssetSource('sounds/victory.wav'));
-    } catch (e) { print('SoundService: $e'); }
+    } catch (e) { debugPrint('SoundService: $e'); }
   }
 
   static Future<void> playFail() async {
     try {
       await _configure(_failPlayer);
       await _failPlayer.play(AssetSource('sounds/fail.wav'));
-    } catch (e) { print('SoundService: $e'); }
+    } catch (e) { debugPrint('SoundService: $e'); }
   }
 }
