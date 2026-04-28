@@ -1196,11 +1196,118 @@ class _ClanDetailPageState extends State<ClanDetailPage>
 
     // ── Mensagem de sistema simples ────────────────────────────────────────
     if (isSystem) {
-      // Mensagens especiais — promoção do clã (📣)
+      final isPromotion  = text.startsWith('⬆️');
+      final isDemotion   = text.startsWith('⬇️');
+      final isKick       = text.startsWith('🚫');
+      final isLeadership = text.startsWith('👑');
       final isMotivation = text.startsWith('📣');
-      // Mensagem de resultado de batalha
       final isBattleResult = text.contains('venceu a batalha') || text.contains('Empate na batalha');
 
+      // ── Promoção — pill verde ──────────────────────────────────────────
+      if (isPromotion) {
+        final label = text.replaceFirst('⬆️ ', '');
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(colors: [Color(0xFFDCFCE7), Color(0xFFF0FDF4)]),
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(color: const Color(0xFF16A34A).withOpacity(0.5), width: 1.5),
+                boxShadow: [BoxShadow(color: const Color(0xFF16A34A).withOpacity(0.12), blurRadius: 8, offset: const Offset(0, 3))],
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Container(
+                  width: 24, height: 24,
+                  decoration: const BoxDecoration(color: Color(0xFF16A34A), shape: BoxShape.circle),
+                  child: const Icon(Icons.arrow_upward_rounded, color: Colors.white, size: 14),
+                ),
+                const SizedBox(width: 8),
+                Flexible(child: Text(label, textAlign: TextAlign.center, softWrap: true,
+                    style: const TextStyle(color: Color(0xFF15803D), fontSize: 13, fontWeight: FontWeight.bold, height: 1.3))),
+              ]),
+            ),
+          ),
+        );
+      }
+
+      // ── Despromoção — pill vermelha ────────────────────────────────────
+      if (isDemotion) {
+        final label = text.replaceFirst('⬇️ ', '');
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(colors: [Color(0xFFFEE2E2), Color(0xFFFFF5F5)]),
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(color: const Color(0xFFDC2626).withOpacity(0.5), width: 1.5),
+                boxShadow: [BoxShadow(color: const Color(0xFFDC2626).withOpacity(0.12), blurRadius: 8, offset: const Offset(0, 3))],
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Container(
+                  width: 24, height: 24,
+                  decoration: const BoxDecoration(color: Color(0xFFDC2626), shape: BoxShape.circle),
+                  child: const Icon(Icons.arrow_downward_rounded, color: Colors.white, size: 14),
+                ),
+                const SizedBox(width: 8),
+                Flexible(child: Text(label, textAlign: TextAlign.center, softWrap: true,
+                    style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 13, fontWeight: FontWeight.bold, height: 1.3))),
+              ]),
+            ),
+          ),
+        );
+      }
+
+      // ── Expulsão ──────────────────────────────────────────────────────
+      if (isKick) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF7ED),
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(color: const Color(0xFFEA580C).withOpacity(0.4)),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                const Text('🚫', style: TextStyle(fontSize: 14)),
+                const SizedBox(width: 6),
+                Flexible(child: Text(text.replaceFirst('🚫 ', ''), softWrap: true, textAlign: TextAlign.center,
+                    style: const TextStyle(color: Color(0xFF9A3412), fontSize: 12, fontWeight: FontWeight.w600))),
+              ]),
+            ),
+          ),
+        );
+      }
+
+      // ── Liderança ─────────────────────────────────────────────────────
+      if (isLeadership) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(colors: [Color(0xFFFEF3C7), Color(0xFFFFFBEB)]),
+                borderRadius: BorderRadius.circular(30),
+                border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.5)),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                const Text('👑', style: TextStyle(fontSize: 14)),
+                const SizedBox(width: 6),
+                Flexible(child: Text(text.replaceFirst('👑 ', ''), softWrap: true, textAlign: TextAlign.center,
+                    style: const TextStyle(color: Color(0xFF92400E), fontSize: 12, fontWeight: FontWeight.bold))),
+              ]),
+            ),
+          ),
+        );
+      }
+
+      // ── Resultado de batalha ──────────────────────────────────────────
       if (isBattleResult) {
         final isWin  = text.contains('venceu');
         final color  = isWin  ? const Color(0xFF16A34A) : const Color(0xFF0891B2);
@@ -1225,6 +1332,7 @@ class _ClanDetailPageState extends State<ClanDetailPage>
         );
       }
 
+      // ── Motivação ─────────────────────────────────────────────────────
       if (isMotivation) {
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
@@ -1250,6 +1358,7 @@ class _ClanDetailPageState extends State<ClanDetailPage>
         );
       }
 
+      // ── Mensagem de sistema genérica ─────────────────────────────────
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
         child: Container(
