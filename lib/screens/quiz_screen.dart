@@ -375,6 +375,20 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
       tema: widget.tema, percent: percent, tipoQuiz: tipoQuizStr,
     );
 
+    // ── Deteção de Level Up ────────────────────────────────────────────────
+    // Cada nível = 250 pontos. Lê os pontos atuais ANTES de atualizar.
+    int pontosAntes = 0;
+    if (user != null) {
+      try {
+        final snap = await FirebaseFirestore.instance
+            .collection('users').doc(user.uid).get();
+        pontosAntes = ((snap.data() as Map<String, dynamic>?)?['pontos'] ?? 0) as int;
+      } catch (_) {}
+    }
+    final nivelAntes  = (pontosAntes ~/ 250) + 1;
+    final nivelDepois = ((pontosAntes + points) ~/ 250) + 1;
+    final leveledUp   = nivelDepois > nivelAntes;
+
     if (!mounted) return;
 
     showDialog(
@@ -387,6 +401,7 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
         newBadge: newBadgeName,   // badge real do Firestore
         comboLabel: _maxCombo >= 2 ? (_maxCombo >= 5 ? '🔥 ×2 COMBO MÁXIMO!' : _maxCombo == 4 ? '⚡ ×1.5 Combo x4!' : '✨ ×1.2 Combo x$_maxCombo!') : null,
         wrongQuestions: wrongQuestions, moedasGanhas: moedasGanhas,
+        leveledUp: leveledUp, newNivel: nivelDepois,
       ),
     );
 
