@@ -14,20 +14,34 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'screens/mfa_email_page.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'firebase_options.dart';
 
 final FlutterLocalNotificationsPlugin localNotifsPlugin = FlutterLocalNotificationsPlugin();
 
 @pragma('vm:entry-point')
 Future<void> _backgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
+ 
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 }
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
-  await Firebase.initializeApp();
-  FirebaseMessaging.onBackgroundMessage(_backgroundHandler);
-  await _configurarNotificacoes();
+  
+  // Aqui fizeste perfeitamente bem!
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  
+  // Envolvemos as notificações num try-catch para proteger o arranque da app
+  try {
+    FirebaseMessaging.onBackgroundMessage(_backgroundHandler);
+    await _configurarNotificacoes();
+  } catch (e) {
+    debugPrint("Aviso: Notificações não suportadas neste browser (normal no iPhone). Erro: $e");
+  }
   
   // Forçar logout se o "Lembra-me" não estiver ativo OU se passaram 30 dias do MFA
   final prefs = await SharedPreferences.getInstance();
