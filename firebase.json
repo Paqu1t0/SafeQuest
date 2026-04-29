@@ -1,16 +1,1 @@
-{
-  "functions": [
-    {
-      "source": "functions",
-      "codebase": "default",
-      "disallowLegacyRuntimeConfig": true,
-      "ignore": [
-        "node_modules",
-        ".git",
-        "firebase-debug.log",
-        "firebase-debug.*.log",
-        "*.local"
-      ]
-    }
-  ]
-}
+{"functions":[{"source":"functions","codebase":"default","disallowLegacyRuntimeConfig":true,"ignore":["node_modules",".git","firebase-debug.log","firebase-debug.*.log","*.local"]}],"hosting":{"public":"build/web","ignore":["firebase.json","**/.*","**/node_modules/**"],"rewrites":[{"source":"**","destination":"/index.html"}]},"flutter":{"platforms":{"android":{"default":{"projectId":"safequest-4358c","appId":"1:434644951500:android:8f1a9982db198253297d69","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"safequest-4358c","configurations":{"android":"1:434644951500:android:8f1a9982db198253297d69","ios":"1:434644951500:ios:ebf42a0cb5f062f2297d69","macos":"1:434644951500:ios:ebf42a0cb5f062f2297d69","web":"1:434644951500:web:4f5d4ca98284d4a6297d69","windows":"1:434644951500:web:fe542cf93650c3dc297d69"}}}}}}
