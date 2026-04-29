@@ -91,10 +91,10 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
         url,
         headers: {'Content-Type': 'application/json'},
         body: json.encode({
-          'service_id': dotenv.env['EMAILJS_SERVICE_ID'],
-          'template_id': dotenv.env['EMAILJS_TEMPLATE_ID'],
-          'user_id': dotenv.env['EMAILJS_PUBLIC_KEY'],
-          'accessToken': dotenv.env['EMAILJS_PRIVATE_KEY'], // A chave privada está protegida!
+          'service_id': dotenv.env['EMAILJS_SERVICE_ID']?.trim(),
+          'template_id': dotenv.env['EMAILJS_TEMPLATE_ID']?.trim(),
+          'user_id': dotenv.env['EMAILJS_PUBLIC_KEY']?.trim(),
+          'accessToken': dotenv.env['EMAILJS_PRIVATE_KEY']?.trim(), // A chave privada está protegida!
           'template_params': {
             'to_email': user.email,
             'mfa_code': _codigoGerado,

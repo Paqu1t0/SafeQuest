@@ -8,6 +8,7 @@ import 'package:projeto_safequest/screens/mfa_email_page.dart';
 import 'package:projeto_safequest/main.dart';
 import 'package:projeto_safequest/screens/notification_service.dart'; 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -63,7 +64,9 @@ class _LoginPageState extends State<LoginPage> {
   // ================= LÓGICA: LOGIN GOOGLE =================
   Future<void> _handleGoogleSignIn() async {
     try {
-      final GoogleSignIn googleSignIn = GoogleSignIn();
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        clientId: kIsWeb ? '434644951500-d3a8cje44ae981sei1seaola675jflcd.apps.googleusercontent.com' : null,
+      );
       await googleSignIn.signOut(); // Força escolha de conta
 
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
