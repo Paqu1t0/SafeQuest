@@ -59,7 +59,7 @@ class BadgesService {
     final results = resultsSnap.docs.map((d) => d.data()).toList();
 
     final userSnap = await userRef.get();
-    final userData = userSnap.data() as Map<String, dynamic>? ?? {};
+    final userData = userSnap.data() ?? {};
     final conquistados = List<String>.from(userData['badges'] ?? []);
 
     String? firstNew;
@@ -132,7 +132,7 @@ class BadgesService {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return {};
     final snap = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-    final data = snap.data() as Map<String, dynamic>? ?? {};
+    final data = snap.data() ?? {};
     return Set<String>.from(data['badges'] ?? []);
   }
 }
