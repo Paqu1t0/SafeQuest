@@ -12,6 +12,7 @@ import 'package:projeto_safequest/screens/onboarding_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:projeto_safequest/screens/nickname_screen.dart';
 import 'screens/mfa_email_page.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'firebase_options.dart';
@@ -109,8 +110,8 @@ class SafeQuest extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1A56DB)),
         useMaterial3: true,
       ),
-      // ── StreamBuilder mantém sessão ──────────────────────────────────────
-      home: const _AuthGate(),
+      // ── Verifica a sessão através do AuthGate ─────────────────
+      home: const AuthGate(),
       routes: {
         '/login'   : (_) => const LoginPage(),
         '/register': (_) => const RegisterPage(),
@@ -121,13 +122,13 @@ class SafeQuest extends StatelessWidget {
 }
 
 // ── AuthGate — gere sessão + MFA + aviso de internet ──────────────────────
-class _AuthGate extends StatefulWidget {
-  const _AuthGate();
+class AuthGate extends StatefulWidget {
+  const AuthGate({super.key});
   @override
-  State<_AuthGate> createState() => _AuthGateState();
+  State<AuthGate> createState() => _AuthGateState();
 }
 
-class _AuthGateState extends State<_AuthGate> {
+class _AuthGateState extends State<AuthGate> {
   bool _isOnline = true;
   bool _wasOffline = false; // track if we need to reload on reconnect
 
@@ -321,9 +322,8 @@ class _MfaGateState extends State<_MfaGate> {
       final thirtyDaysMs = 30 * 24 * 60 * 60 * 1000; // 30 dias em ms
       final savedUid = prefs.getString('mfa_uid') ?? '';
 
-      // Só salta MFA se: "Lembra-me" ativo + MFA verificado < 30 dias + mesmo user
-      if (rememberMe &&
-          mfaTimestamp > 0 &&
+      // Só salta MFA se: MFA verificado < 30 dias + mesmo user
+      if (mfaTimestamp > 0 &&
           (now - mfaTimestamp) < thirtyDaysMs &&
           savedUid == widget.user.uid) {
         // MFA válido — skip
@@ -347,21 +347,66 @@ class _MfaGateState extends State<_MfaGate> {
     if (_needsMfa) {
       return const MFAEmailPage();
     }
-    // Verifica se deve mostrar o onboarding
-    return FutureBuilder<bool>(
-      future: OnboardingScreen.shouldShow(),
-      builder: (context, snap) {
-        if (!snap.hasData) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator(color: Color(0xFF1A56DB))),
-          );
-        }
-        if (snap.data == true) {
-          return const OnboardingScreen();
-        }
-        return const HomePage();
-      },
-    );
+    return _SetupGate(user: widget.user);
+  }
+}
+
+// ── SetupGate — verifica Onboarding e Nickname ────────────────────────────
+class _SetupGate extends StatefulWidget {
+  final User user;
+  const _SetupGate({required this.user});
+
+  @override
+  State<_SetupGate> createState() => _SetupGateState();
+}
+
+class _SetupGateState extends State<_SetupGate> {
+  bool _loading = true;
+  bool _needsOnboarding = false;
+  bool _needsNickname = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkSetup();
+  }
+
+  Future<void> _checkSetup() async {
+    try {
+      final showOnboarding = await OnboardingScreen.shouldShow();
+      if (showOnboarding) {
+        if (mounted) setState(() { _loading = false; _needsOnboarding = true; });
+        return;
+      }
+
+      final doc = await FirebaseFirestore.instance.collection('users').doc(widget.user.uid).get();
+      final nickname = doc.data()?['nickname'] as String?;
+      
+      if (nickname == null || nickname.trim().isEmpty) {
+        if (mounted) setState(() { _loading = false; _needsNickname = true; });
+        return;
+      }
+
+      if (mounted) setState(() { _loading = false; });
+    } catch (_) {
+      if (mounted) setState(() { _loading = false; }); // Se falhar, avança (segurança)
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator(color: Color(0xFF1A56DB))),
+      );
+    }
+    if (_needsOnboarding) {
+      return const OnboardingScreen();
+    }
+    if (_needsNickname) {
+      return const NicknameScreen();
+    }
+    return const HomePage();
   }
 }
 
