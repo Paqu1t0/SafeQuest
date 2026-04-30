@@ -1,5 +1,5 @@
 plugins {
-    id("com.google.gms.google-services") version "4.4.0" apply false
+    // google-services plugin is declared in settings.gradle.kts
 }
 allprojects {
     repositories {
