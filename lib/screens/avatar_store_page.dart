@@ -253,21 +253,27 @@ class _AvatarStorePageState extends State<AvatarStorePage>
   }
 
   Widget _avatarBtn(BuildContext context, String id, bool isOwned, bool isEq, int price, bool canAfford, int moedas, List<String> owned, bool levelLock, int minLevel) {
-    if (levelLock) return ElevatedButton(
+    if (levelLock) {
+      return ElevatedButton(
       style: ElevatedButton.styleFrom(backgroundColor: Colors.grey.shade200, foregroundColor: Colors.grey, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), padding: const EdgeInsets.symmetric(vertical: 8)),
       onPressed: null,
       child: Text('Nível $minLevel', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
     );
-    if (isEq) return ElevatedButton(
+    }
+    if (isEq) {
+      return ElevatedButton(
       style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEFF6FF), foregroundColor: _primary, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), padding: const EdgeInsets.symmetric(vertical: 8)),
       onPressed: null,
       child: const Text('Equipada', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
     );
-    if (isOwned) return ElevatedButton(
+    }
+    if (isOwned) {
+      return ElevatedButton(
       style: ElevatedButton.styleFrom(backgroundColor: _primary, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), padding: const EdgeInsets.symmetric(vertical: 8)),
       onPressed: () => _equipAvatar(id),
       child: const Text('Equipar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
     );
+    }
     return ElevatedButton(
       style: ElevatedButton.styleFrom(backgroundColor: canAfford ? _gold : Colors.grey.shade300, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), padding: const EdgeInsets.symmetric(vertical: 8)),
       onPressed: canAfford ? () => _buyAvatar(context, id, price, moedas, owned) : null,
@@ -347,21 +353,27 @@ class _AvatarStorePageState extends State<AvatarStorePage>
   }
 
   Widget _bannerBtn(BuildContext context, String id, bool isOwned, bool isEq, int price, bool canAfford, int moedas, List<String> owned, Color color, bool levelLock, int minLevel) {
-    if (levelLock) return ElevatedButton(
+    if (levelLock) {
+      return ElevatedButton(
       style: ElevatedButton.styleFrom(backgroundColor: Colors.grey.shade200, foregroundColor: Colors.grey, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), padding: const EdgeInsets.symmetric(vertical: 8)),
       onPressed: null,
       child: Text('Nível $minLevel', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
     );
-    if (isEq) return ElevatedButton(
+    }
+    if (isEq) {
+      return ElevatedButton(
       style: ElevatedButton.styleFrom(backgroundColor: color.withOpacity(0.15), foregroundColor: color, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), padding: const EdgeInsets.symmetric(vertical: 8)),
       onPressed: null,
       child: const Text('Equipado', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
     );
-    if (isOwned) return ElevatedButton(
+    }
+    if (isOwned) {
+      return ElevatedButton(
       style: ElevatedButton.styleFrom(backgroundColor: color, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), padding: const EdgeInsets.symmetric(vertical: 8)),
       onPressed: () => _equipBanner(id),
       child: const Text('Equipar', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
     );
+    }
     return ElevatedButton(
       style: ElevatedButton.styleFrom(backgroundColor: canAfford ? _gold : Colors.grey.shade300, foregroundColor: Colors.white, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), padding: const EdgeInsets.symmetric(vertical: 8)),
       onPressed: canAfford ? () => _buyBanner(context, id, price, moedas, owned) : null,
@@ -430,10 +442,10 @@ class _AvatarStorePageState extends State<AvatarStorePage>
   }
 
   void _showSuccess(BuildContext context, String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.green));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.green, duration: const Duration(milliseconds: 1500)));
   }
 
   void _showError(BuildContext context, String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $msg'), backgroundColor: Colors.red));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $msg'), backgroundColor: Colors.red, duration: const Duration(milliseconds: 1500)));
   }
 }
