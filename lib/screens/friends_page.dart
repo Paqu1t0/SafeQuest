@@ -70,10 +70,12 @@ class _FriendsPageState extends State<FriendsPage>
         return name.contains(qLower) || nickname.contains(qLower);
       }).take(15).toList();
 
-      if (mounted) setState(() {
+      if (mounted) {
+        setState(() {
         _searchResults = filteredDocs.map((d) => {'uid': d.id, ...d.data()}).toList();
         _searching = false;
       });
+      }
     } catch (_) { setState(() => _searching = false); }
   }
 
@@ -92,9 +94,11 @@ class _FriendsPageState extends State<FriendsPage>
       }]),
     });
 
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Pedido enviado a $toName! 📨'), backgroundColor: Colors.green),
     );
+    }
   }
 
   // ── Aceitar pedido ────────────────────────────────────────────────────────
@@ -120,9 +124,11 @@ class _FriendsPageState extends State<FriendsPage>
       type  : 'friend_added',
     );
 
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('$fromName é agora teu amigo! 🎉'), backgroundColor: Colors.green),
     );
+    }
   }
 
   // ── Rejeitar pedido ───────────────────────────────────────────────────────

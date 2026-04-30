@@ -51,7 +51,7 @@ class DailyMissionsService {
     final docRef  = userRef.collection('daily_missions').doc(key);
     final snap    = await docRef.get();
 
-    final data    = snap.exists ? snap.data() as Map<String, dynamic>? ?? {} : {};
+    final data    = snap.exists ? snap.data() ?? {} : {};
     final quizzes = (data['quizzesDone'] ?? 0) as int;
     final perfect = (data['perfectDone'] ?? 0) as int;
     final temas   = List<String>.from(data['temasDone'] ?? []);
@@ -85,7 +85,7 @@ class DailyMissionsService {
       case 'quizzes3': return ((data['quizzesDone'] ?? 0) as int).clamp(0, 3) / 3.0;
       case 'quizzes5': return ((data['quizzesDone'] ?? 0) as int).clamp(0, 5) / 5.0;
       case 'perfect1': return ((data['perfectDone'] ?? 0) as int).clamp(0, 1).toDouble();
-      case 'temas2':   return (((data['temasDone'] as List?)?.length ?? 0) as int).clamp(0, 2) / 2.0;
+      case 'temas2':   return (((data['temasDone'] as List?)?.length ?? 0)).clamp(0, 2) / 2.0;
       default: return 0;
     }
   }
@@ -349,7 +349,7 @@ class _MissionCard extends StatelessWidget {
                   tween: Tween(begin: 0, end: progress),
                   duration: const Duration(milliseconds: 600),
                   curve: Curves.easeOut,
-                  builder: (_, val, __) => LinearProgressIndicator(
+                  builder: (_, val, _) => LinearProgressIndicator(
                     value: val, minHeight: 6,
                     backgroundColor: const Color(0xFFF1F5F9),
                     color: isClaimed ? const Color(0xFF16A34A) : isComplete ? _gold : _primary,

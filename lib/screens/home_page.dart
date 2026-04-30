@@ -14,7 +14,6 @@ import 'package:projeto_safequest/screens/friends_page.dart' show FriendsPage;
 import 'package:projeto_safequest/screens/notification_service.dart';
 import 'package:projeto_safequest/screens/coin_animation.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
 import 'package:projeto_safequest/screens/daily_missions_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -117,7 +116,7 @@ class _HomePageState extends State<HomePage> {
           .doc(user.uid)
           .set({
             'lastOpenedAt': FieldValue.serverTimestamp(),
-            if (token != null) 'fcmToken': token,
+            'fcmToken': ?token,
           }, SetOptions(merge: true));
           
       // Opcional: Atualizar se o token mudar enquanto a app está aberta
@@ -254,6 +253,44 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
                   Navigator.push(context, MaterialPageRoute(builder: (_) => AvatarStorePage()));
                 },
               ),
+              const SizedBox(height: 20),
+              const Divider(),
+              const SizedBox(height: 10),
+              // Opção: Usar minha foto (Google/Firebase)
+              Center(
+                child: StreamBuilder<DocumentSnapshot>(
+                  stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
+                  builder: (context, snap) {
+                    final data = snap.data?.data() as Map<String, dynamic>? ?? {};
+                    final photoUrl = data['photoUrl'] as String? ?? user.photoURL ?? '';
+                    return GestureDetector(
+                      onTap: () async {
+                        Navigator.pop(ctx);
+                        await FirebaseFirestore.instance.collection('users').doc(user.uid).update({'avatar': 'default'});
+                      },
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: _primary.withOpacity(0.5), width: 2),
+                            ),
+                            child: CircleAvatar(
+                              radius: 26,
+                              backgroundColor: Colors.grey[200],
+                              backgroundImage: photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
+                              child: photoUrl.isEmpty ? const Icon(Icons.person, color: Colors.grey) : null,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text('Usar Minha Foto', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: _primary)),
+                        ],
+                      ),
+                    );
+                  }
+                ),
+              ),
             ],
           ),
         ),
@@ -319,12 +356,15 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
             .snapshots(),
         builder: (context, snap) {
           String avatarId = 'default';
+          String photoUrl = '';
           if (snap.hasData && snap.data!.exists) {
             final data = snap.data!.data() as Map<String, dynamic>? ?? {};
-            avatarId = data['avatar'] ?? 'default';
+            avatarId = data['avatar']   ?? 'default';
+            photoUrl = data['photoUrl'] ?? '';
           }
           final emoji = _avatarEmoji[avatarId] ?? '👤';
           final color = _avatarColor[avatarId] ?? _primary;
+          final useStoreAvatar = avatarId != 'default';
 
           return GestureDetector(
             onTap: () => _showAvatarSelector(context),
@@ -338,7 +378,12 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
               child: Stack(
                 children: [
                   Center(
-                    child: Text(emoji, style: const TextStyle(fontSize: 22)),
+                    child: (useStoreAvatar || photoUrl.isEmpty)
+                        ? Text(emoji, style: const TextStyle(fontSize: 22))
+                        : ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: Image.network(photoUrl, width: 32, height: 32, fit: BoxFit.cover, errorBuilder: (_, _, _) => Text(emoji, style: const TextStyle(fontSize: 22))),
+                          ),
                   ),
                   // Lápis de edição no canto
                   Positioned(
@@ -435,13 +480,13 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
               MaterialPageRoute(builder: (_) => AvatarStorePage())),
           child: Container(
             margin: const EdgeInsets.only(right: 6),
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(9),
             decoration: BoxDecoration(
               color: const Color(0xFFF0F7FF),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(Icons.storefront_rounded,
-                color: _primary, size: 20),
+                color: _primary, size: 24),
           ),
         ),
         // Ícone de amigos — azul
@@ -450,13 +495,13 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
               MaterialPageRoute(builder: (_) => FriendsPage())),
           child: Container(
             margin: const EdgeInsets.only(right: 14),
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(9),
             decoration: BoxDecoration(
               color: const Color(0xFFEFF6FF),
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(12),
             ),
             child: const Icon(Icons.people_rounded,
-                color: _primary, size: 20),
+                color: _primary, size: 24),
           ),
         ),
       ],
@@ -691,9 +736,9 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
             margin: const EdgeInsets.only(right: 4),
             child: Stack(children: [
               Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: const Color(0xFFF0F7FF), borderRadius: BorderRadius.circular(10)),
-                child: const Icon(Icons.notifications_rounded, color: _primary, size: 20),
+                padding: const EdgeInsets.all(9),
+                decoration: BoxDecoration(color: const Color(0xFFF0F7FF), borderRadius: BorderRadius.circular(12)),
+                child: const Icon(Icons.notifications_rounded, color: _primary, size: 24),
               ),
               if (count > 0) Positioned(
                 top: 2, right: 2,
@@ -769,7 +814,7 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
             tween: Tween(begin: 0, end: xpProgress),
             duration: const Duration(milliseconds: 800),
             curve: Curves.easeOut,
-            builder: (_, val, __) => ClipRRect(
+            builder: (_, val, _) => ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: LinearProgressIndicator(value: val, minHeight: 8, backgroundColor: Colors.white24, color: const Color(0xFFFBBF24)),
             ),
@@ -785,7 +830,7 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
             tween: Tween(begin: 0, end: prog),
             duration: const Duration(milliseconds: 800),
             curve: Curves.easeOut,
-            builder: (_, val, __) => ClipRRect(
+            builder: (_, val, _) => ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: LinearProgressIndicator(value: val, minHeight: 8, backgroundColor: Colors.white24, color: Colors.white),
             ),
@@ -840,7 +885,7 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
                   tween: Tween(begin: 0, end: progress),
                   duration: const Duration(milliseconds: 600),
                   curve: Curves.easeOut,
-                  builder: (_, val, __) => ClipRRect(
+                  builder: (_, val, _) => ClipRRect(
                     borderRadius: BorderRadius.circular(10),
                     child: LinearProgressIndicator(
                       value: val, minHeight: 5,
@@ -913,20 +958,23 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
         insetPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 80),
         child: Container(
           decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(28)),
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Ícone do tema
-                Container(
-                  width: 60, height: 60,
-                  decoration: BoxDecoration(color: const Color(0xFFEFF6FF), shape: BoxShape.circle),
-                  child: const Center(child: Icon(Icons.emoji_events_outlined, size: 32, color: _primary)),
-                ),
-                const SizedBox(height: 16),
-                Text(tema, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _primaryDeep), textAlign: TextAlign.center),
-                const SizedBox(height: 4),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Ícone do tema
+                    Container(
+                      width: 60, height: 60,
+                      decoration: const BoxDecoration(color: Color(0xFFEFF6FF), shape: BoxShape.circle),
+                      child: const Center(child: Icon(Icons.emoji_events_outlined, size: 32, color: _primary)),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(tema, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _primaryDeep), textAlign: TextAlign.center),
+                    const SizedBox(height: 4),
                 const Text("Escolha o nível de dificuldade", style: TextStyle(color: Colors.grey, fontSize: 13)),
                 const SizedBox(height: 24),
 
@@ -936,13 +984,30 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
                 const SizedBox(height: 10),
                 _difficultyButton(context, "Avançado",   Colors.red,    Icons.stacked_bar_chart,  tema, 'Para os verdadeiros especialistas'),
 
-                const SizedBox(height: 16),
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text("Cancelar", style: TextStyle(color: Colors.grey)),
+                    const SizedBox(height: 16),
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text("Cancelar", style: TextStyle(color: Colors.grey)),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              Positioned(
+                top: 16,
+                right: 16,
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.close_rounded, color: Colors.grey, size: 20),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

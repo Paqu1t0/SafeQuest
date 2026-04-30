@@ -581,8 +581,10 @@ class _ClanDetailPageState extends State<ClanDetailPage>
       type   : 'clan_promoted',
     );
 
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('$name promovido(a) para $nextLabel!'), backgroundColor: Colors.green));
+    }
   }
 
   Future<void> _demoteUser(BuildContext context, String uid, String currentRole) async {
@@ -601,8 +603,10 @@ class _ClanDetailPageState extends State<ClanDetailPage>
       type   : 'clan_demoted',
     );
 
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('$name rebaixado(a) para $prevLabel'), backgroundColor: Colors.orange));
+    }
   }
 
   Future<void> _kickUser(BuildContext context, String uid, String name) async {
@@ -663,7 +667,7 @@ class _ClanDetailPageState extends State<ClanDetailPage>
               title: Text(t, style: const TextStyle(fontWeight: FontWeight.w600)),
               trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14, color: Colors.grey),
               onTap: () => Navigator.pop(ctx, t),
-            )).toList(),
+            )),
             const SizedBox(height: 8),
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancelar', style: TextStyle(color: Colors.grey))),
           ]),
@@ -706,9 +710,11 @@ class _ClanDetailPageState extends State<ClanDetailPage>
       'timestamp' : FieldValue.serverTimestamp(),
     });
 
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Desafio lançado sobre $tema! ⚔️'), backgroundColor: const Color(0xFFEA580C)),
     );
+    }
   }
 
   Widget _buildLeaveButton() {
@@ -742,7 +748,7 @@ class _ClanDetailPageState extends State<ClanDetailPage>
 
     final clanRef  = FirebaseFirestore.instance.collection('clans').doc(widget.clanId);
     final clanSnap = await clanRef.get();
-    final data     = clanSnap.data() as Map<String, dynamic>? ?? {};
+    final data     = clanSnap.data() ?? {};
     final createdBy = data['createdBy'] as String? ?? '';
     final isLeader  = createdBy == user!.uid;
     final members   = List<String>.from(data['memberIds'] ?? [])..remove(user!.uid);
@@ -810,9 +816,11 @@ class _ClanDetailPageState extends State<ClanDetailPage>
       'createdAt': FieldValue.serverTimestamp(),
     });
 
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('👑 $newLeaderName é o novo Líder!'), backgroundColor: const Color(0xFFFBBF24)),
     );
+    }
   }
 
   // ── ABA CHAT ──────────────────────────────────────────────────────────────
@@ -971,7 +979,7 @@ class _ClanDetailPageState extends State<ClanDetailPage>
                 ),
                 child: Text(e.value, style: TextStyle(fontSize: 12, color: selectedIdx == e.key && custom == null ? const Color(0xFF1A56DB) : const Color(0xFF374151))),
               ),
-            )).toList(),
+            )),
             const SizedBox(height: 10),
             // Mensagem personalizada
             TextField(
@@ -1021,9 +1029,11 @@ class _ClanDetailPageState extends State<ClanDetailPage>
     // Também aparece no chat
     await _sendSystemMessage('📣 $myName: $msg');
 
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('📣 Mensagem enviada a todos os membros!'), backgroundColor: Colors.green),
     );
+    }
   }
 
   // ── Emoji picker ──────────────────────────────────────────────────────────
@@ -1143,14 +1153,14 @@ class _ClanDetailPageState extends State<ClanDetailPage>
                 if (fromScore != null || toScore != null) ...[
                   const SizedBox(height: 12),
                   Row(children: [
-                    Expanded(child: _miniScoreBox(fromName, fromScore, done && fromScore! >= (toScore ?? 0))),
+                    Expanded(child: _miniScoreBox(fromName, fromScore, done && fromScore >= (toScore ?? 0))),
                     Padding(padding: const EdgeInsets.symmetric(horizontal: 8), child: Text('VS', style: TextStyle(color: Colors.white.withOpacity(0.7), fontWeight: FontWeight.bold, fontSize: 12))),
-                    Expanded(child: _miniScoreBox(toName ?? '???', toScore, done && toScore! > (fromScore ?? 0))),
+                    Expanded(child: _miniScoreBox(toName ?? '???', toScore, done && toScore > (fromScore ?? 0))),
                   ]),
                 ],
 
                 // Resultado
-                if (done && fromScore != null && toScore != null) ...[
+                if (done) ...[
                   const SizedBox(height: 10),
                   Container(
                     width: double.infinity, padding: const EdgeInsets.all(8),
@@ -1428,8 +1438,8 @@ class _ClanDetailPageState extends State<ClanDetailPage>
     if (text.isEmpty || user == null) return;
     _msgCtrl.clear();
     final userDoc = await FirebaseFirestore.instance.collection('users').doc(user!.uid).get();
-    final data = userDoc.data() as Map<String, dynamic>? ?? {};
-    final senderName = data['name'] ?? data['nickname'] ?? 'Jogador';
+    final data = userDoc.data() ?? {};
+    final senderName = data['nickname'] ?? data['name'] ?? 'Jogador';
     await FirebaseFirestore.instance.collection('clans').doc(widget.clanId).collection('messages').add({
       'text': text, 'uid': user!.uid, 'senderName': senderName, 'timestamp': FieldValue.serverTimestamp(),
     });
@@ -1512,8 +1522,9 @@ class _ClanDetailPageState extends State<ClanDetailPage>
     // Vencedor
     String? winner;
     if (bothDone) {
-      if (fromScore! > toScore!) winner = fromName;
-      else if (toScore! > fromScore!) winner = opponent;
+      if (fromScore > toScore) {
+        winner = fromName;
+      } else if (toScore > fromScore) winner = opponent;
       else winner = 'Empate!';
     }
 
@@ -1680,7 +1691,7 @@ class _ClanDetailPageState extends State<ClanDetailPage>
 
     // Verifica se ambos já jogaram
     final snap = await FirebaseFirestore.instance.collection('clan_battles').doc(battleId).get();
-    final data  = snap.data() as Map<String, dynamic>? ?? {};
+    final data  = snap.data() ?? {};
     final fromS = data['fromScore'] as int?;
     final toS   = data['toScore']   as int?;
 
@@ -1691,8 +1702,9 @@ class _ClanDetailPageState extends State<ClanDetailPage>
           .update({'status': 'finished'});
 
       String resultMsg;
-      if (fromS > toS)       resultMsg = '🏆 $fromName venceu a batalha!\n$fromName: $fromS pts · $toName: $toS pts';
-      else if (toS > fromS)  resultMsg = '🏆 $toName venceu a batalha!\n$toName: $toS pts · $fromName: $fromS pts';
+      if (fromS > toS) {
+        resultMsg = '🏆 $fromName venceu a batalha!\n$fromName: $fromS pts · $toName: $toS pts';
+      } else if (toS > fromS)  resultMsg = '🏆 $toName venceu a batalha!\n$toName: $toS pts · $fromName: $fromS pts';
       else                   resultMsg = '🤝 Empate na batalha de $tema!\n$fromS pts cada';
 
       await _sendSystemMessage(resultMsg);

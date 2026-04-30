@@ -353,7 +353,7 @@ class _ClanPageState extends State<ClanPage> {
                 // Só abertos
                 Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                   const Text('Só clãs com espaço', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _primaryDeep)),
-                  Switch(value: tempOnlyOpen, onChanged: (v) => setS(() => tempOnlyOpen = v), activeColor: _primary),
+                  Switch(value: tempOnlyOpen, onChanged: (v) => setS(() => tempOnlyOpen = v), activeThumbColor: _primary),
                 ]),
                 const SizedBox(height: 16),
 
@@ -558,7 +558,7 @@ class _ClanPageState extends State<ClanPage> {
   Future<void> _joinClan(BuildContext context, String clanId, String clanName) async {
     // Busca dados completos do clã para mostrar no popup
     final clanSnap = await FirebaseFirestore.instance.collection('clans').doc(clanId).get();
-    final clanData = clanSnap.data() as Map<String, dynamic>? ?? {};
+    final clanData = clanSnap.data() ?? {};
 
     final members   = List<String>.from(clanData['memberIds'] ?? []).length;
     final maxSize   = (clanData['maxSize']   ?? 50) as int;

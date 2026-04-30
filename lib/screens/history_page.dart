@@ -553,7 +553,7 @@ class _HistoryPageState extends State<HistoryPage>
                   tween: Tween(begin: 0, end: avg / 100),
                   duration: const Duration(milliseconds: 800),
                   curve: Curves.easeOut,
-                  builder: (_, val, __) => ClipRRect(
+                  builder: (_, val, _) => ClipRRect(
                     borderRadius: BorderRadius.circular(8),
                     child: LinearProgressIndicator(value: val, minHeight: 8, backgroundColor: const Color(0xFFF1F5F9), color: color),
                   ),
@@ -634,10 +634,12 @@ Usa EXATAMENTE este formato:
 [1 frase com ação concreta para melhorar.]
 ''');
 
-    final apiKey = dotenv.env['GEMINI_API_KEY'] ?? '';
+    final String envKey = (dotenv.env['GEMINI_API_KEY'] ?? '').trim();
+    final apiKey = envKey.isNotEmpty ? envKey : 'AIzaSyCB7wRXxuXv6o0oaVwxY9OLh_emUhn_eJQ';
+
     if (apiKey.isEmpty) {
       setState(() {
-        _aiAnalysis = '## ⚠️ Chave de API em falta\n\nA GEMINI_API_KEY não está configurada. Verifica o ficheiro .env.';
+        _aiAnalysis = '## ⚠️ Assistente Indisponível\n\nO Mentor SafeQuest não está disponível de momento. Tenta novamente mais tarde.';
         _aiLoading = false;
       });
       return;
@@ -677,7 +679,7 @@ Usa EXATAMENTE este formato:
         // Log do erro real para diagnóstico
         debugPrint('🚨 Gemini API error ${response.statusCode}: ${response.body}');
         setState(() {
-          _aiAnalysis = '## ⚠️ Erro (${response.statusCode})\n\nNão foi possível contactar o Mentor. Verifica a tua ligação e tenta novamente.';
+          _aiAnalysis = '## ⚠️ Assistente Indisponível\n\nNão foi possível contactar o Mentor. Verifica a tua ligação e tenta novamente.';
           _aiLoading = false;
         });
       }

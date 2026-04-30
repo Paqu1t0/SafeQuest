@@ -117,25 +117,29 @@ class _CoinFlyOverlayState extends State<_CoinFlyOverlay> with TickerProviderSta
 
   @override
   void dispose() {
-    for (final c in _ctrls) c.dispose();
+    for (final c in _ctrls) {
+      c.dispose();
+    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: Stack(children: [
+    return Material(
+      type: MaterialType.transparency,
+      child: IgnorePointer(
+        child: Stack(children: [
         // Moedas voando
         ...List.generate(_count, (i) => AnimatedBuilder(
           animation: _ctrls[i],
-          builder: (_, __) {
+          builder: (_, _) {
             final pos = _positions[i].value;
             return Positioned(
               left: pos.dx - _sizes[i] / 2,
               top : pos.dy - _sizes[i] / 2,
               child: Opacity(
                 opacity: _opacities[i].value.clamp(0.0, 1.0),
-                child: Text('🪙', style: TextStyle(fontSize: _sizes[i])),
+                child: Text('🪙', style: TextStyle(fontSize: _sizes[i], decoration: TextDecoration.none)),
               ),
             );
           },
@@ -161,15 +165,16 @@ class _CoinFlyOverlayState extends State<_CoinFlyOverlay> with TickerProviderSta
                   boxShadow: [BoxShadow(color: const Color(0xFFF59E0B).withOpacity(0.6), blurRadius: 12, spreadRadius: 2)],
                 ),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  const Text('🪙', style: TextStyle(fontSize: 14)),
+                  const Text('🪙', style: TextStyle(fontSize: 14, decoration: TextDecoration.none)),
                   const SizedBox(width: 4),
-                  Text('+${widget.coins}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 15)),
+                  Text('+${widget.coins}', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 15, decoration: TextDecoration.none)),
                 ]),
               ),
             ),
           ),
         ),
       ]),
+      ),
     );
   }
 }
@@ -252,12 +257,16 @@ class _StreakOverlayState extends State<_StreakOverlay> with TickerProviderState
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: Listenable.merge([_enterCtrl, _exitCtrl]),
-      builder: (_, __) {
+      builder: (_, _) {
         final enterScale = CurvedAnimation(parent: _enterCtrl, curve: Curves.elasticOut).value;
         final exitOpacity = 1.0 - _exitCtrl.value;
 
-        return IgnorePointer(
-          child: Opacity(
+        return Material(
+          type: MaterialType.transparency,
+          child: DefaultTextStyle(
+            style: const TextStyle(decoration: TextDecoration.none),
+            child: IgnorePointer(
+              child: Opacity(
             opacity: exitOpacity.clamp(0.0, 1.0),
             child: Stack(children: [
               // Fundo semitransparente
@@ -283,13 +292,13 @@ class _StreakOverlayState extends State<_StreakOverlay> with TickerProviderState
                       // Chama pulsante
                       AnimatedBuilder(
                         animation: _flameCtrl,
-                        builder: (_, __) {
+                        builder: (_, _) {
                           final s = 1.0 + _flameCtrl.value * 0.18;
                           return Transform.scale(
                             scale: s,
                             child: Text(
                               widget.streak >= 7 ? '🔥🔥🔥' : '🔥',
-                              style: TextStyle(fontSize: widget.streak >= 7 ? 42 : 64),
+                              style: TextStyle(fontSize: widget.streak >= 7 ? 42 : 64, decoration: TextDecoration.none),
                               textAlign: TextAlign.center,
                             ),
                           );
@@ -302,18 +311,18 @@ class _StreakOverlayState extends State<_StreakOverlay> with TickerProviderState
                         tween: IntTween(begin: 0, end: widget.streak),
                         duration: const Duration(milliseconds: 800),
                         curve: Curves.easeOut,
-                        builder: (_, v, __) => Text(
+                        builder: (_, v, _) => Text(
                           '$v',
                           style: TextStyle(
                             fontSize: 72, fontWeight: FontWeight.w900,
-                            color: _color, height: 1,
+                            color: _color, height: 1, decoration: TextDecoration.none,
                           ),
                         ),
                       ),
 
                       Text(
                         'dias consecutivos',
-                        style: TextStyle(fontSize: 14, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
+                        style: TextStyle(fontSize: 14, color: Colors.grey.shade600, fontWeight: FontWeight.w500, decoration: TextDecoration.none),
                       ),
                       const SizedBox(height: 14),
 
@@ -325,17 +334,19 @@ class _StreakOverlayState extends State<_StreakOverlay> with TickerProviderState
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(color: _color.withOpacity(0.4)),
                         ),
-                        child: Text(_label, style: TextStyle(color: _color, fontWeight: FontWeight.bold, fontSize: 15)),
+                        child: Text(_label, style: TextStyle(color: _color, fontWeight: FontWeight.bold, fontSize: 15, decoration: TextDecoration.none)),
                       ),
 
                       const SizedBox(height: 12),
-                      Text('Continua assim! 💪', style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+                      Text('Continua assim! 💪', style: TextStyle(color: Colors.grey.shade500, fontSize: 12, decoration: TextDecoration.none)),
                     ]),
                   ),
                 ),
               ),
             ]),
+            ),
           ),
+        ),
         );
       },
     );
@@ -348,7 +359,7 @@ class _StreakOverlayState extends State<_StreakOverlay> with TickerProviderState
       final radius = 160.0 + rnd.nextDouble() * 40;
       return AnimatedBuilder(
         animation: _particleCtrl,
-        builder: (_, __) {
+        builder: (_, _) {
           final t     = (_particleCtrl.value + i / 12) % 1.0;
           final scale = sin(t * pi);
           final cx    = MediaQuery.of(context).size.width / 2;
@@ -360,7 +371,7 @@ class _StreakOverlayState extends State<_StreakOverlay> with TickerProviderState
               opacity: (scale * 0.8).clamp(0.0, 1.0),
               child: Text(
                 i % 3 == 0 ? '✨' : i % 3 == 1 ? '🔥' : '⭐',
-                style: TextStyle(fontSize: 14 + scale * 8),
+                style: TextStyle(fontSize: 14 + scale * 8, decoration: TextDecoration.none),
               ),
             ),
           );
