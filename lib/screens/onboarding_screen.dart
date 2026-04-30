@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:projeto_safequest/screens/home_page.dart';
+import 'package:projeto_safequest/main.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ONBOARDING SCREEN — aparece só na primeira vez que o utilizador entra
@@ -46,7 +46,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     _OnboardingPage(
       emoji: '⚔️',
       title: 'Junta-te a um Clã',
-      subtitle: 'Compite com outros jogadores em batalhas de quiz.',
+      subtitle: 'Compete com outros jogadores em batalhas de quiz.',
       description: 'Entra num clã, lança desafios a outros membros e sobe no ranking. Trabalha em equipa para ser o melhor!',
       gradientColors: [Color(0xFFEA580C), Color(0xFFDC2626)],
     ),
@@ -71,7 +71,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     await OnboardingScreen.markDone();
     if (mounted) {
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomePage()),
+        MaterialPageRoute(builder: (_) => const AuthGate()),
       );
     }
   }
@@ -189,7 +189,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 tween: Tween(begin: 0.6, end: 1.0),
                 duration: const Duration(milliseconds: 500),
                 curve: Curves.elasticOut,
-                builder: (_, val, __) => Transform.scale(
+                builder: (_, val, _) => Transform.scale(
                   scale: val,
                   child: Container(
                     width: 130,
