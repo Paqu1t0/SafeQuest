@@ -1,4 +1,5 @@
 import 'dart:async'; // NOVO: Para o temporizador
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
@@ -6,7 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart'; // Mantemos a segurança!
-import 'package:projeto_safequest/screens/home_page.dart';
+import 'package:projeto_safequest/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class MFAEmailPage extends StatefulWidget {
@@ -28,11 +29,18 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
   int _remainingSeconds = 60; // 60 segundos por defeito
   bool _canResend = false;
 
+  static DateTime? _lastEmailSentTime;
+
   @override
   void initState() {
     super.initState();
-    // Envia o código automaticamente quando o ecrã abre
-    _enviarCodigoEmail(isResend: false);
+    // Envia o código automaticamente quando o ecrã abre, 
+    // mas apenas se não tiver enviado nos últimos 30 segundos
+    // para evitar duplicação se o widget for recriado pelo StreamBuilder
+    if (_lastEmailSentTime == null || DateTime.now().difference(_lastEmailSentTime!).inSeconds > 30) {
+      _lastEmailSentTime = DateTime.now();
+      _enviarCodigoEmail(isResend: false);
+    }
   }
 
   @override
@@ -85,21 +93,34 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
         'mfa_verified': false,
       }, SetOptions(merge: true));
 
-      // 3. Envia o Email via EmailJS com chaves seguras do .env
+      // 3. Resolve as chaves (protegendo contra cache antigo na Web onde a string pode vir vazia em vez de nula)
+      final String serviceId = (dotenv.env['EMAILJS_SERVICE_ID'] ?? '').trim().isNotEmpty ? dotenv.env['EMAILJS_SERVICE_ID']!.trim() : 'service_rt72hfc';
+      final String templateId = (dotenv.env['EMAILJS_TEMPLATE_ID'] ?? '').trim().isNotEmpty ? dotenv.env['EMAILJS_TEMPLATE_ID']!.trim() : 'template_4j7usel';
+      final String publicKey = (dotenv.env['EMAILJS_PUBLIC_KEY'] ?? '').trim().isNotEmpty ? dotenv.env['EMAILJS_PUBLIC_KEY']!.trim() : 'b1RGSw2ImcD06VoT5';
+      final String privateKey = (dotenv.env['EMAILJS_PRIVATE_KEY'] ?? '').trim().isNotEmpty ? dotenv.env['EMAILJS_PRIVATE_KEY']!.trim() : 'syskG7nDtzV1evVHVzI17';
+
       final url = Uri.parse('https://api.emailjs.com/api/v1.0/email/send');
+      
+      final Map<String, dynamic> payload = {
+        'service_id': serviceId,
+        'template_id': templateId,
+        'user_id': publicKey,
+        'template_params': {
+          'to_email': user.email,
+          'mfa_code': _codigoGerado,
+        }
+      };
+
+      // Na Web, o EmailJS REJEITA pedidos com accessToken/PrivateKey por segurança (CORS).
+      // No Mobile, alguns templates podem exigir a Private Key para funcionar.
+      if (!kIsWeb) {
+        payload['accessToken'] = privateKey;
+      }
+
       final response = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
-        body: json.encode({
-          'service_id': dotenv.env['EMAILJS_SERVICE_ID']?.trim(),
-          'template_id': dotenv.env['EMAILJS_TEMPLATE_ID']?.trim(),
-          'user_id': dotenv.env['EMAILJS_PUBLIC_KEY']?.trim(),
-          'accessToken': dotenv.env['EMAILJS_PRIVATE_KEY']?.trim(), // A chave privada está protegida!
-          'template_params': {
-            'to_email': user.email,
-            'mfa_code': _codigoGerado,
-          }
-        }),
+        body: json.encode(payload),
       );
 
       if (response.statusCode == 200) {
@@ -135,20 +156,30 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
     if (codigoIntroduzido == _codigoGerado) {
       setState(() => _isLoading = true);
       
-      final uid = FirebaseAuth.instance.currentUser?.uid;
+      try {
+        final uid = FirebaseAuth.instance.currentUser?.uid;
 
-      // Marca na BD que o MFA foi validado com sucesso
-      await FirebaseFirestore.instance.collection('users').doc(uid).update({
-        'mfa_verified': true,
-      });
+        // Marca na BD que o MFA foi validado com sucesso usando set com merge
+        // Isto previne erros caso o documento do utilizador ainda não exista
+        await FirebaseFirestore.instance.collection('users').doc(uid).set({
+          'mfa_verified': true,
+        }, SetOptions(merge: true));
 
-      // ── NOVO: Guarda sessão MFA no SharedPreferences (30 dias) ──
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt('mfa_verified_at', DateTime.now().millisecondsSinceEpoch);
-      await prefs.setString('mfa_uid', uid ?? '');
+        // ── NOVO: Guarda sessão MFA no SharedPreferences (30 dias) ──
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setInt('mfa_verified_at', DateTime.now().millisecondsSinceEpoch);
+        await prefs.setString('mfa_uid', uid ?? '');
 
-      if (!mounted) return;
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomePage()));
+        if (!mounted) return;
+        Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const AuthGate()), (route) => false);
+      } catch (e) {
+        setState(() => _isLoading = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Erro ao verificar código: $e"), backgroundColor: Colors.red),
+          );
+        }
+      }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Código incorreto! Verifica o teu e-mail."), backgroundColor: Colors.red),
@@ -173,10 +204,10 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
           padding: const EdgeInsets.all(30),
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              minHeight: MediaQuery.of(context).size.height -
+              minHeight: (MediaQuery.of(context).size.height -
                   MediaQuery.of(context).padding.top -
                   MediaQuery.of(context).padding.bottom -
-                  60,
+                  60).clamp(0.0, double.infinity),
             ),
             child: Column(
                 children: [
@@ -184,7 +215,7 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
                   Row(
                     children: [
                       GestureDetector(
-                        onTap: () => Navigator.pop(context),
+                        onTap: () => FirebaseAuth.instance.signOut(),
                         child: const Row(
                           children: [
                             Icon(Icons.arrow_back_ios, size: 16, color: primaryColor),
@@ -225,6 +256,7 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
 
                   // 3. CARTÃO BRANCO CENTRAL (CAMPOS DE PIN E REENVIO)
                   Container(
+                    width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
                     decoration: BoxDecoration(
                       color: Colors.white,
@@ -288,22 +320,11 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
 
                   const SizedBox(height: 30),
 
-                  // 5. BOTÃO DE CONFIRMAR
-                  SizedBox(
-                    width: double.infinity,
-                    height: 55,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryColor,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                      ),
-                      onPressed: _isLoading ? null : _verificarEEntrar,
-                      child: _isLoading 
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Text('Confirmar Código', style: TextStyle(color: Colors.white, fontSize: 18)),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
+                  // 5. INDICADOR DE CARREGAMENTO (Auto-Submit)
+                  if (_isLoading)
+                    const Center(child: CircularProgressIndicator(color: primaryColor))
+                  else
+                    const SizedBox(height: 55),
                 ],
               ),
           ),
@@ -349,6 +370,11 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
             _focusNodes[index + 1].requestFocus();
           } else if (value.isEmpty && index > 0) {
             _focusNodes[index - 1].requestFocus();
+          } else if (value.isNotEmpty && index == 5) {
+            // Unfocus the keyboard automatically
+            _focusNodes[index].unfocus();
+            // Automatically verify the code
+            _verificarEEntrar();
           }
         },
       ),

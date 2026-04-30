@@ -177,13 +177,26 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
     super.initState();
 
     // Carrega perguntas consoante o tipo
-    final bank = widget.quizType == QuizType.vf
-        ? (_vfBank[widget.tema] ?? _vfBank['Phishing']!)
-        : (_questionBank[widget.tema] ?? _questionBank['Phishing']!);
+    List<QuizQuestion> bank = widget.quizType == QuizType.vf
+        ? List.of(_vfBank[widget.tema] ?? _vfBank['Phishing']!)
+        : List.of(_questionBank[widget.tema] ?? _questionBank['Phishing']!);
 
-    _questions = List.of(bank)..shuffle();
-    final maxQ = widget.quizType == QuizType.tempo ? 7 : 5;
-    if (_questions.length > maxQ) _questions = _questions.sublist(0, maxQ);
+    final total = bank.length;
+    final maxQ = widget.quizType == QuizType.tempo ? min(7, total) : min(5, total);
+
+    // Filtra perguntas consoante a dificuldade (assumindo que as mais difíceis estão no fim da lista)
+    if (widget.dificuldade == 'Iniciante') {
+      bank = bank.sublist(0, min(maxQ + 1, total));
+    } else if (widget.dificuldade == 'Intermédio') {
+      int start = (total - maxQ) ~/ 2;
+      bank = bank.sublist(start, min(start + maxQ + 1, total));
+    } else if (widget.dificuldade == 'Avançado') {
+      bank = bank.sublist(total - min(maxQ + 1, total), total);
+    }
+
+    bank.shuffle();
+    if (bank.length > maxQ) bank = bank.sublist(0, maxQ);
+    _questions = bank;
 
     _progressController = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
     _progressAnimation  = Tween<double>(begin: 0, end: _progressValue)
@@ -245,8 +258,11 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
 
     final soundEnabled = context.read<AppSettings>().soundEnabled;
     if (soundEnabled) {
-      if (isCorrect) SoundService.playCorrect();
-      else SoundService.playWrong();
+      if (isCorrect) {
+        SoundService.playCorrect();
+      } else {
+        SoundService.playWrong();
+      }
     }
 
     setState(() {
@@ -285,7 +301,8 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
   }
 
   // ── Atualiza streak de dias consecutivos ──────────────────────────────────
-  Future<void> _updateStreak(DocumentReference userRef) async {
+  Future<bool> _updateStreak(DocumentReference userRef, int percent) async {
+    if (percent <= 50) return false;
     try {
       final snap = await userRef.get();
       final data = snap.data() as Map<String, dynamic>? ?? {};
@@ -298,23 +315,27 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
       if (lastTs == null) {
         // Primeiro quiz alguma vez
         await userRef.update({'streak': 1, 'lastQuizDate': Timestamp.fromDate(today)});
-        return;
+        return true;
       }
 
       final lastDate  = DateTime(lastTs.toDate().year, lastTs.toDate().month, lastTs.toDate().day);
       final diff      = today.difference(lastDate).inDays;
 
       if (diff == 0) {
-        // Já fez um quiz hoje — não muda
-        return;
+        // Já fez um quiz >50% hoje — não muda
+        return false;
       } else if (diff == 1) {
         // Dia consecutivo — incrementa
         await userRef.update({'streak': streak + 1, 'lastQuizDate': Timestamp.fromDate(today)});
+        return true;
       } else {
         // Perdeu a sequência — recomeça
         await userRef.update({'streak': 1, 'lastQuizDate': Timestamp.fromDate(today)});
+        return true;
       }
-    } catch (_) {}
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Calcula moedas ganhas por percentagem — escala rigorosa
@@ -338,8 +359,9 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
     // ── Multiplicador de combo ────────────────────────────────────────────
     // Combo 2-3: ×1.2 | 4: ×1.5 | 5+: ×2.0
     double comboMultiplier = 1.0;
-    if (_maxCombo >= 5)      comboMultiplier = 2.0;
-    else if (_maxCombo == 4) comboMultiplier = 1.5;
+    if (_maxCombo >= 5) {
+      comboMultiplier = 2.0;
+    } else if (_maxCombo == 4) comboMultiplier = 1.5;
     else if (_maxCombo >= 2) comboMultiplier = 1.2;
 
     final rawPoints    = (basePoints * (_correctAnswers / _questions.length)).round();
@@ -366,8 +388,11 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
 
     final soundEnabled = context.read<AppSettings>().soundEnabled;
     if (soundEnabled) {
-      if (percent >= 70) SoundService.playVictory();
-      else SoundService.playFail();
+      if (percent > 50) {
+        SoundService.playVictory();
+      } else {
+        SoundService.playFail();
+      }
     }
 
     // ── Verifica badges ANTES de abrir o dialog (fix: badge real em vez do combo) ──
@@ -382,7 +407,7 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
       try {
         final snap = await FirebaseFirestore.instance
             .collection('users').doc(user.uid).get();
-        pontosAntes = ((snap.data() as Map<String, dynamic>?)?['pontos'] ?? 0) as int;
+        pontosAntes = ((snap.data())?['pontos'] ?? 0) as int;
       } catch (_) {}
     }
     final nivelAntes  = (pontosAntes ~/ 250) + 1;
@@ -424,7 +449,7 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
 
         // Pontos do clã
         final userSnap = await userRef.get();
-        final userData = userSnap.data() as Map<String, dynamic>? ?? {};
+        final userData = userSnap.data() ?? {};
         final clanId   = userData['clanId'] as String?;
         if (clanId != null && clanId.isNotEmpty) {
           await FirebaseFirestore.instance.collection('clans').doc(clanId)
@@ -432,22 +457,17 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
         }
 
         // Streak
-        await _updateStreak(userRef);
+        final streakUpdated = await _updateStreak(userRef, percent);
 
         // ── Animações de moedas e streak ──────────────────────────────────
         if (mounted) {
           CoinAnimation.show(context, coins: moedasGanhas);
 
-          // Streak — só no primeiro quiz do dia (quizzesDone era 0 antes)
+          // Streak — só no primeiro quiz do dia > 50%
           final updatedSnap = await userRef.get();
-          final streak      = ((updatedSnap.data() as Map<String,dynamic>?)?['streak'] ?? 0) as int;
-          final missionSnap = await userRef.collection('daily_missions')
-              .doc(DailyMissionsService.todayKey()).get();
-          final quizzesDoneToday = (missionSnap.exists
-              ? (missionSnap.data()?['quizzesDone'] ?? 0) as int
-              : 0);
-          // quizzesDoneToday == 1 significa que este foi o primeiro quiz do dia
-          if (streak >= 2 && quizzesDoneToday == 1) {
+          final streak      = ((updatedSnap.data())?['streak'] ?? 0) as int;
+          
+          if (streakUpdated && streak >= 2) {
             await Future.delayed(const Duration(milliseconds: 1000));
             if (mounted) StreakAnimation.show(context, streak: streak);
           }
@@ -514,7 +534,10 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: _primaryDeep, size: 20),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () {
+            FocusManager.instance.primaryFocus?.unfocus();
+            Navigator.of(context).pop();
+          },
         ),
         title: Column(
           children: [
@@ -575,7 +598,7 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
                 const SizedBox(height: 8),
                 AnimatedBuilder(
                   animation: _progressAnimation,
-                  builder: (_, __) => ClipRRect(
+                  builder: (_, _) => ClipRRect(
                     borderRadius: BorderRadius.circular(10),
                     child: LinearProgressIndicator(
                       value: _progressAnimation.value, minHeight: 8,
@@ -589,7 +612,7 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
                   const SizedBox(height: 8),
                   AnimatedBuilder(
                     animation: _timerBarCtrl,
-                    builder: (_, __) {
+                    builder: (_, _) {
                       final remaining = _timeLeft / 15.0;
                       final barColor = remaining > 0.5
                           ? const Color(0xFF16A34A)

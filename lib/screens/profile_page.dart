@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import 'package:projeto_safequest/services/app_settings.dart';
 import 'package:projeto_safequest/screens/avatar_store_page.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'login_screen.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -46,7 +47,7 @@ class _ProfilePageState extends State<ProfilePage> {
         });
       } else {
         // Utilizador existente: se ainda não tem photoUrl no Firestore mas tem no Google, sincronizar
-        final data = doc.data() as Map<String, dynamic>? ?? {};
+        final data = doc.data() ?? {};
         final firestorePhoto = data['photoUrl'] as String? ?? '';
         if (firestorePhoto.isEmpty && (user!.photoURL?.isNotEmpty ?? false)) {
           await userDoc.update({'photoUrl': user!.photoURL});
@@ -214,7 +215,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ),
                       CupertinoSwitch(
-                        activeColor: const Color(0xFF1A56DB),
+                        activeTrackColor: const Color(0xFF1A56DB),
                         value: settings.soundEnabled,
                         onChanged: (v) => context.read<AppSettings>().setSoundEnabled(v),
                       ),
@@ -363,6 +364,44 @@ class _ProfilePageState extends State<ProfilePage> {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => AvatarStorePage()));
                 },
               ),
+              const SizedBox(height: 20),
+              const Divider(),
+              const SizedBox(height: 10),
+              // Opção: Usar minha foto (Google/Firebase)
+              Center(
+                child: StreamBuilder<DocumentSnapshot>(
+                  stream: FirebaseFirestore.instance.collection('users').doc(user?.uid).snapshots(),
+                  builder: (context, snap) {
+                    final data = snap.data?.data() as Map<String, dynamic>? ?? {};
+                    final photoUrl = data['photoUrl'] as String? ?? user?.photoURL ?? '';
+                    return GestureDetector(
+                      onTap: () async {
+                        Navigator.pop(ctx);
+                        await FirebaseFirestore.instance.collection('users').doc(user?.uid).update({'avatar': 'default'});
+                      },
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(color: const Color(0xFF2563EB).withOpacity(0.5), width: 2),
+                            ),
+                            child: CircleAvatar(
+                              radius: 26,
+                              backgroundColor: Colors.grey[200],
+                              backgroundImage: photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
+                              child: photoUrl.isEmpty ? const Icon(Icons.person, color: Colors.grey) : null,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          const Text('Usar Minha Foto', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
+                        ],
+                      ),
+                    );
+                  }
+                ),
+              ),
             ],
           ),
         ),
@@ -395,9 +434,8 @@ class _ProfilePageState extends State<ProfilePage> {
     final emoji = _avatarEmoji[avatarId] ?? '👤';
     final color = _avatarColor[avatarId] ?? const Color(0xFF1A56DB);
     final hasPhonePhoto   = _imageFile != null;
-    // Usa sempre a photoUrl do Firestore (que já inclui a do Google sincronizada)
     final hasNetworkPhoto = photoUrl.isNotEmpty;
-    final useStoreAvatar  = !hasPhonePhoto && avatarId != 'default';
+    final useStoreAvatar  = avatarId != 'default';
 
     // Cores do banner
     final bannerColors = _getBannerColors(bannerId);
@@ -573,7 +611,10 @@ class _ProfilePageState extends State<ProfilePage> {
         side: const BorderSide(color: Color(0xFFE2E8F0)),
       ),
       onPressed: () async {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('mfa_verified_at');
         await FirebaseAuth.instance.signOut();
+        if (!context.mounted) return;
         Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const LoginPage()), (route) => false);
       },
       child: const Row(
@@ -924,7 +965,25 @@ class _EditProfilePageState extends State<EditProfilePage> {
               ElevatedButton(
                 style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 55), backgroundColor: const Color(0xFF1D4ED8), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                 onPressed: () async {
-                  await FirebaseFirestore.instance.collection('users').doc(user?.uid).update({'nickname': _nicknameController.text, 'name': _nameController.text, 'bio': _bioController.text});
+                  final nickname = _nicknameController.text.trim();
+                  
+                  // Verifica se o nickname já existe noutra conta
+                  final query = await FirebaseFirestore.instance
+                      .collection('users')
+                      .where('nickname', isEqualTo: nickname)
+                      .limit(1)
+                      .get();
+                      
+                  if (query.docs.isNotEmpty && query.docs.first.id != user?.uid) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Este nickname já está em uso. Escolhe outro.'), backgroundColor: Colors.red, duration: Duration(milliseconds: 2000)),
+                      );
+                    }
+                    return;
+                  }
+
+                  await FirebaseFirestore.instance.collection('users').doc(user?.uid).update({'nickname': nickname, 'name': _nameController.text, 'bio': _bioController.text});
                   if (!mounted) return;
                   Navigator.pop(context);
                 },
@@ -991,7 +1050,7 @@ class _PrivacyPageState extends State<PrivacyPage> {
     if (user == null) return;
     final snap = await FirebaseFirestore.instance.collection('users').doc(user!.uid).get();
     if (snap.exists) {
-      final data = snap.data() as Map<String, dynamic>? ?? {};
+      final data = snap.data() ?? {};
       setState(() {
         _visibility  = data['privacy']      ?? 'publico';
         _emailNotifs = data['emailNotifs']   ?? true;
@@ -1014,7 +1073,7 @@ class _PrivacyPageState extends State<PrivacyPage> {
     setState(() => _saving = false);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✅ Definições guardadas!'), backgroundColor: Colors.green),
+        const SnackBar(content: Text('✅ Definições guardadas!'), backgroundColor: Colors.green, duration: Duration(milliseconds: 1500)),
       );
       Navigator.pop(context);
     }
@@ -1214,7 +1273,7 @@ class _PrivacyPageState extends State<PrivacyPage> {
       contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 5),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 15)),
       subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-      trailing: CupertinoSwitch(activeColor: const Color(0xFF2563EB), value: value, onChanged: onChanged),
+      trailing: CupertinoSwitch(activeTrackColor: const Color(0xFF2563EB), value: value, onChanged: onChanged),
     );
   }
 }

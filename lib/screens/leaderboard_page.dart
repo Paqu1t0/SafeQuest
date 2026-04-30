@@ -169,7 +169,7 @@ class _LeaderboardPageState extends State<LeaderboardPage>
           itemBuilder: (context, index) {
             final data     = docs[index].data() as Map<String, dynamic>;
             final uid      = docs[index].id;
-            final name     = data['name']     ?? data['nickname'] ?? 'Jogador';
+            final name     = data['nickname'] ?? data['name'] ?? 'Jogador';
             final pontos   = (data['pontos']  ?? 0) as int;
             final avatarId = data['avatar']   ?? 'default';
             final isMe     = uid == currentUser?.uid;
@@ -233,7 +233,7 @@ class _LeaderboardPageState extends State<LeaderboardPage>
           )),
           // Pontos + medalha
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            if (medal != null) medal,
+            ?medal,
             Text('$pontos pts',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isMe ? _primary : const Color(0xFF3B82F6))),
           ]),
@@ -347,7 +347,7 @@ class _LeaderboardPageState extends State<LeaderboardPage>
             Row(children: [const Icon(Icons.people_outline, size: 12, color: Colors.grey), const SizedBox(width: 4), Text('$members membros', style: const TextStyle(color: Colors.grey, fontSize: 12))]),
           ])),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            if (medal != null) medal,
+            ?medal,
             Text('$points pts', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isMyClan ? _primary : const Color(0xFF3B82F6))),
           ]),
         ]),
@@ -520,9 +520,11 @@ class _LeaderboardPageState extends State<LeaderboardPage>
                               batch.update(FirebaseFirestore.instance.collection('users').doc(currentUser!.uid), {'clanId': clanId});
                               batch.update(FirebaseFirestore.instance.collection('clans').doc(clanId), {'memberIds': FieldValue.arrayUnion([currentUser!.uid])});
                               await batch.commit();
-                              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(content: Text('Entraste no clã $name! 🎉'), backgroundColor: const Color(0xFF22C55E)),
                               );
+                              }
                             } : null,
                           ),
                         ]),
@@ -691,7 +693,7 @@ class _LeaderboardPageState extends State<LeaderboardPage>
     for (final uid in uids) {
       final snap = await FirebaseFirestore.instance.collection('users').doc(uid).get();
       if (snap.exists) {
-        final data = snap.data() as Map<String, dynamic>? ?? {};
+        final data = snap.data() ?? {};
         results.add({...data, 'uid': uid});
       }
     }

@@ -91,7 +91,7 @@ class _MemberProfilePageState extends State<MemberProfilePage>
         }
 
         final data      = snap.data!.data() as Map<String, dynamic>? ?? {};
-        final name      = data['name']     ?? data['nickname'] ?? 'Jogador';
+        final name      = data['nickname'] ?? data['name'] ?? 'Jogador';
         final pontos    = (data['pontos']  ?? 0) as int;
         final streak    = (data['streak']  ?? 0) as int;
         final avatarId  = data['avatar']   ?? 'default';
@@ -239,21 +239,23 @@ class _MemberProfilePageState extends State<MemberProfilePage>
   // ── Adicionar amigo ───────────────────────────────────────────────────────
   Future<void> _sendFriendRequest(BuildContext context, String toName) async {
     if (_currentUser == null) return;
-    final myDoc = await FirebaseFirestore.instance.collection('users').doc(_currentUser!.uid).get();
+    final myDoc = await FirebaseFirestore.instance.collection('users').doc(_currentUser.uid).get();
     final myName = (myDoc.data()?['name'] ?? 'Jogador') as String;
     await FirebaseFirestore.instance.collection('users').doc(widget.uid).update({
-      'friendRequests': FieldValue.arrayUnion([{'from': _currentUser!.uid, 'fromName': myName, 'status': 'pending'}]),
+      'friendRequests': FieldValue.arrayUnion([{'from': _currentUser.uid, 'fromName': myName, 'status': 'pending'}]),
     });
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Pedido enviado a $toName! 📨'), backgroundColor: Colors.green),
     );
+    }
   }
 
   Future<void> _removeFriend(BuildContext context) async {
     if (_currentUser == null) return;
     final batch = FirebaseFirestore.instance.batch();
-    batch.update(FirebaseFirestore.instance.collection('users').doc(_currentUser!.uid), {'friends': FieldValue.arrayRemove([widget.uid])});
-    batch.update(FirebaseFirestore.instance.collection('users').doc(widget.uid), {'friends': FieldValue.arrayRemove([_currentUser!.uid])});
+    batch.update(FirebaseFirestore.instance.collection('users').doc(_currentUser.uid), {'friends': FieldValue.arrayRemove([widget.uid])});
+    batch.update(FirebaseFirestore.instance.collection('users').doc(widget.uid), {'friends': FieldValue.arrayRemove([_currentUser.uid])});
     await batch.commit();
     if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Amigo removido.'), backgroundColor: Colors.orange));
   }

@@ -295,7 +295,7 @@ class _QuizResultDialogState extends State<QuizResultDialog>
 
     return AnimatedBuilder(
       animation: _starsOpacity,
-      builder: (_, __) => Container(
+      builder: (_, _) => Container(
         width: double.infinity,
         height: 180,
         decoration: BoxDecoration(
@@ -370,7 +370,7 @@ class _QuizResultDialogState extends State<QuizResultDialog>
   Widget _buildCirclePercent() {
     return AnimatedBuilder(
       animation: _circleProgress,
-      builder: (_, __) {
+      builder: (_, _) {
         final pct = (_circleProgress.value * 100).round();
         return SizedBox(
           width: 140, height: 140,
@@ -636,16 +636,30 @@ class _QuizResultDialogState extends State<QuizResultDialog>
           // 1. Lê o clanId do utilizador
           final userDoc = await FirebaseFirestore.instance
               .collection('users').doc(user.uid).get();
-          final userData   = userDoc.data() as Map<String, dynamic>? ?? {};
+          final userData   = userDoc.data() ?? {};
           final clanId     = userData['clanId'] as String?;
           final senderName = userData['nickname'] ?? userData['name'] ?? 'Jogador';
 
           if (clanId == null || clanId.isEmpty) {
             if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Não estás em nenhum clã! Junta-te a um clã primeiro.'),
-                  backgroundColor: Colors.orange,
+              showDialog(
+                context: context,
+                builder: (_) => AlertDialog(
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  title: const Row(
+                    children: [
+                      Icon(Icons.group_off_rounded, color: Colors.orange),
+                      SizedBox(width: 10),
+                      Text('Sem Clã', style: TextStyle(color: Color(0xFF1E3A8A))),
+                    ],
+                  ),
+                  content: const Text('Ainda não estás em nenhum clã! Junta-te a um clã para partilhares os teus resultados com os teus amigos.'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('OK', style: TextStyle(color: Color(0xFF1A56DB), fontWeight: FontWeight.bold)),
+                    ),
+                  ],
                 ),
               );
             }
@@ -678,6 +692,7 @@ class _QuizResultDialogState extends State<QuizResultDialog>
               const SnackBar(
                 content: Text('🎉 Resultado partilhado no chat do clã!'),
                 backgroundColor: Color(0xFF7C3AED),
+                duration: Duration(milliseconds: 1500),
               ),
             );
           }
@@ -731,6 +746,7 @@ class _QuizResultDialogState extends State<QuizResultDialog>
         icon: const Icon(Icons.home_rounded, color: Color(0xFF1A56DB), size: 20),
         label: const Text('Voltar ao Início', style: TextStyle(color: Color(0xFF1A56DB), fontSize: 15, fontWeight: FontWeight.bold)),
         onPressed: () {
+          FocusManager.instance.primaryFocus?.unfocus();
           Navigator.of(context).pop();
           Navigator.of(context).pop();
         },
@@ -744,7 +760,7 @@ class _QuizResultDialogState extends State<QuizResultDialog>
     final hasMoedas = widget.moedasGanhas > 0;
     return AnimatedBuilder(
       animation: _coinsCtrl,
-      builder: (_, __) => Opacity(
+      builder: (_, _) => Opacity(
         opacity: _coinsOpacity.value,
         child: Transform.scale(
           scale: _coinsScale.value,
@@ -871,7 +887,7 @@ class _SparkleIconState extends State<_SparkleIcon>
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _rotate,
-      builder: (_, __) => Transform.rotate(
+      builder: (_, _) => Transform.rotate(
         angle: _rotate.value,
         child: const Icon(Icons.auto_awesome_rounded, color: Color(0xFFFBBF24), size: 26),
       ),
@@ -914,7 +930,7 @@ class _PulseIconState extends State<_PulseIcon>
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: _scale,
-      builder: (_, __) => Transform.scale(
+      builder: (_, _) => Transform.scale(
         scale: _scale.value,
         child: Container(
           width: 52,

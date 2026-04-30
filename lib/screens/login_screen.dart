@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:projeto_safequest/screens/register_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:projeto_safequest/screens/home_page.dart';
 import 'package:projeto_safequest/screens/forgot_password_page.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-import 'package:projeto_safequest/screens/mfa_email_page.dart'; 
-import 'package:projeto_safequest/main.dart';
-import 'package:projeto_safequest/screens/notification_service.dart'; 
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 
@@ -67,7 +63,12 @@ class _LoginPageState extends State<LoginPage> {
       final GoogleSignIn googleSignIn = GoogleSignIn(
         clientId: kIsWeb ? '434644951500-d3a8cje44ae981sei1seaola675jflcd.apps.googleusercontent.com' : null,
       );
-      await googleSignIn.signOut(); // Força escolha de conta
+      
+      // No Web, o signOut assíncrono antes do signIn faz com que o browser bloqueie o popup
+      // por perda de contexto do clique do utilizador (popup_closed). Só fazemos no mobile.
+      if (!kIsWeb) {
+        await googleSignIn.signOut(); // Força escolha de conta
+      }
 
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
       if (googleUser == null) return; 
@@ -80,16 +81,11 @@ class _LoginPageState extends State<LoginPage> {
 
       // Persistência de sessão — no mobile o Firebase já usa LOCAL por defeito
       // O "Lembra-me" é gerido via SharedPreferences + MFA gate
-
-      await FirebaseAuth.instance.signInWithCredential(credential);
       await _saveRememberMe();
+      await FirebaseAuth.instance.signInWithCredential(credential);
 
-      if (!mounted) return;
-      
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const MFAEmailPage()),
-      );
+      // A navegação é gerida automaticamente pelo AuthGate no main.dart
+      // que deteta a mudança de estado e redireciona para o MFA.
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -104,20 +100,14 @@ class _LoginPageState extends State<LoginPage> {
       try {
         // Persistência de sessão — no mobile o Firebase já usa LOCAL por defeito
         // O "Lembra-me" é gerido via SharedPreferences + MFA gate
+        await _saveRememberMe();
 
         await FirebaseAuth.instance.signInWithEmailAndPassword(
           email: _emailController.text.trim(),
           password: _passwordController.text.trim(),
         );
 
-        await _saveRememberMe();
-
-        if (!mounted) return;
-
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const MFAEmailPage()),
-        );
+        // A navegação é gerida automaticamente pelo AuthGate no main.dart
       } on FirebaseAuthException catch (e) {
         String mensagem = "Email ou senha incorretos";
         if (e.code == 'user-not-found') mensagem = "Utilizador não encontrado";

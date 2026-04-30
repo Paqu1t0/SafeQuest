@@ -117,7 +117,7 @@ class _RecompensasPageState extends State<RecompensasPage>
             tween: Tween(begin: 0, end: total > 0 ? ganho / total : 0),
             duration: const Duration(milliseconds: 800),
             curve: Curves.easeOut,
-            builder: (_, val, __) => ClipRRect(
+            builder: (_, val, _) => ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: LinearProgressIndicator(value: val, backgroundColor: Colors.white24, color: const Color(0xFF60A5FA), minHeight: 8),
             ),
