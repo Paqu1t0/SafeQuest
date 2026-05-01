@@ -84,6 +84,10 @@ clans/{id}                        → informações do clã, memberIds, papéis,
 clans/{id}/messages               → mensagens de chat em tempo real e cartões de batalha
 clan_battles/{id}                 → registos de batalhas abertas / em curso / concluídas
 mail                              → fila de e-mail (processada pela extensão Trigger Email)
+
+---
+
+
 ## ⚠️ Limitações
 *   A aplicação não foi testada num ambiente de produção em grande escala; o desequilíbrio de classes entre utilizadores ativos e inativos pode afetar a relevância das notificações.
 *   A análise por IA requer uma ligação ativa à internet e uma chave de API do Gemini válida configurada no ficheiro `.env`.
