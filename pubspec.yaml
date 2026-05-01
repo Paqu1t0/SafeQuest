@@ -124,7 +124,6 @@ flutter:
 
 
   assets:
-    - .env
     - assets/conhecimento_safequest.txt
     - assets/sounds/
     - assets/icon/
