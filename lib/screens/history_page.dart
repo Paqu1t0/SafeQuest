@@ -8,6 +8,7 @@ import 'dart:convert';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:projeto_safequest/env.dart';
 import 'package:projeto_safequest/screens/quiz_detail_page.dart';
 
 class HistoryPage extends StatefulWidget {
@@ -374,9 +375,9 @@ class _HistoryPageState extends State<HistoryPage>
                           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: _primaryDeep)),
                     ),
                   ]),
-                  const SizedBox(height: 16),
                   MarkdownBody(
                     data: _aiAnalysis!,
+                    selectable: true,
                     softLineBreak: true,
                     styleSheet: MarkdownStyleSheet(
                       h2: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A), height: 1.5),
@@ -386,6 +387,7 @@ class _HistoryPageState extends State<HistoryPage>
                       blockSpacing: 8,
                     ),
                   ),
+                  const SizedBox(height: 10),
                 ],
               ),
             ),
@@ -621,7 +623,7 @@ class _HistoryPageState extends State<HistoryPage>
 
     buffer.writeln('''
 
-INSTRUÇÃO: Responde em Português de Portugal, de forma MUITO CURTA e direta (máximo 8-10 linhas).
+INSTRUÇÃO: Responde em Português de Portugal, de forma direta e concisa.
 Usa EXATAMENTE este formato:
 
 ## ⚠️ Quiz Recomendado
@@ -634,8 +636,7 @@ Usa EXATAMENTE este formato:
 [1 frase com ação concreta para melhorar.]
 ''');
 
-    final String envKey = (dotenv.env['GEMINI_API_KEY'] ?? '').trim();
-    final apiKey = envKey.isNotEmpty ? envKey : 'AIzaSyCB7wRXxuXv6o0oaVwxY9OLh_emUhn_eJQ';
+    final apiKey = Env.geminiApiKey;
 
     if (apiKey.isEmpty) {
       setState(() {
@@ -651,7 +652,7 @@ Usa EXATAMENTE este formato:
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'contents': [{'role': 'user', 'parts': [{'text': buffer.toString()}]}],
-          'generationConfig': {'maxOutputTokens': 1200, 'temperature': 0.6},
+          'generationConfig': {'maxOutputTokens': 2048, 'temperature': 0.7},
         }),
       ).timeout(const Duration(seconds: 60));
 
@@ -666,14 +667,15 @@ Usa EXATAMENTE este formato:
           return;
         }
         final parts = (candidates[0] as Map<String, dynamic>)['content']['parts'] as List;
-        // Gemini 2.5-flash tem "thinking" parts com thought:true — apanha só a resposta real
+        
+        // Gemini 2.5-flash tem "thinking" parts com thought:true. Filtramos os thoughts e juntamos o texto que sobra!
         final responseParts = parts.where((p) {
           final pMap = p as Map<String, dynamic>;
           return pMap['thought'] != true && (pMap['text'] as String? ?? '').isNotEmpty;
         }).toList();
-        final text = responseParts.isNotEmpty
-            ? (responseParts.last as Map<String, dynamic>)['text'] as String
-            : (parts.last as Map<String, dynamic>)['text'] as String;
+        
+        final text = responseParts.map((p) => (p as Map<String, dynamic>)['text'] as String).join('');
+        
         setState(() { _aiAnalysis = text.trim(); _aiLoading = false; });
       } else {
         // Log do erro real para diagnóstico

@@ -37,6 +37,7 @@ class NotificationService {
   // Só notificações de clã, batalhas e amigos (exclui automáticas quiz_reminder)
   static const _allowedTypes = [
     'friend_added',
+    'friend_request',
     'clan_promoted',
     'clan_demoted',
     'clan_kicked',
@@ -72,12 +73,13 @@ class NotificationsDialog extends StatelessWidget {
   const NotificationsDialog({super.key, required this.uid});
 
   static const _typeIcon = {
-    'friend_added'  : ('👥', Color(0xFF16A34A)),
-    'clan_promoted' : ('⬆️', Color(0xFF7C3AED)),
-    'clan_demoted'  : ('⬇️', Color(0xFFD97706)),
-    'clan_kicked'   : ('🚫', Color(0xFFDC2626)),
-    'quiz_reminder' : ('🎯', Color(0xFF1A56DB)),
-    'clan_battle'   : ('⚔️', Color(0xFFEA580C)),
+    'friend_added'   : ('👥', Color(0xFF16A34A)),
+    'friend_request' : ('👋', Color(0xFF3B82F6)),
+    'clan_promoted'  : ('⬆️', Color(0xFF7C3AED)),
+    'clan_demoted'   : ('⬇️', Color(0xFFD97706)),
+    'clan_kicked'    : ('🚫', Color(0xFFDC2626)),
+    'quiz_reminder'  : ('🎯', Color(0xFF1A56DB)),
+    'clan_battle'    : ('⚔️', Color(0xFFEA580C)),
   };
 
   @override

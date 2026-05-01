@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
 import 'package:projeto_safequest/services/app_settings.dart';
 import 'screens/login_screen.dart';
@@ -29,7 +28,6 @@ Future<void> _backgroundHandler(RemoteMessage message) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await dotenv.load(fileName: ".env");
   
   // Aqui fizeste perfeitamente bem!
   await Firebase.initializeApp(
@@ -131,6 +129,7 @@ class AuthGate extends StatefulWidget {
 class _AuthGateState extends State<AuthGate> {
   bool _isOnline = true;
   bool _wasOffline = false; // track if we need to reload on reconnect
+  bool _offlineBannerDismissed = false;
 
   // Features que requerem internet
   static const _offlineFeatures = [
@@ -164,7 +163,13 @@ class _AuthGateState extends State<AuthGate> {
       final wasOffline = !_isOnline;
       setState(() {
         _isOnline = online;
-        if (online && wasOffline) _wasOffline = true;
+        if (online && wasOffline) {
+          _wasOffline = true;
+          _offlineBannerDismissed = false;
+        }
+        if (!online) {
+          _offlineBannerDismissed = false; 
+        }
       });
       // Auto-reload: quando internet volta, recarrega a página (reseta o estado)
       if (online && wasOffline && mounted) {
@@ -180,7 +185,7 @@ class _AuthGateState extends State<AuthGate> {
     return Stack(
       children: [
         StreamBuilder<User?>(
-          stream: FirebaseAuth.instance.authStateChanges(),
+          stream: FirebaseAuth.instance.userChanges(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Scaffold(
@@ -194,7 +199,7 @@ class _AuthGateState extends State<AuthGate> {
           },
         ),
         // ── Banner de sem internet (aparece por cima de tudo) ──────────────
-        if (!_isOnline) _buildOfflineBanner(),
+        if (!_isOnline && !_offlineBannerDismissed) _buildOfflineBanner(),
         // ── Banner de internet restaurada ──────────────────────────────────
         if (_isOnline && _wasOffline) _buildOnlineBanner(),
       ],
@@ -207,61 +212,74 @@ class _AuthGateState extends State<AuthGate> {
       left: 0,
       right: 0,
       child: SafeArea(
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1E293B),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.25), blurRadius: 20, offset: const Offset(0, 6))],
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Header
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFDC2626),
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        child: Dismissible(
+          key: const Key('offline_banner'),
+          direction: DismissDirection.up,
+          onDismissed: (_) => setState(() => _offlineBannerDismissed = true),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E293B),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.25), blurRadius: 20, offset: const Offset(0, 6))],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFDC2626),
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                  ),
+                  child: const Row(children: [
+                    Icon(Icons.wifi_off_rounded, color: Colors.white, size: 18),
+                    SizedBox(width: 8),
+                    Expanded(child: Text('Sem ligação à internet', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14))),
+                    Icon(Icons.keyboard_arrow_up, color: Colors.white70, size: 16), // Dica de swipe
+                  ]),
                 ),
-                child: const Row(children: [
-                  Icon(Icons.wifi_off_rounded, color: Colors.white, size: 18),
-                  SizedBox(width: 8),
-                  Expanded(child: Text('Sem ligação à internet', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14))),
-                  Text('⚠️', style: TextStyle(fontSize: 16)),
-                ]),
-              ),
-              // Body
-              Padding(
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Funcionalidades indisponíveis sem internet:',
-                        style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11, fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 6, runSpacing: 6,
-                      children: _offlineFeatures.map((f) => Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF334155),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(mainAxisSize: MainAxisSize.min, children: [
-                          Text(f.$1, style: const TextStyle(fontSize: 12)),
-                          const SizedBox(width: 4),
-                          Text(f.$2, style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 11, fontWeight: FontWeight.w500)),
-                        ]),
-                      )).toList(),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text('Liga o Wi-Fi ou dados móveis para aceder a todas as funcionalidades.',
-                        style: TextStyle(color: Color(0xFF64748B), fontSize: 11, height: 1.4)),
-                  ],
+                // Body
+                Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Funcionalidades indisponíveis sem internet:',
+                          style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 6, runSpacing: 6,
+                        children: _offlineFeatures.map((f) => Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF334155),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                            Text(f.$1, style: const TextStyle(fontSize: 12)),
+                            const SizedBox(width: 4),
+                            Text(f.$2, style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 11, fontWeight: FontWeight.w500)),
+                          ]),
+                        )).toList(),
+                      ),
+                      const SizedBox(height: 8),
+                      const Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text('Desliza para cima para ignorar este aviso.',
+                                style: TextStyle(color: Color(0xFF64748B), fontSize: 10, fontStyle: FontStyle.italic)),
+                          ),
+                          Icon(Icons.swipe_up_rounded, color: Colors.grey, size: 14),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:projeto_safequest/screens/member_profile_page.dart';
+import 'package:projeto_safequest/screens/profile_page.dart';
 import 'package:projeto_safequest/screens/notification_service.dart';
 
 
@@ -21,6 +22,7 @@ class _FriendsPageState extends State<FriendsPage>
   String _search    = '';
   bool   _searching = false;
   List<Map<String, dynamic>> _searchResults = [];
+  final Set<String> _sentRequests = {};
 
   late TabController _tabCtrl;
 
@@ -83,21 +85,66 @@ class _FriendsPageState extends State<FriendsPage>
   Future<void> _sendFriendRequest(String toUid, String toName) async {
     if (user == null) return;
     final myDoc = await FirebaseFirestore.instance.collection('users').doc(user!.uid).get();
-    final myName = (myDoc.data()?['name'] ?? 'Jogador') as String;
+    final myData = myDoc.data() ?? {};
+    final myNickname = myData['nickname'] as String? ?? '';
+    final myName = myData['name'] as String? ?? 'Jogador';
+    final fromDisplayName = myNickname.isNotEmpty ? myNickname : myName;
 
     // Adiciona pedido no documento do destinatário
     await FirebaseFirestore.instance.collection('users').doc(toUid).update({
       'friendRequests': FieldValue.arrayUnion([{
         'from'    : user!.uid,
-        'fromName': myName,
+        'fromName': fromDisplayName,
         'status'  : 'pending',
       }]),
     });
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Pedido enviado a $toName! 📨'), backgroundColor: Colors.green),
+    // Notificação para o destinatário
+    await NotificationService.send(
+      toUid: toUid,
+      title: '👋 Novo pedido de amizade!',
+      body: '$fromDisplayName quer ser teu amigo.',
+      type: 'friend_request',
     );
+
+    if (mounted) {
+      setState(() => _sentRequests.add(toUid));
+      showDialog(
+        context: context,
+        builder: (ctx) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: const BoxDecoration(color: Color(0xFFF0FDF4), shape: BoxShape.circle),
+                  child: const Icon(Icons.mark_email_read_rounded, color: Colors.green, size: 40),
+                ),
+                const SizedBox(height: 16),
+                const Text('Pedido Enviado', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _primaryDeep)),
+                const SizedBox(height: 8),
+                Text('O teu pedido de amizade foi enviado para $toName.', textAlign: TextAlign.center, style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _primary,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Entendido', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
     }
   }
 
@@ -105,7 +152,10 @@ class _FriendsPageState extends State<FriendsPage>
   Future<void> _acceptRequest(String fromUid, String fromName, List requests) async {
     if (user == null) return;
     final myDoc  = await FirebaseFirestore.instance.collection('users').doc(user!.uid).get();
-    final myName = (myDoc.data()?['name'] ?? 'Jogador') as String;
+    final myData = myDoc.data() ?? {};
+    final myNickname = myData['nickname'] as String? ?? '';
+    final myName = myData['name'] as String? ?? 'Jogador';
+    final myDisplayName = myNickname.isNotEmpty ? myNickname : myName;
 
     final batch = FirebaseFirestore.instance.batch();
     final myRef   = FirebaseFirestore.instance.collection('users').doc(user!.uid);
@@ -119,15 +169,48 @@ class _FriendsPageState extends State<FriendsPage>
     // Notificações para ambos
     await NotificationService.send(
       toUid : fromUid,
-      title : '👥 $myName aceitou o teu pedido!',
+      title : '👥 $myDisplayName aceitou o teu pedido!',
       body  : 'Já são amigos! Podem ver os perfis um do outro e competir nas classificações.',
       type  : 'friend_added',
     );
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$fromName é agora teu amigo! 🎉'), backgroundColor: Colors.green),
-    );
+      showDialog(
+        context: context,
+        builder: (ctx) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(color: Colors.green.withOpacity(0.12), shape: BoxShape.circle),
+                  child: const Icon(Icons.people_alt_rounded, color: Colors.green, size: 40),
+                ),
+                const SizedBox(height: 16),
+                const Text('Pedido Aceite', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _primaryDeep)),
+                const SizedBox(height: 8),
+                Text('$fromName é agora teu amigo! 🎉', textAlign: TextAlign.center, style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: _primary,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Ótimo!', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
     }
   }
 
@@ -317,7 +400,7 @@ class _FriendsPageState extends State<FriendsPage>
                 const SizedBox(width: 8),
                 // Aceitar
                 GestureDetector(
-                  onTap: () => _acceptRequest(fromUid, fromName, requests),
+                  onTap: () => _acceptRequest(fromUid, displayName, requests),
                   child: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(color: const Color(0xFFF0FDF4), borderRadius: BorderRadius.circular(10)),
@@ -376,16 +459,22 @@ class _FriendsPageState extends State<FriendsPage>
                 final isFriend = friends.contains(uid);
                 final isPending = pendingUids.contains(uid);
 
+                final uReqs = List.from(u['friendRequests'] ?? []);
+                final bool hasSentRequest = uReqs.any((r) => r is Map && r['from'] == user?.uid);
+                final isSent = _sentRequests.contains(uid) || hasSentRequest;
+
                 return _userCard(
                   uid: uid, name: displayName, pontos: pontos, nivel: nivel, avatarId: avatarId,
                   trailing: isFriend
                       ? Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: const Color(0xFFF0FDF4), borderRadius: BorderRadius.circular(10)), child: const Text('Amigo ✓', style: TextStyle(color: Color(0xFF16A34A), fontWeight: FontWeight.bold, fontSize: 12)))
-                      : isPending
-                          ? Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: const Color(0xFFFEF3C7), borderRadius: BorderRadius.circular(10)), child: const Text('Pendente', style: TextStyle(color: Color(0xFF92400E), fontWeight: FontWeight.bold, fontSize: 12)))
-                          : GestureDetector(
-                              onTap: () => _sendFriendRequest(uid, name as String),
-                              child: Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: _primary, borderRadius: BorderRadius.circular(10)), child: const Text('Adicionar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12))),
-                            ),
+                      : isSent
+                          ? Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(10)), child: const Text('Enviado', style: TextStyle(color: _primary, fontWeight: FontWeight.bold, fontSize: 12)))
+                          : isPending
+                              ? Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: const Color(0xFFFEF3C7), borderRadius: BorderRadius.circular(10)), child: const Text('Pendente', style: TextStyle(color: Color(0xFF92400E), fontWeight: FontWeight.bold, fontSize: 12)))
+                              : GestureDetector(
+                                  onTap: () => _sendFriendRequest(uid, displayName),
+                                  child: Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: _primary, borderRadius: BorderRadius.circular(10)), child: const Text('Adicionar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12))),
+                                ),
                 );
               },
             ),
@@ -400,7 +489,13 @@ class _FriendsPageState extends State<FriendsPage>
     final color = _avatarColor[avatarId] ?? _primary;
 
     return GestureDetector(
-      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => MemberProfilePage(uid: uid))),
+      onTap: () {
+        if (uid == FirebaseAuth.instance.currentUser?.uid) {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfilePage()));
+        } else {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => MemberProfilePage(uid: uid)));
+        }
+      },
       child: Container(
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),

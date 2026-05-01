@@ -1,5 +1,5 @@
 const functions = require('firebase-functions/v1');
-const admin     = require('firebase-admin');
+const admin = require('firebase-admin');
 admin.initializeApp();
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -7,7 +7,7 @@ admin.initializeApp();
 // Alterar para o teu domínio de Firebase Hosting se configurares Dynamic Links
 // ─────────────────────────────────────────────────────────────────────────────
 const APP_DEEP_LINK_MISSOES = 'safequest://missoes';
-const APP_STORE_URL         = 'https://safequest-4358c.web.app';  // fallback web
+const APP_STORE_URL = 'https://safequest-4358c.web.app';  // fallback web
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. PUSH NOTIFICATION — dispara quando cria notif no Firestore
@@ -18,10 +18,10 @@ const APP_STORE_URL         = 'https://safequest-4358c.web.app';  // fallback we
 exports.sendNotification = functions.firestore
   .document('users/{uid}/notifications/{notifId}')
   .onCreate(async (snap, context) => {
-    const uid  = context.params.uid;
+    const uid = context.params.uid;
     const data = snap.data();
 
-    const user  = await admin.firestore().doc(`users/${uid}`).get();
+    const user = await admin.firestore().doc(`users/${uid}`).get();
     const uData = user.data();
     const token = uData?.fcmToken;
     if (!token) return null;
@@ -32,20 +32,20 @@ exports.sendNotification = functions.firestore
     // AQUI ESTÁ A CORREÇÃO MÁGICA:
     return admin.messaging().send({
       token: token,
-      notification: { 
-        title: data.title, 
-        body: data.body 
+      notification: {
+        title: data.title,
+        body: data.body
       },
-      android: { 
+      android: {
         priority: 'high',
         notification: {
           channelId: 'safequest_channel' // 👈 O telemóvel agora já sabe qual é o canal!
         }
       },
-      apns: { 
-        payload: { 
-          aps: { sound: 'default' } 
-        } 
+      apns: {
+        payload: {
+          aps: { sound: 'default' }
+        }
       },
     });
   });
@@ -56,14 +56,14 @@ exports.emailDiario = functions.pubsub
   .schedule('0 9 * * *')
   .timeZone('Europe/Lisbon')
   .onRun(async () => {
-    const today    = new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().split('T')[0];
     const usersSnap = await admin.firestore().collection('users').get();
-    const batch    = admin.firestore().batch();
+    const batch = admin.firestore().batch();
 
     for (const doc of usersSnap.docs) {
-      const data  = doc.data();
+      const data = doc.data();
       const email = data.email;
-      const name  = data.nickname || data.name || 'Jogador';
+      const name = data.nickname || data.name || 'Jogador';
       if (!email) continue;
 
       // Respeita a preferência do utilizador
@@ -116,9 +116,9 @@ exports.notificacaoDiaria = functions.pubsub
   .schedule('0 19 * * *')
   .timeZone('Europe/Lisbon')
   .onRun(async () => {
-    const today     = new Date().toISOString().split('T')[0];
+    const today = new Date().toISOString().split('T')[0];
     const usersSnap = await admin.firestore().collection('users').get();
-    const batch     = admin.firestore().batch();
+    const batch = admin.firestore().batch();
 
     const titulos = [
       '😴 Esqueceste-te do SafeQuest hoje?',
@@ -127,7 +127,7 @@ exports.notificacaoDiaria = functions.pubsub
       '🌅 Ainda não vieste jogar hoje!',
       '⚠️ Protege o teu streak agora!',
     ];
-    
+
     const corpos = (name, streak) => {
       const msgs = [
         `As tuas missões de hoje estão prontas, ${name}! Entra já. 🎮`,
@@ -142,12 +142,12 @@ exports.notificacaoDiaria = functions.pubsub
 
     for (const doc of usersSnap.docs) {
       const userData = doc.data();
-      const name     = userData.nickname || userData.name || 'Jogador';
-      const streak   = userData.streak || 0;
-      
+      const name = userData.nickname || userData.name || 'Jogador';
+      const streak = userData.streak || 0;
+
       // Respeita a preferência do utilizador
       if (userData.pushNotifs === false) continue;
-      
+
       // Só notifica quem NÃO abriu a app hoje
       if (abriuHoje(userData, today)) continue;
 
@@ -156,10 +156,10 @@ exports.notificacaoDiaria = functions.pubsub
         .collection('notifications').doc();
 
       batch.set(notifRef, {
-        title    : rand(titulos),
-        body     : corpos(name, streak),
-        type     : 'quiz_reminder',
-        read     : false,
+        title: rand(titulos),
+        body: corpos(name, streak),
+        type: 'quiz_reminder',
+        read: false,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
       });
     }
@@ -176,19 +176,19 @@ exports.emailSemanal = functions.pubsub
   .timeZone('Europe/Lisbon')
   .onRun(async () => {
     const usersSnap = await admin.firestore().collection('users').get();
-    const batch     = admin.firestore().batch();
+    const batch = admin.firestore().batch();
 
     for (const doc of usersSnap.docs) {
-      const data  = doc.data();
+      const data = doc.data();
       const email = data.email;
-      const name  = data.nickname || data.name || 'Jogador';
+      const name = data.nickname || data.name || 'Jogador';
       if (!email) continue;
 
       // Respeita a preferência do utilizador
       if (data.emailNotifs === false) continue;
 
       const pontos = data.pontos || 0;
-      const nivel  = Math.floor(pontos / 250) + 1;
+      const nivel = Math.floor(pontos / 250) + 1;
       const streak = data.streak || 0;
 
       const ref = admin.firestore().collection('mail').doc();
@@ -218,9 +218,9 @@ exports.emailResetPassword = functions.firestore
     // Vai buscar os dados do utilizador
     const userDoc = await admin.firestore().collection('users').doc(uid).get();
     if (!userDoc.exists) return null;
-    const data  = userDoc.data();
+    const data = userDoc.data();
     const email = data.email;
-    const name  = data.nickname || data.name || 'Jogador';
+    const name = data.nickname || data.name || 'Jogador';
     if (!email) return null;
 
     // Gera o link de reset via Firebase Admin (link válido por 1h)
@@ -301,7 +301,7 @@ function buildDailyMissionsEmail(name) {
           <table width="100%" cellpadding="0" cellspacing="0">
             <tr><td style="background:linear-gradient(135deg,#F59E0B 0%,#EA580C 100%);padding:28px 32px;text-align:center;">
               <p style="color:rgba(255,255,255,0.9);font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin:0 0 6px;">Missões Diárias</p>
-              <h1 style="color:#ffffff;font-size:26px;font-weight:900;margin:0 0 6px;line-height:1.2;">Ei ${name}, estás aqui? 👋</h1>
+              <h1 style="color:#ffffff;font-size:26px;font-weight:900;margin:0 0 6px;line-height:1.2;">Olá ${name}, estás aqui? 👋</h1>
               <p style="color:rgba(255,255,255,0.85);font-size:14px;margin:0;">As tuas missões de hoje ainda não foram completadas!</p>
             </td></tr>
           </table>
@@ -324,10 +324,10 @@ function buildDailyMissionsEmail(name) {
               <!-- Missões -->
               <p style="font-size:14px;font-weight:800;color:#1E3A8A;margin:0 0 12px;">🎯 Missões disponíveis hoje</p>
 
-              ${missionRow('🎯','Triathlo do Saber','Faz 3 quizzes hoje','0 / 3','+80 🪙')}
-              ${missionRow('⭐','Perfecionista','Termina 1 quiz com 100%','0 / 1','+120 🪙')}
-              ${missionRow('🌐','Explorador','Joga em 2 temas diferentes','0 / 2','+60 🪙')}
-              ${missionRow('🔥','Máquina de Quizzes','Faz 5 quizzes hoje','0 / 5','+200 🪙')}
+              ${missionRow('🎯', 'Triathlo do Saber', 'Faz 3 quizzes hoje', '0 / 3', '+80 🪙')}
+              ${missionRow('⭐', 'Perfecionista', 'Termina 1 quiz com 100%', '0 / 1', '+120 🪙')}
+              ${missionRow('🌐', 'Explorador', 'Joga em 2 temas diferentes', '0 / 2', '+60 🪙')}
+              ${missionRow('🔥', 'Máquina de Quizzes', 'Faz 5 quizzes hoje', '0 / 5', '+200 🪙')}
 
               <!-- Total -->
               <table width="100%" cellpadding="0" cellspacing="0" style="background:#F0FDF4;border:2px solid #86EFAC;border-radius:12px;margin:16px 0 24px;">

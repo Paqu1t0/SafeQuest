@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:projeto_safequest/screens/member_profile_page.dart';
+import 'package:projeto_safequest/screens/profile_page.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // LEADERBOARD PAGE — Jogadores + Clãs
@@ -174,7 +175,16 @@ class _LeaderboardPageState extends State<LeaderboardPage>
             final avatarId = data['avatar']   ?? 'default';
             final isMe     = uid == currentUser?.uid;
             final nivel    = (pontos ~/ 250) + 1;
-            return _buildPlayerCard(index + 1, name, pontos, nivel, avatarId, isMe);
+            return GestureDetector(
+              onTap: () {
+                if (isMe) {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfilePage()));
+                } else {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => MemberProfilePage(uid: uid)));
+                }
+              },
+              child: _buildPlayerCard(index + 1, name, pontos, nivel, avatarId, isMe),
+            );
           },
         );
       },
@@ -448,7 +458,14 @@ class _LeaderboardPageState extends State<LeaderboardPage>
                           final eColor   = _avatarColor[avatarId] ?? _primary;
 
                           return GestureDetector(
-                            onTap: uid == currentUser?.uid ? null : () { Navigator.pop(ctx); Navigator.push(context, MaterialPageRoute(builder: (_) => MemberProfilePage(uid: uid))); },
+                            onTap: () {
+                              Navigator.pop(ctx);
+                              if (uid == currentUser?.uid) {
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfilePage()));
+                              } else {
+                                Navigator.push(context, MaterialPageRoute(builder: (_) => MemberProfilePage(uid: uid)));
+                              }
+                            },
                             child: Container(
                               margin: const EdgeInsets.only(bottom: 8),
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -521,9 +538,42 @@ class _LeaderboardPageState extends State<LeaderboardPage>
                               batch.update(FirebaseFirestore.instance.collection('clans').doc(clanId), {'memberIds': FieldValue.arrayUnion([currentUser!.uid])});
                               await batch.commit();
                               if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text('Entraste no clã $name! 🎉'), backgroundColor: const Color(0xFF22C55E)),
-                              );
+                                showDialog(
+                                  context: context,
+                                  builder: (ctx) => Dialog(
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(24),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.all(16),
+                                            decoration: const BoxDecoration(color: Color(0xFFF0FDF4), shape: BoxShape.circle),
+                                            child: const Icon(Icons.check_circle_outline_rounded, color: Colors.green, size: 40),
+                                          ),
+                                          const SizedBox(height: 16),
+                                          const Text('Bem-vindo!', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _primaryDeep)),
+                                          const SizedBox(height: 8),
+                                          Text('Entraste no clã $name com sucesso! 🎉', textAlign: TextAlign.center, style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                                          const SizedBox(height: 24),
+                                          SizedBox(
+                                            width: double.infinity,
+                                            child: ElevatedButton(
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: _primary,
+                                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                              ),
+                                              onPressed: () => Navigator.pop(ctx),
+                                              child: const Text('Ótimo!', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                );
                               }
                             } : null,
                           ),
@@ -622,61 +672,70 @@ class _LeaderboardPageState extends State<LeaderboardPage>
                                   : rank == 3 ? const Text('🥉', style: TextStyle(fontSize: 22))
                                   : null;
 
-                    return AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      margin: const EdgeInsets.only(bottom: 8),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: isMe ? const Color(0xFFEFF6FF) : Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: isMe ? _primary.withOpacity(0.4) : const Color(0xFFE5E7EB),
-                          width: isMe ? 1.5 : 1,
+                    return GestureDetector(
+                      onTap: () {
+                        if (isMe) {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfilePage()));
+                        } else {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => MemberProfilePage(uid: u['uid'])));
+                        }
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: isMe ? const Color(0xFFEFF6FF) : Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: isMe ? _primary.withOpacity(0.4) : const Color(0xFFE5E7EB),
+                            width: isMe ? 1.5 : 1,
+                          ),
+                          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 2))],
                         ),
-                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 2))],
-                      ),
-                      child: Row(children: [
-                        // Rank
-                        SizedBox(width: 32, child: medal ?? Text(
-                          '#$rank',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14,
-                              color: isMe ? _primary : Colors.grey),
-                          textAlign: TextAlign.center,
-                        )),
-                        const SizedBox(width: 8),
-                        // Avatar
-                        Container(width: 40, height: 40,
-                          decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
-                          child: Center(child: Text(emoji, style: const TextStyle(fontSize: 22))),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                          Row(children: [
-                            Text(
-                              u['nickname'] ?? u['name'] ?? 'Jogador',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14,
-                                  color: isMe ? _primary : _primaryDeep),
-                            ),
-                            if (isMe) ...[
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                                decoration: BoxDecoration(color: _primary, borderRadius: BorderRadius.circular(6)),
-                                child: const Text('Tu', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                        child: Row(children: [
+                          // Rank
+                          SizedBox(width: 32, child: medal ?? Text(
+                            '#$rank',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14,
+                                color: isMe ? _primary : Colors.grey),
+                            textAlign: TextAlign.center,
+                          )),
+                          const SizedBox(width: 8),
+                          // Avatar
+                          Container(width: 40, height: 40,
+                            decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
+                            child: Center(child: Text(emoji, style: const TextStyle(fontSize: 22))),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Row(children: [
+                              Text(
+                                u['nickname'] ?? u['name'] ?? 'Jogador',
+                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14,
+                                    color: isMe ? _primary : _primaryDeep),
                               ),
-                            ],
+                              if (isMe) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                                  decoration: BoxDecoration(color: _primary, borderRadius: BorderRadius.circular(6)),
+                                  child: const Text('Tu', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                                ),
+                              ],
+                            ]),
+                            Text('Nível ${((u['pontos'] as int) ~/ 250) + 1}',
+                                style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                          ])),
+                          // Pontos
+                          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+                            Text('${u['pontos']}',
+                              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16,
+                                  color: rank <= 3 ? [_gold, _silver, _bronze][rank - 1] : const Color(0xFF3B82F6))),
+                            const Text('pontos', style: TextStyle(color: Colors.grey, fontSize: 10)),
                           ]),
-                          Text('Nível ${((u['pontos'] as int) ~/ 250) + 1}',
-                              style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                        ])),
-                        // Pontos
-                        Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                          Text('${u['pontos']}',
-                            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16,
-                                color: rank <= 3 ? [_gold, _silver, _bronze][rank - 1] : const Color(0xFF3B82F6))),
-                          const Text('pontos', style: TextStyle(color: Colors.grey, fontSize: 10)),
                         ]),
-                      ]),
+                      ),
                     );
                   },
                 ),

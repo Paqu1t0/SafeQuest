@@ -4,12 +4,200 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/cupertino.dart';
+import 'dart:convert';
 import 'package:provider/provider.dart';
 import 'package:projeto_safequest/services/app_settings.dart';
 import 'package:projeto_safequest/screens/avatar_store_page.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'login_screen.dart';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AVATAR & PHOTO HELPERS (SHARED)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const Map<String, String> avatarEmoji = {
+  'default': '👤', 'fox': '🦊', 'cat': '🐱', 'panda': '🐼',
+  'lion': '🦁',   'koala': '🐨', 'dragon': '🐉', 'unicorn': '🦄',
+};
+
+const Map<String, Color> avatarColor = {
+  'default': Color(0xFF1A56DB), 'fox': Color(0xFFEA580C),
+  'cat': Color(0xFF7C3AED),    'panda': Color(0xFF0F766E),
+  'lion': Color(0xFFB45309),   'koala': Color(0xFF4B5563),
+  'dragon': Color(0xFFDC2626), 'unicorn': Color(0xFFDB2777),
+};
+
+ImageProvider? getProfileProvider(String photoUrl) {
+  if (photoUrl.isEmpty) return null;
+  if (photoUrl.startsWith('data:image')) {
+    try {
+      final base64Str = photoUrl.split(',').last;
+      return MemoryImage(base64Decode(base64Str));
+    } catch (_) {
+      return null;
+    }
+  }
+  return NetworkImage(photoUrl);
+}
+
+/// Widget centralizado para mostrar o avatar ou a foto do utilizador.
+/// Respeita a regra: se houver skin equipada (avatarId != 'default'), mostra o emoji.
+class SafeQuestAvatar extends StatelessWidget {
+  final String photoUrl;
+  final String avatarId;
+  final double size;
+  final bool showBorder;
+
+  const SafeQuestAvatar({
+    super.key,
+    required this.photoUrl,
+    required this.avatarId,
+    this.size = 48,
+    this.showBorder = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final useStoreAvatar = avatarId != 'default';
+    final emoji = avatarEmoji[avatarId] ?? '👤';
+    final color = avatarColor[avatarId] ?? const Color(0xFF1A56DB);
+
+    if (useStoreAvatar) {
+      return Container(
+        width: size * 2,
+        height: size * 2,
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.15),
+          shape: BoxShape.circle,
+          border: showBorder ? Border.all(color: Colors.white, width: 2) : null,
+        ),
+        child: Center(child: Text(emoji, style: TextStyle(fontSize: size))),
+      );
+    }
+
+    return CircleAvatar(
+      radius: size,
+      backgroundColor: const Color(0xFFE5E7EB),
+      backgroundImage: getProfileProvider(photoUrl),
+      child: photoUrl.isEmpty
+          ? Icon(Icons.person, size: size * 1.2, color: const Color(0xFF9CA3AF))
+          : null,
+    );
+  }
+}
+
+/// Diálogo centralizado para alterar o avatar ou foto.
+void showSafeQuestAvatarSelector(BuildContext context) {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return;
+
+  showDialog(
+    context: context,
+    barrierColor: Colors.black54,
+    builder: (ctx) => Dialog(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 100),
+      child: Container(
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(28)),
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              const Expanded(child: Text('Alterar Foto', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A)))),
+              GestureDetector(onTap: () => Navigator.pop(ctx), child: const Icon(Icons.close_rounded, color: Colors.grey, size: 28)),
+            ]),
+            const SizedBox(height: 24),
+
+            _avatarOptionStatic(ctx,
+              icon: Icons.image_outlined, color: const Color(0xFF16A34A),
+              bg: const Color(0xFFF0FDF4), title: 'Galeria do Telemóvel',
+              subtitle: 'Usa uma foto da galeria',
+              onTap: () async {
+                Navigator.pop(ctx);
+                final img = await ImagePicker().pickImage(
+                  source: ImageSource.gallery,
+                  imageQuality: 50,
+                  maxWidth: 400,
+                  maxHeight: 400,
+                );
+                if (img != null) {
+                  try {
+                    final bytes = await File(img.path).readAsBytes();
+                    final base64Image = base64Encode(bytes);
+                    final dataUrl = 'data:image/jpeg;base64,$base64Image';
+                    
+                    await FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(user.uid)
+                        .update({'photoUrl': dataUrl, 'avatar': 'default'});
+                  } catch (e) {
+                    if (ctx.mounted) {
+                      ScaffoldMessenger.of(ctx).showSnackBar(
+                        SnackBar(content: Text('Erro ao salvar foto: $e'), backgroundColor: Colors.red),
+                      );
+                    }
+                  }
+                }
+              },
+            ),
+            const SizedBox(height: 12),
+
+            _avatarOptionStatic(ctx,
+              icon: Icons.account_circle_outlined, color: const Color(0xFF2563EB),
+              bg: const Color(0xFFEFF6FF), title: 'Usar Foto do Google',
+              subtitle: 'Sincroniza com a tua conta Google',
+              onTap: () async {
+                Navigator.pop(ctx);
+                if (user.photoURL != null) {
+                  await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+                    'photoUrl': user.photoURL,
+                    'avatar': 'default'
+                  });
+                } else {
+                  await FirebaseFirestore.instance.collection('users').doc(user.uid).update({'avatar': 'default'});
+                }
+              },
+            ),
+            const SizedBox(height: 12),
+
+            _avatarOptionStatic(ctx,
+              icon: Icons.storefront_rounded, color: const Color(0xFFF59E0B),
+              bg: const Color(0xFFFEF3C7), title: 'Avatares da Loja',
+              subtitle: 'Escolhe um avatar desbloqueado',
+              onTap: () {
+                Navigator.pop(ctx);
+                Navigator.push(context, MaterialPageRoute(builder: (_) => AvatarStorePage()));
+              },
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+Widget _avatarOptionStatic(BuildContext ctx, {required IconData icon, required Color color, required Color bg, required String title, required String subtitle, required VoidCallback onTap}) {
+  return GestureDetector(
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(14), border: Border.all(color: color.withOpacity(0.25))),
+      child: Row(children: [
+        Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(10)), child: Icon(icon, color: color, size: 22)),
+        const SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
+          Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+        ])),
+        Icon(Icons.chevron_right, color: color.withOpacity(0.6), size: 20),
+      ]),
+    ),
+  );
+}
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -56,37 +244,6 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  void _showAvatarOptions() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text("Alterar Foto", textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.photo_library, color: Color(0xFF2563EB)),
-              title: const Text("Galeria do Telemóvel"),
-              onTap: () async {
-                Navigator.pop(context);
-                final XFile? image = await ImagePicker().pickImage(source: ImageSource.gallery);
-                if (image != null) setState(() { _imageFile = File(image.path); });
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.stars, color: Colors.amber),
-              title: const Text("Loja de Avatares"),
-              onTap: () {
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("A abrir Loja...")));
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Future<void> _deleteAccount(String email, String password) async {
     try {
@@ -148,7 +305,13 @@ class _ProfilePageState extends State<ProfilePage> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Cancelar", style: TextStyle(color: Colors.grey))),
+          TextButton(
+            onPressed: () {
+              FocusManager.instance.primaryFocus?.unfocus();
+              Navigator.pop(context);
+            }, 
+            child: const Text("Cancelar", style: TextStyle(color: Colors.grey))
+          ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
             onPressed: () {
@@ -320,121 +483,12 @@ class _ProfilePageState extends State<ProfilePage> {
     return map[bannerId] ?? map['default']!;
   }
 
-  void _showAvatarSelector(BuildContext context) {
-    showDialog(
-      context: context,
-      barrierColor: Colors.black54,
-      builder: (ctx) => Dialog(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 100),
-        child: Container(
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(children: [
-                const Expanded(child: Text('Alterar Avatar', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A)))),
-                GestureDetector(onTap: () => Navigator.pop(ctx), child: const Icon(Icons.close_rounded, color: Colors.grey)),
-              ]),
-              const SizedBox(height: 20),
-
-              // Galeria do telemóvel
-              _avatarOption(ctx,
-                icon: Icons.photo_library_rounded, color: const Color(0xFF16A34A),
-                bg: const Color(0xFFF0FDF4), title: 'Galeria do Telemóvel',
-                subtitle: 'Usa uma foto da galeria',
-                onTap: () async {
-                  Navigator.pop(ctx);
-                  final XFile? img = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 80);
-                  if (img != null) setState(() => _imageFile = File(img.path));
-                },
-              ),
-              const SizedBox(height: 10),
-
-              // Loja
-              _avatarOption(ctx,
-                icon: Icons.storefront_rounded, color: const Color(0xFFF59E0B),
-                bg: const Color(0xFFFEF3C7), title: 'Avatares da Loja',
-                subtitle: 'Escolhe um avatar desbloqueado',
-                onTap: () {
-                  Navigator.pop(ctx);
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => AvatarStorePage()));
-                },
-              ),
-              const SizedBox(height: 20),
-              const Divider(),
-              const SizedBox(height: 10),
-              // Opção: Usar minha foto (Google/Firebase)
-              Center(
-                child: StreamBuilder<DocumentSnapshot>(
-                  stream: FirebaseFirestore.instance.collection('users').doc(user?.uid).snapshots(),
-                  builder: (context, snap) {
-                    final data = snap.data?.data() as Map<String, dynamic>? ?? {};
-                    final photoUrl = data['photoUrl'] as String? ?? user?.photoURL ?? '';
-                    return GestureDetector(
-                      onTap: () async {
-                        Navigator.pop(ctx);
-                        await FirebaseFirestore.instance.collection('users').doc(user?.uid).update({'avatar': 'default'});
-                      },
-                      child: Column(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(color: const Color(0xFF2563EB).withOpacity(0.5), width: 2),
-                            ),
-                            child: CircleAvatar(
-                              radius: 26,
-                              backgroundColor: Colors.grey[200],
-                              backgroundImage: photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
-                              child: photoUrl.isEmpty ? const Icon(Icons.person, color: Colors.grey) : null,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          const Text('Usar Minha Foto', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
-                        ],
-                      ),
-                    );
-                  }
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _avatarOption(BuildContext ctx, {required IconData icon, required Color color, required Color bg, required String title, required String subtitle, required VoidCallback onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(14), border: Border.all(color: color.withOpacity(0.25))),
-        child: Row(children: [
-          Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(10)), child: Icon(icon, color: color, size: 22)),
-          const SizedBox(width: 12),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-            Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-          ])),
-          Icon(Icons.chevron_right, color: color.withOpacity(0.6), size: 20),
-        ]),
-      ),
-    );
-  }
 
   Widget _header(String nickname, String nomeReal, int pontos,
       String photoUrl, int streak, int numBadges, String avatarId,
       String bannerId, String bio) {
     final emoji = _avatarEmoji[avatarId] ?? '👤';
     final color = _avatarColor[avatarId] ?? const Color(0xFF1A56DB);
-    final hasPhonePhoto   = _imageFile != null;
-    final hasNetworkPhoto = photoUrl.isNotEmpty;
     final useStoreAvatar  = avatarId != 'default';
 
     // Cores do banner
@@ -460,23 +514,9 @@ class _ProfilePageState extends State<ProfilePage> {
                 const Text("Perfil", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 20),
                 GestureDetector(
-                  onTap: () => _showAvatarSelector(context),
+                  onTap: () => showSafeQuestAvatarSelector(context),
                   child: Stack(children: [
-                    useStoreAvatar
-                        ? Container(
-                            width: 96, height: 96,
-                            decoration: BoxDecoration(color: color.withOpacity(0.2), shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 3)),
-                            child: Center(child: Text(emoji, style: const TextStyle(fontSize: 48))),
-                          )
-                        : CircleAvatar(
-                            radius: 48,
-                            backgroundColor: const Color(0xFFE5E7EB),
-                            backgroundImage: hasPhonePhoto
-                                ? FileImage(_imageFile!) as ImageProvider
-                                : (photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null),
-                            child: (!hasPhonePhoto && !hasNetworkPhoto)
-                                ? const Icon(Icons.person, size: 60, color: Color(0xFF9CA3AF)) : null,
-                          ),
+                    SafeQuestAvatar(photoUrl: photoUrl, avatarId: avatarId),
                     Positioned(bottom: 0, right: 0, child: Container(
                       padding: const EdgeInsets.all(6),
                       decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
@@ -589,7 +629,7 @@ class _ProfilePageState extends State<ProfilePage> {
           leading: const Icon(Icons.person_outline),
           title: const Text("Editar Perfil", style: TextStyle(fontWeight: FontWeight.w500)),
           trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => EditProfilePage(onPhotoTap: _showAvatarOptions))),
+          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => EditProfilePage(onPhotoTap: () => showSafeQuestAvatarSelector(context)), fullscreenDialog: true)),
         ),
         const Divider(height: 1, color: Color(0xFFF1F5F9)),
         ListTile(
@@ -808,189 +848,128 @@ class _EditProfilePageState extends State<EditProfilePage> {
   final _nicknameController = TextEditingController();
   final _nameController     = TextEditingController();
   final _bioController      = TextEditingController();
-  File? _imageFile;         // foto local selecionada
-  String _photoUrl = '';    // foto da rede
 
   @override
-  void initState() {
-    super.initState();
-    _carregarDados();
+  void dispose() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    _nicknameController.dispose();
+    _nameController.dispose();
+    _bioController.dispose();
+    super.dispose();
   }
-
-  void _carregarDados() async {
-    if (user != null) {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(user!.uid).get();
-      if (doc.exists) {
-        final data = doc.data() as Map<String, dynamic>;
-        setState(() {
-          _nicknameController.text = data['nickname'] ?? data['name']?.split(" ").first ?? "";
-          _nameController.text     = data['name'] ?? "";
-          _bioController.text      = data['bio'] ?? "";
-          _photoUrl                = data['photoUrl'] ?? user?.photoURL ?? '';
-        });
-      }
-    }
-  }
-
-  void _showPhotoOptions() {
-    showDialog(
-      context: context,
-      barrierColor: Colors.black54,
-      builder: (ctx) => Dialog(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 120),
-        child: Container(
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(children: [
-                const Expanded(child: Text('Alterar Foto', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A)))),
-                GestureDetector(onTap: () => Navigator.pop(ctx), child: const Icon(Icons.close_rounded, color: Colors.grey)),
-              ]),
-              const SizedBox(height: 18),
-              _photoOption(ctx,
-                icon: Icons.photo_library_rounded, color: const Color(0xFF16A34A),
-                bg: const Color(0xFFF0FDF4), title: 'Galeria do Telemóvel',
-                subtitle: 'Usa uma foto da galeria',
-                onTap: () async {
-                  Navigator.pop(ctx);
-                  final XFile? img = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 80);
-                  if (img != null) setState(() => _imageFile = File(img.path));
-                },
-              ),
-              const SizedBox(height: 10),
-              _photoOption(ctx,
-                icon: Icons.storefront_rounded, color: const Color(0xFFF59E0B),
-                bg: const Color(0xFFFEF3C7), title: 'Avatares da Loja',
-                subtitle: 'Escolhe um avatar desbloqueado',
-                onTap: () {
-                  Navigator.pop(ctx);
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => AvatarStorePage()));
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _photoOption(BuildContext ctx, {required IconData icon, required Color color, required Color bg, required String title, required String subtitle, required VoidCallback onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(14), border: Border.all(color: color.withOpacity(0.25))),
-        child: Row(children: [
-          Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(10)), child: Icon(icon, color: color, size: 22)),
-          const SizedBox(width: 12),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-            Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-          ])),
-          Icon(Icons.chevron_right, color: color.withOpacity(0.6), size: 20),
-        ]),
-      ),
-    );
-  }
-
 
   @override
   Widget build(BuildContext context) {
-    final hasPhoto = _imageFile != null;
-    final hasNetworkPhoto = _photoUrl.isNotEmpty;
-
     return GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       behavior: HitTestBehavior.opaque,
-      child: Scaffold(
-        backgroundColor: const Color(0xFFF9FAFB),
-        appBar: AppBar(title: const Text("Editar Perfil"), backgroundColor: Colors.white, foregroundColor: Colors.black, elevation: 0.5),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            children: [
-              // ── Foto de Perfil ───────────────────────────────────────────
-              _box("Foto de Perfil", Column(
-                children: [
-                  Center(
-                    child: Stack(
+      child: PopScope(
+        onPopInvokedWithResult: (didPop, result) {
+          if (didPop) {
+            FocusManager.instance.primaryFocus?.unfocus();
+          }
+        },
+        child: StreamBuilder<DocumentSnapshot>(
+          stream: FirebaseFirestore.instance.collection('users').doc(user?.uid).snapshots(),
+          builder: (context, snapshot) {
+            String photoUrl = '';
+            String avatarId = 'default';
+
+            if (snapshot.hasData && snapshot.data!.exists) {
+              final data = snapshot.data!.data() as Map<String, dynamic>;
+              photoUrl = data['photoUrl'] ?? user?.photoURL ?? '';
+              avatarId = data['avatar']   ?? 'default';
+
+              if (_nicknameController.text.isEmpty) {
+                _nicknameController.text = data['nickname'] ?? data['name']?.split(" ").first ?? "";
+              }
+              if (_nameController.text.isEmpty) {
+                _nameController.text = data['name'] ?? "";
+              }
+              if (_bioController.text.isEmpty) {
+                _bioController.text = data['bio'] ?? "";
+              }
+            }
+
+            return Scaffold(
+              backgroundColor: const Color(0xFFF9FAFB),
+              appBar: AppBar(
+                title: const Text("Editar Perfil"),
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.black,
+                elevation: 0.5,
+                leading: IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () {
+                    FocusManager.instance.primaryFocus?.unfocus();
+                    Navigator.pop(context);
+                  },
+                ),
+              ),
+              body: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    _box("Foto de Perfil", Column(
                       children: [
-                        CircleAvatar(
-                          radius: 45,
-                          backgroundColor: const Color(0xFFE5E7EB),
-                          backgroundImage: hasPhoto
-                              ? FileImage(_imageFile!) as ImageProvider
-                              : hasNetworkPhoto ? NetworkImage(_photoUrl) : null,
-                          child: (!hasPhoto && !hasNetworkPhoto)
-                              ? const Icon(Icons.person, size: 50, color: Color(0xFF9CA3AF))
-                              : null,
-                        ),
-                        Positioned(
-                          bottom: 0, right: 0,
-                          child: GestureDetector(
-                            onTap: _showPhotoOptions,
-                            child: Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: const BoxDecoration(color: Color(0xFF2563EB), shape: BoxShape.circle),
-                              child: const Icon(Icons.edit, color: Colors.white, size: 16),
-                            ),
+                        Center(
+                          child: Stack(
+                            children: [
+                              SafeQuestAvatar(photoUrl: photoUrl, avatarId: avatarId, size: 45),
+                              Positioned(
+                                bottom: 0, right: 0,
+                                child: GestureDetector(
+                                  onTap: widget.onPhotoTap,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(6),
+                                    decoration: const BoxDecoration(color: Color(0xFF2563EB), shape: BoxShape.circle),
+                                    child: const Icon(Icons.edit, color: Colors.white, size: 16),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
+                        const SizedBox(height: 12),
+                        OutlinedButton(
+                          onPressed: widget.onPhotoTap,
+                          child: const Text("Alterar Foto"),
+                        ),
                       ],
+                    )),
+                    const SizedBox(height: 20),
+                    _box("Informações Pessoais", Column(children: [
+                      _field("Nickname (Visível no jogo)", _nicknameController, Icons.sports_esports),
+                      _field("Nome", _nameController, Icons.person_outline),
+                      MouseRegion(
+                        cursor: SystemMouseCursors.forbidden,
+                        child: _field("Email (Bloqueado)", TextEditingController(text: user?.email ?? ""), Icons.lock_outline, readOnly: true, isBlocked: true),
+                      ),
+                      _field("Biografia", _bioController, Icons.history_edu, maxLines: 3),
+                    ])),
+                    const SizedBox(height: 30),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 55), backgroundColor: const Color(0xFF1D4ED8), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                      onPressed: () async {
+                        final nickname = _nicknameController.text.trim();
+                        final query = await FirebaseFirestore.instance.collection('users').where('nickname', isEqualTo: nickname).limit(1).get();
+                        if (query.docs.isNotEmpty && query.docs.first.id != user?.uid) {
+                          if (mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Este nickname já está em uso. Escolhe outro.'), backgroundColor: Colors.red));
+                          }
+                          return;
+                        }
+                        await FirebaseFirestore.instance.collection('users').doc(user?.uid).update({'nickname': nickname, 'name': _nameController.text, 'bio': _bioController.text});
+                        if (!mounted) return;
+                        Navigator.pop(context);
+                      },
+                      child: const Text("Guardar Alterações", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  OutlinedButton(
-                    onPressed: _showPhotoOptions,
-                    child: const Text("Alterar Foto"),
-                  ),
-                ],
-              )),
-              const SizedBox(height: 20),
-              _box("Informações Pessoais", Column(children: [
-                _field("Nickname (Visível no jogo)", _nicknameController, Icons.sports_esports),
-                _field("Nome Real", _nameController, Icons.person_outline),
-                MouseRegion(
-                  cursor: SystemMouseCursors.forbidden,
-                  child: _field("Email (Bloqueado)", TextEditingController(text: user?.email ?? ""), Icons.lock_outline, readOnly: true, isBlocked: true),
+                  ],
                 ),
-                _field("Biografia", _bioController, Icons.history_edu, maxLines: 3),
-              ])),
-              const SizedBox(height: 30),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 55), backgroundColor: const Color(0xFF1D4ED8), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-                onPressed: () async {
-                  final nickname = _nicknameController.text.trim();
-                  
-                  // Verifica se o nickname já existe noutra conta
-                  final query = await FirebaseFirestore.instance
-                      .collection('users')
-                      .where('nickname', isEqualTo: nickname)
-                      .limit(1)
-                      .get();
-                      
-                  if (query.docs.isNotEmpty && query.docs.first.id != user?.uid) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Este nickname já está em uso. Escolhe outro.'), backgroundColor: Colors.red, duration: Duration(milliseconds: 2000)),
-                      );
-                    }
-                    return;
-                  }
-
-                  await FirebaseFirestore.instance.collection('users').doc(user?.uid).update({'nickname': nickname, 'name': _nameController.text, 'bio': _bioController.text});
-                  if (!mounted) return;
-                  Navigator.pop(context);
-                },
-                child: const Text("Guardar Alterações", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
@@ -1118,7 +1097,6 @@ class _PrivacyPageState extends State<PrivacyPage> {
               padding: const EdgeInsets.all(20),
               child: Column(
                 children: [
-                  // Visibilidade
                   _buildSection(
                     title: "Visibilidade do Perfil",
                     icon: Icons.visibility_outlined,
@@ -1131,7 +1109,6 @@ class _PrivacyPageState extends State<PrivacyPage> {
                     ]),
                   ),
                   const SizedBox(height: 12),
-                  // Info sobre a privacidade
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
@@ -1149,7 +1126,6 @@ class _PrivacyPageState extends State<PrivacyPage> {
                     ]),
                   ),
                   const SizedBox(height: 20),
-                  // Notificações
                   _buildSection(
                     title: "Notificações",
                     icon: Icons.notifications_none,
@@ -1187,7 +1163,6 @@ class _PrivacyPageState extends State<PrivacyPage> {
                     ]),
                   ),
                   const SizedBox(height: 20),
-                  // ── Segurança ──────────────────────────────────────────────
                   _buildSection(
                     title: 'Segurança',
                     icon: Icons.lock_outline,

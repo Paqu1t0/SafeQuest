@@ -6,7 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
-import 'package:flutter_dotenv/flutter_dotenv.dart'; // Mantemos a segurança!
+import 'package:projeto_safequest/env.dart';
 import 'package:projeto_safequest/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -94,10 +94,10 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
       }, SetOptions(merge: true));
 
       // 3. Resolve as chaves (protegendo contra cache antigo na Web onde a string pode vir vazia em vez de nula)
-      final String serviceId = (dotenv.env['EMAILJS_SERVICE_ID'] ?? '').trim().isNotEmpty ? dotenv.env['EMAILJS_SERVICE_ID']!.trim() : 'service_rt72hfc';
-      final String templateId = (dotenv.env['EMAILJS_TEMPLATE_ID'] ?? '').trim().isNotEmpty ? dotenv.env['EMAILJS_TEMPLATE_ID']!.trim() : 'template_4j7usel';
-      final String publicKey = (dotenv.env['EMAILJS_PUBLIC_KEY'] ?? '').trim().isNotEmpty ? dotenv.env['EMAILJS_PUBLIC_KEY']!.trim() : 'b1RGSw2ImcD06VoT5';
-      final String privateKey = (dotenv.env['EMAILJS_PRIVATE_KEY'] ?? '').trim().isNotEmpty ? dotenv.env['EMAILJS_PRIVATE_KEY']!.trim() : 'syskG7nDtzV1evVHVzI17';
+      const String serviceId  = Env.emailJsServiceId;
+      const String templateId = Env.emailJsTemplateId;
+      const String publicKey  = Env.emailJsPublicKey;
+      const String privateKey = Env.emailJsPrivateKey;
 
       final url = Uri.parse('https://api.emailjs.com/api/v1.0/email/send');
       

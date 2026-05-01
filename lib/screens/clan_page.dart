@@ -807,7 +807,20 @@ class _CreateClanSheetState extends State<_CreateClanSheet> {
 
   Future<void> _createClan() async {
     final name = _nameCtrl.text.trim();
-    if (name.isEmpty) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('O nome do clã é obrigatório.'), backgroundColor: Colors.red)); return; }
+    if (name.isEmpty) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          title: const Text('Campo Obrigatório', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          content: const Text('O nome do clã é obrigatório para continuar.', style: TextStyle(color: Colors.grey, fontSize: 13)),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Entendido', style: TextStyle(color: _primary, fontWeight: FontWeight.bold))),
+          ],
+        ),
+      );
+      return;
+    }
     setState(() => _loading = true);
     try {
       final batch   = FirebaseFirestore.instance.batch();
@@ -817,7 +830,19 @@ class _CreateClanSheetState extends State<_CreateClanSheet> {
       await batch.commit();
       if (mounted) Navigator.pop(context);
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red));
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            title: const Text('Erro', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            content: Text('Não foi possível criar o clã: $e', style: const TextStyle(color: Colors.grey, fontSize: 13)),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Fechar', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold))),
+            ],
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }

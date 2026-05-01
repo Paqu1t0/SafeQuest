@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:projeto_safequest/screens/member_profile_page.dart';
+import 'package:projeto_safequest/screens/profile_page.dart';
 import 'package:projeto_safequest/screens/notification_service.dart';
 import 'package:projeto_safequest/services/sound_service.dart';
 
@@ -253,9 +254,13 @@ class _ClanDetailPageState extends State<ClanDetailPage>
 
                       final isCurrentUser = uid == user?.uid;
                       return GestureDetector(
-                        onTap: isCurrentUser ? null : () {
+                        onTap: () {
                           Navigator.pop(ctx); // Fecha a modal
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => MemberProfilePage(uid: uid)));
+                          if (isCurrentUser) {
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfilePage()));
+                          } else {
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => MemberProfilePage(uid: uid)));
+                          }
                         },
                         child: Container(
                           margin: const EdgeInsets.only(bottom: 8),
@@ -382,7 +387,13 @@ class _ClanDetailPageState extends State<ClanDetailPage>
         final roleColor = _roleColors[memberRole] ?? _primary;
 
         return GestureDetector(
-          onTap: isMe ? null : () => Navigator.push(context, MaterialPageRoute(builder: (_) => MemberProfilePage(uid: uid))),
+          onTap: () {
+            if (isMe) {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfilePage()));
+            } else {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => MemberProfilePage(uid: uid)));
+            }
+          },
           onLongPress: (canManage || canBattle) ? () => _showMemberOptions(context, uid, name, memberRole, myRole) : null,
           child: Container(
             margin: const EdgeInsets.only(bottom: 10),
@@ -582,8 +593,38 @@ class _ClanDetailPageState extends State<ClanDetailPage>
     );
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$name promovido(a) para $nextLabel!'), backgroundColor: Colors.green));
+      showDialog(
+        context: context,
+        builder: (ctx) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: const BoxDecoration(color: Color(0xFFF0FDF4), shape: BoxShape.circle),
+                  child: const Icon(Icons.trending_up_rounded, color: Colors.green, size: 40),
+                ),
+                const SizedBox(height: 16),
+                const Text('Promoção!', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _primaryDeep)),
+                const SizedBox(height: 8),
+                Text('$name foi promovido(a) para $nextLabel! 🎉', textAlign: TextAlign.center, style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: _primary, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Excelente!', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
     }
   }
 
@@ -604,8 +645,38 @@ class _ClanDetailPageState extends State<ClanDetailPage>
     );
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$name rebaixado(a) para $prevLabel'), backgroundColor: Colors.orange));
+      showDialog(
+        context: context,
+        builder: (ctx) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: const BoxDecoration(color: Color(0xFFFFF7ED), shape: BoxShape.circle),
+                  child: const Icon(Icons.trending_down_rounded, color: Colors.orange, size: 40),
+                ),
+                const SizedBox(height: 16),
+                const Text('Papel Alterado', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _primaryDeep)),
+                const SizedBox(height: 8),
+                Text('$name agora é $prevLabel no clã.', textAlign: TextAlign.center, style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: _primary, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Entendido', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
     }
   }
 
@@ -639,7 +710,40 @@ class _ClanDetailPageState extends State<ClanDetailPage>
     batch.update(FirebaseFirestore.instance.collection('users').doc(uid), {'clanId': FieldValue.delete()});
     await batch.commit();
 
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$name foi expulso.'), backgroundColor: Colors.red));
+    if (mounted) {
+      showDialog(
+        context: context,
+        builder: (ctx) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: const BoxDecoration(color: Color(0xFFFEF2F2), shape: BoxShape.circle),
+                  child: const Icon(Icons.person_remove_rounded, color: Colors.red, size: 40),
+                ),
+                const SizedBox(height: 16),
+                const Text('Membro Removido', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _primaryDeep)),
+                const SizedBox(height: 8),
+                Text('$name foi removido do clã com sucesso.', textAlign: TextAlign.center, style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFDC2626), padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Entendido', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _proposeBattle(BuildContext context, String uid, String name) async {
@@ -711,9 +815,38 @@ class _ClanDetailPageState extends State<ClanDetailPage>
     });
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Desafio lançado sobre $tema! ⚔️'), backgroundColor: const Color(0xFFEA580C)),
-    );
+      showDialog(
+        context: context,
+        builder: (ctx) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: const BoxDecoration(color: Color(0xFFFFF7ED), shape: BoxShape.circle),
+                  child: const Icon(Icons.flash_on_rounded, color: Colors.orange, size: 40),
+                ),
+                const SizedBox(height: 16),
+                const Text('Desafio Lançado', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _primaryDeep)),
+                const SizedBox(height: 8),
+                Text('Lançaste um desafio sobre "$tema"! ⚔️\nAguardamos por oponentes.', textAlign: TextAlign.center, style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: _primary, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Vamos a isso!', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
     }
   }
 
@@ -817,9 +950,38 @@ class _ClanDetailPageState extends State<ClanDetailPage>
     });
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('👑 $newLeaderName é o novo Líder!'), backgroundColor: const Color(0xFFFBBF24)),
-    );
+      showDialog(
+        context: context,
+        builder: (ctx) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: const BoxDecoration(color: Color(0xFFFEF3C7), shape: BoxShape.circle),
+                  child: const Icon(Icons.stars_rounded, color: Color(0xFFFBBF24), size: 40),
+                ),
+                const SizedBox(height: 16),
+                const Text('Nova Liderança', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _primaryDeep)),
+                const SizedBox(height: 8),
+                Text('👑 $newLeaderName é o novo Líder do clã!', textAlign: TextAlign.center, style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: _primary, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Entendido', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
     }
   }
 
@@ -1030,9 +1192,38 @@ class _ClanDetailPageState extends State<ClanDetailPage>
     await _sendSystemMessage('📣 $myName: $msg');
 
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('📣 Mensagem enviada a todos os membros!'), backgroundColor: Colors.green),
-    );
+      showDialog(
+        context: context,
+        builder: (ctx) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: const BoxDecoration(color: Color(0xFFF0FDF4), shape: BoxShape.circle),
+                  child: const Icon(Icons.campaign_rounded, color: Colors.green, size: 40),
+                ),
+                const SizedBox(height: 16),
+                const Text('Mensagem Enviada', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _primaryDeep)),
+                const SizedBox(height: 8),
+                const Text('📣 A tua mensagem motivacional foi enviada a todos os membros via notificação.', textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: Colors.grey)),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: _primary, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Ótimo!', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
     }
   }
 

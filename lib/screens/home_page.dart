@@ -15,20 +15,12 @@ import 'package:projeto_safequest/screens/notification_service.dart';
 import 'package:projeto_safequest/screens/coin_animation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:projeto_safequest/screens/daily_missions_service.dart';
+import 'dart:convert';
+import 'dart:io';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AVATAR HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
-const _avatarEmoji = {
-  'default': '👤', 'fox': '🦊', 'cat': '🐱', 'panda': '🐼',
-  'lion': '🦁', 'koala': '🐨', 'dragon': '🐉', 'unicorn': '🦄',
-};
-const _avatarColor = {
-  'default': Color(0xFF1A56DB), 'fox': Color(0xFFEA580C),
-  'cat': Color(0xFF7C3AED),    'panda': Color(0xFF0F766E),
-  'lion': Color(0xFFB45309),   'koala': Color(0xFF4B5563),
-  'dragon': Color(0xFFDC2626), 'unicorn': Color(0xFFDB2777),
-};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HOME PAGE
@@ -203,119 +195,7 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
     super.dispose();
   }
 
-  // ── Abre seletor: loja de avatares ou galeria ─────────────────────────────
-  void _showAvatarSelector(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
 
-    showDialog(
-      context: context,
-      barrierColor: Colors.black54,
-      builder: (ctx) => Dialog(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 28, vertical: 120),
-        child: Container(
-          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(24)),
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(children: [
-                const Expanded(child: Text('Alterar Avatar', style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: _primaryDeep))),
-                GestureDetector(onTap: () => Navigator.pop(ctx), child: const Icon(Icons.close_rounded, color: Colors.grey)),
-              ]),
-              const SizedBox(height: 18),
-
-              // Galeria
-              _avatarOption(ctx,
-                icon: Icons.photo_library_rounded, color: const Color(0xFF16A34A), bg: const Color(0xFFF0FDF4),
-                title: 'Galeria do Telemóvel', subtitle: 'Usa uma foto da galeria',
-                onTap: () async {
-                  Navigator.pop(ctx);
-                  final img = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 80);
-                  if (img != null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Para guardar a foto vai ao separador Perfil.'), backgroundColor: Colors.green),
-                    );
-                  }
-                },
-              ),
-              const SizedBox(height: 10),
-
-              // Loja
-              _avatarOption(ctx,
-                icon: Icons.storefront_rounded, color: const Color(0xFFF59E0B), bg: const Color(0xFFFEF3C7),
-                title: 'Avatares da Loja', subtitle: 'Escolhe um avatar desbloqueado',
-                onTap: () {
-                  Navigator.pop(ctx);
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => AvatarStorePage()));
-                },
-              ),
-              const SizedBox(height: 20),
-              const Divider(),
-              const SizedBox(height: 10),
-              // Opção: Usar minha foto (Google/Firebase)
-              Center(
-                child: StreamBuilder<DocumentSnapshot>(
-                  stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
-                  builder: (context, snap) {
-                    final data = snap.data?.data() as Map<String, dynamic>? ?? {};
-                    final photoUrl = data['photoUrl'] as String? ?? user.photoURL ?? '';
-                    return GestureDetector(
-                      onTap: () async {
-                        Navigator.pop(ctx);
-                        await FirebaseFirestore.instance.collection('users').doc(user.uid).update({'avatar': 'default'});
-                      },
-                      child: Column(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(color: _primary.withOpacity(0.5), width: 2),
-                            ),
-                            child: CircleAvatar(
-                              radius: 26,
-                              backgroundColor: Colors.grey[200],
-                              backgroundImage: photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
-                              child: photoUrl.isEmpty ? const Icon(Icons.person, color: Colors.grey) : null,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          const Text('Usar Minha Foto', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: _primary)),
-                        ],
-                      ),
-                    );
-                  }
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _avatarOption(BuildContext ctx, {required IconData icon, required Color color, required Color bg, required String title, required String subtitle, required VoidCallback onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(14), border: Border.all(color: color.withOpacity(0.25))),
-        child: Row(children: [
-          Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: color.withOpacity(0.12), borderRadius: BorderRadius.circular(10)), child: Icon(icon, color: color, size: 22)),
-          const SizedBox(width: 12),
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(title, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-            Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-          ])),
-          Icon(Icons.chevron_right, color: color.withOpacity(0.6), size: 20),
-        ]),
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -362,12 +242,12 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
             avatarId = data['avatar']   ?? 'default';
             photoUrl = data['photoUrl'] ?? '';
           }
-          final emoji = _avatarEmoji[avatarId] ?? '👤';
-          final color = _avatarColor[avatarId] ?? _primary;
+          final emoji = avatarEmoji[avatarId] ?? '👤';
+          final color = avatarColor[avatarId] ?? _primary;
           final useStoreAvatar = avatarId != 'default';
 
           return GestureDetector(
-            onTap: () => _showAvatarSelector(context),
+            onTap: () => showSafeQuestAvatarSelector(context),
             child: Container(
               margin: const EdgeInsets.all(8),
               decoration: BoxDecoration(
@@ -378,12 +258,7 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
               child: Stack(
                 children: [
                   Center(
-                    child: (useStoreAvatar || photoUrl.isEmpty)
-                        ? Text(emoji, style: const TextStyle(fontSize: 22))
-                        : ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child: Image.network(photoUrl, width: 32, height: 32, fit: BoxFit.cover, errorBuilder: (_, _, _) => Text(emoji, style: const TextStyle(fontSize: 22))),
-                          ),
+                    child: SafeQuestAvatar(photoUrl: photoUrl, avatarId: avatarId, size: 16, showBorder: false),
                   ),
                   // Lápis de edição no canto
                   Positioned(
@@ -425,18 +300,26 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
             },
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 const Text('SafeQuest',
                     style: TextStyle(
                         color: _primaryDeep,
                         fontWeight: FontWeight.bold,
                         fontSize: 18)),
-                Row(children: [
-                  Text('Olá, $nome!',
-                      style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                  const SizedBox(width: 3),
-                  const Icon(Icons.arrow_forward_ios_rounded, size: 9, color: Colors.grey),
-                ]),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: Text('Olá, $nome!',
+                          style: const TextStyle(fontSize: 12, color: Colors.grey),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1),
+                    ),
+                    const SizedBox(width: 3),
+                    const Icon(Icons.arrow_forward_ios_rounded, size: 9, color: Colors.grey),
+                  ],
+                ),
               ],
             ),
           );
@@ -507,6 +390,7 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
       ],
     );
   }
+
 
   // ── Tab bar ───────────────────────────────────────────────────────────────
   Widget _buildTabBar() {

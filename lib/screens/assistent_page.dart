@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:projeto_safequest/env.dart';
 
 class AssistantPage extends StatefulWidget {
   final String? initialPrompt; // ← NOVO
@@ -154,16 +155,16 @@ class _AssistantPageState extends State<AssistantPage>
       final String manualSafeQuest =
           await rootBundle.loadString('assets/conhecimento_safequest.txt');
       
-      // Fallback robusto para Web e dispositivos onde o dotenv falha
-      final String envKey = (dotenv.env['GEMINI_API_KEY'] ?? '').trim();
-      final String myKey = envKey.isNotEmpty ? envKey : 'AIzaSyCB7wRXxuXv6o0oaVwxY9OLh_emUhn_eJQ';
+      // Usa apenas a chave do ficheiro env.dart
+      final String myKey = Env.geminiApiKey;
+
 
       if (myKey.isEmpty) {
         if (mounted) {
           setState(() {
             _messages.add({
               "role": "ai",
-              "text": "⚠️ **Assistente Indisponível**\n\nO Mentor SafeQuest não está disponível de momento. Tenta novamente mais tarde.",
+              "text": "⚠️ **V2 Assistente Indisponível**\n\nErro de Chave V2.",
               "time": DateFormat('HH:mm').format(DateTime.now()),
             });
           });

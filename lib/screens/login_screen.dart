@@ -20,6 +20,7 @@ class _LoginPageState extends State<LoginPage> {
 
   bool _obscurePassword = true;
   bool _rememberMe = false;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -60,6 +61,7 @@ class _LoginPageState extends State<LoginPage> {
   // ================= LÓGICA: LOGIN GOOGLE =================
   Future<void> _handleGoogleSignIn() async {
     try {
+      setState(() => _isLoading = true);
       final GoogleSignIn googleSignIn = GoogleSignIn(
         clientId: kIsWeb ? '434644951500-d3a8cje44ae981sei1seaola675jflcd.apps.googleusercontent.com' : null,
       );
@@ -71,7 +73,10 @@ class _LoginPageState extends State<LoginPage> {
       }
 
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
-      if (googleUser == null) return; 
+      if (googleUser == null) {
+        setState(() => _isLoading = false);
+        return; 
+      }
 
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
       final credential = GoogleAuthProvider.credential(
@@ -88,6 +93,7 @@ class _LoginPageState extends State<LoginPage> {
       // que deteta a mudança de estado e redireciona para o MFA.
     } catch (e) {
       if (!mounted) return;
+      setState(() => _isLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("Erro no Google Sign-In: $e"), backgroundColor: Colors.red),
       );
@@ -98,6 +104,7 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _handleLogin() async {
     if (_formKey.currentState!.validate()) {
       try {
+        setState(() => _isLoading = true);
         // Persistência de sessão — no mobile o Firebase já usa LOCAL por defeito
         // O "Lembra-me" é gerido via SharedPreferences + MFA gate
         await _saveRememberMe();
@@ -109,12 +116,16 @@ class _LoginPageState extends State<LoginPage> {
 
         // A navegação é gerida automaticamente pelo AuthGate no main.dart
       } on FirebaseAuthException catch (e) {
+        if (!mounted) return;
+        setState(() => _isLoading = false);
         String mensagem = "Email ou senha incorretos";
         if (e.code == 'user-not-found') mensagem = "Utilizador não encontrado";
-        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(mensagem), backgroundColor: Colors.red),
         );
+      } catch (e) {
+        if (!mounted) return;
+        setState(() => _isLoading = false);
       }
     }
   }
@@ -252,8 +263,10 @@ class _LoginPageState extends State<LoginPage> {
                                 backgroundColor: const Color(0xFF1A56DB),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                               ),
-                              onPressed: _handleLogin, 
-                              child: const Text('Entrar', style: TextStyle(color: Colors.white, fontSize: 18)),
+                              onPressed: _isLoading ? null : _handleLogin, 
+                              child: _isLoading 
+                                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                : const Text('Entrar', style: TextStyle(color: Colors.white, fontSize: 18)),
                             ),
                           ),
 
@@ -284,8 +297,10 @@ class _LoginPageState extends State<LoginPage> {
                                 'https://cdn-icons-png.flaticon.com/512/300/300221.png',
                                 height: 24,
                               ),
-                              label: const Text('Entrar com Google', style: TextStyle(color: Colors.black87)),
-                              onPressed: _handleGoogleSignIn,
+                              label: _isLoading 
+                                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.grey, strokeWidth: 2))
+                                : const Text('Entrar com Google', style: TextStyle(color: Colors.black87)),
+                              onPressed: _isLoading ? null : _handleGoogleSignIn,
                             ),
                           ),
                         ],
