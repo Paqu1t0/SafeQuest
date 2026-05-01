@@ -75,18 +75,16 @@ A aplicação segue uma arquitetura serverless com quatro componentes principais
 ---
 
 ## 🗄️ Estrutura de Dados do Firestore
-```text
-users/{uid}                       → perfil, pontos, moedas, sequência (streak), avatar, banner, clanId, definições de privacidade
-users/{uid}/quiz_results          → resultados por quiz com tema, percentagem, combo, perguntas
-users/{uid}/notifications         → notificações in-app (título, corpo, tipo, lida)
-users/{uid}/daily_missions/{date} → progresso da missão diária e recompensas resgatadas
-clans/{id}                        → informações do clã, memberIds, papéis, pontos
-clans/{id}/messages               → mensagens de chat em tempo real e cartões de batalha
-clan_battles/{id}                 → registos de batalhas abertas / em curso / concluídas
-mail                              → fila de e-mail (processada pela extensão Trigger Email)
+*   `users/{uid}` → perfil, pontos, moedas, sequência (streak), avatar, banner, clanId, definições de privacidade
+*   `users/{uid}/quiz_results` → resultados por quiz com tema, percentagem, combo, perguntas
+*   `users/{uid}/notifications` → notificações in-app (título, corpo, tipo, lida)
+*   `users/{uid}/daily_missions/{date}` → progresso da missão diária e recompensas resgatadas
+*   `clans/{id}` → informações do clã, memberIds, papéis, pontos
+*   `clans/{id}/messages` → mensagens de chat em tempo real e cartões de batalha
+*   `clan_battles/{id}` → registos de batalhas abertas / em curso / concluídas
+*   `mail` → fila de e-mail (processada pela extensão Trigger Email)
 
 ---
-
 
 ## ⚠️ Limitações
 *   A aplicação não foi testada num ambiente de produção em grande escala; o desequilíbrio de classes entre utilizadores ativos e inativos pode afetar a relevância das notificações.
