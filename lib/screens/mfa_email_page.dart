@@ -356,7 +356,6 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
         textAlign: TextAlign.center,
         textAlignVertical: TextAlignVertical.center, // Centra na vertical
         keyboardType: TextInputType.number,
-        maxLength: 1,
         style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A)),
         decoration: InputDecoration(
           counterText: "",
@@ -378,6 +377,23 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
           ),
         ),
         onChanged: (value) {
+          // Lógica para lidar com "Colar" (Paste) de múltiplos dígitos
+          if (value.length > 1) {
+            final pastedText = value.replaceAll(RegExp(r'[^0-9]'), '');
+            for (int i = 0; i < pastedText.length && (index + i) < 6; i++) {
+              _controllers[index + i].text = pastedText[i];
+            }
+            
+            int nextFocus = index + pastedText.length;
+            if (nextFocus < 6) {
+              _focusNodes[nextFocus].requestFocus();
+            } else {
+              _focusNodes[5].unfocus();
+              _verificarEEntrar();
+            }
+            return;
+          }
+
           if (value.isNotEmpty && index < 5) {
             _focusNodes[index + 1].requestFocus();
           } else if (value.isEmpty && index > 0) {
