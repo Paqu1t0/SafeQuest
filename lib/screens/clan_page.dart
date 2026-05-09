@@ -305,16 +305,26 @@ class _ClanPageState extends State<ClanPage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Título + limpar
+                // Título + limpar + fechar
                 Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                   const Text('Filtrar Clãs', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _primaryDeep)),
-                  TextButton(
-                    onPressed: () {
-                      setS(() { tempSort = 'points'; tempMinM = 0; tempMaxM = 0; tempMinPts = 0; tempMaxPts = 0; tempOnlyOpen = false; });
-                      minMCtrl.clear(); maxMCtrl.clear(); minPtsCtrl.clear(); maxPtsCtrl.clear();
-                    },
-                    child: const Text('Limpar', style: TextStyle(color: Colors.grey)),
-                  ),
+                  Row(children: [
+                    TextButton(
+                      onPressed: () {
+                        setS(() { tempSort = 'points'; tempMinM = 0; tempMaxM = 0; tempMinPts = 0; tempMaxPts = 0; tempOnlyOpen = false; });
+                        minMCtrl.clear(); maxMCtrl.clear(); minPtsCtrl.clear(); maxPtsCtrl.clear();
+                      },
+                      child: const Text('Limpar', style: TextStyle(color: Colors.grey)),
+                    ),
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(color: const Color(0xFFF1F5F9), shape: BoxShape.circle),
+                        child: const Icon(Icons.close_rounded, size: 18, color: Color(0xFF64748B)),
+                      ),
+                    ),
+                  ]),
                 ]),
                 const SizedBox(height: 16),
 
@@ -719,14 +729,26 @@ class _CreateClanSheetState extends State<_CreateClanSheet> {
   @override
   Widget build(BuildContext context) {
     final bottomPad = MediaQuery.of(context).viewInsets.bottom;
+    final safeBottom = MediaQuery.of(context).padding.bottom;
     return Container(
       decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
-      padding: EdgeInsets.fromLTRB(24, 20, 24, 24 + bottomPad),
+      padding: EdgeInsets.fromLTRB(24, 20, 24, 24 + safeBottom + bottomPad),
       child: SingleChildScrollView(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
           Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: const Color(0xFFE5E7EB), borderRadius: BorderRadius.circular(10)))),
-          const SizedBox(height: 20),
-          const Text('Criar Clã', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _primaryDeep)),
+          const SizedBox(height: 16),
+          // Header com título e X
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, crossAxisAlignment: CrossAxisAlignment.center, children: [
+            const Text('Criar Clã', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _primaryDeep)),
+            GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: const Color(0xFFF1F5F9), shape: BoxShape.circle),
+                child: const Icon(Icons.close_rounded, size: 20, color: Color(0xFF64748B)),
+              ),
+            ),
+          ]),
           const SizedBox(height: 4),
           const Text('Personaliza o teu clã', style: TextStyle(color: Colors.grey, fontSize: 13)),
           const SizedBox(height: 24),

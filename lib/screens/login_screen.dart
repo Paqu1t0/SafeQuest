@@ -5,6 +5,7 @@ import 'package:projeto_safequest/screens/forgot_password_page.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:projeto_safequest/main.dart'; // Import for AuthGate
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -88,9 +89,12 @@ class _LoginPageState extends State<LoginPage> {
       // O "Lembra-me" é gerido via SharedPreferences + MFA gate
       await _saveRememberMe();
       await FirebaseAuth.instance.signInWithCredential(credential);
-
-      // A navegação é gerida automaticamente pelo AuthGate no main.dart
-      // que deteta a mudança de estado e redireciona para o MFA.
+      if (!mounted) return;
+      // Navega explicitamente — garante funcionamento mesmo na 2ª sessão
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const AuthGate()),
+        (route) => false,
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _isLoading = false);
@@ -102,31 +106,34 @@ class _LoginPageState extends State<LoginPage> {
 
   // ================= LÓGICA: LOGIN EMAIL =================
   Future<void> _handleLogin() async {
-    if (_formKey.currentState!.validate()) {
-      try {
-        setState(() => _isLoading = true);
-        // Persistência de sessão — no mobile o Firebase já usa LOCAL por defeito
-        // O "Lembra-me" é gerido via SharedPreferences + MFA gate
-        await _saveRememberMe();
-
-        await FirebaseAuth.instance.signInWithEmailAndPassword(
-          email: _emailController.text.trim(),
-          password: _passwordController.text.trim(),
-        );
-
-        // A navegação é gerida automaticamente pelo AuthGate no main.dart
-      } on FirebaseAuthException catch (e) {
-        if (!mounted) return;
-        setState(() => _isLoading = false);
-        String mensagem = "Email ou senha incorretos";
-        if (e.code == 'user-not-found') mensagem = "Utilizador não encontrado";
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(mensagem), backgroundColor: Colors.red),
-        );
-      } catch (e) {
-        if (!mounted) return;
-        setState(() => _isLoading = false);
-      }
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isLoading = true);
+    try {
+      await _saveRememberMe();
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+      if (!mounted) return;
+      // Navega explicitamente — garante funcionamento mesmo na 2ª sessão
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const AuthGate()),
+        (route) => false,
+      );
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      String mensagem = 'Email ou palavra-passe incorretos.';
+      if (e.code == 'user-not-found')   mensagem = 'Utilizador não encontrado.';
+      if (e.code == 'wrong-password')   mensagem = 'Palavra-passe incorreta.';
+      if (e.code == 'invalid-credential') mensagem = 'Email ou palavra-passe incorretos.';
+      if (e.code == 'too-many-requests') mensagem = 'Demasiadas tentativas. Tenta mais tarde.';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(mensagem), backgroundColor: Colors.red),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
     }
   }
 

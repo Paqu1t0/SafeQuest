@@ -13,6 +13,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 class MFAEmailPage extends StatefulWidget {
   const MFAEmailPage({super.key});
 
+  // Variáveis estáticas partilhadas entre instâncias do widget
+  static DateTime? lastEmailSentTime;
+  static String staticCode = '';
+
+  // Limpa a sessão MFA (chamar após signOut ou após registo)
+  static void clearSession() {
+    lastEmailSentTime = null;
+    staticCode = '';
+  }
+
   @override
   State<MFAEmailPage> createState() => _MFAEmailPageState();
 }
@@ -29,16 +39,14 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
   int _remainingSeconds = 60; // 60 segundos por defeito
   bool _canResend = false;
 
-  static DateTime? _lastEmailSentTime;
 
   @override
   void initState() {
     super.initState();
-    // Envia o código automaticamente quando o ecrã abre, 
-    // mas apenas se não tiver enviado nos últimos 30 segundos
-    // para evitar duplicação se o widget for recriado pelo StreamBuilder
-    if (_lastEmailSentTime == null || DateTime.now().difference(_lastEmailSentTime!).inSeconds > 30) {
-      _lastEmailSentTime = DateTime.now();
+    // Carrega o código anterior do estado do widget (caso exista dentro da janela de throttle)
+    _codigoGerado = MFAEmailPage.staticCode;
+    if (MFAEmailPage.lastEmailSentTime == null || DateTime.now().difference(MFAEmailPage.lastEmailSentTime!).inSeconds > 30) {
+      MFAEmailPage.lastEmailSentTime = DateTime.now();
       _enviarCodigoEmail(isResend: false);
     }
   }
@@ -82,8 +90,9 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
       setState(() => _isLoading = true);
     }
 
-    // 1. Gera um código aleatório de 6 dígitos
+    // 1. Gera um código aleatório de 6 dígitos e persiste-o no estado do widget
     _codigoGerado = (Random().nextInt(900000) + 100000).toString();
+    MFAEmailPage.staticCode = _codigoGerado;
 
     try {
       // 2. Guarda na Base de Dados (Para auditoria do TFC)
@@ -165,10 +174,13 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
           'mfa_verified': true,
         }, SetOptions(merge: true));
 
-        // ── NOVO: Guarda sessão MFA no SharedPreferences (30 dias) ──
+        // ── Guarda sessão MFA no SharedPreferences (30 dias) ──
         final prefs = await SharedPreferences.getInstance();
         await prefs.setInt('mfa_verified_at', DateTime.now().millisecondsSinceEpoch);
         await prefs.setString('mfa_uid', uid ?? '');
+
+        // Limpa o estado após MFA bem-sucedido (próximo login envia novo código)
+        MFAEmailPage.clearSession();
 
         if (!mounted) return;
         Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const AuthGate()), (route) => false);
