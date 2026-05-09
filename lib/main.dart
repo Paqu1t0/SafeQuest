@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:provider/provider.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:projeto_safequest/services/app_settings.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
@@ -54,10 +56,17 @@ void main() async {
 
   if (currentUser != null) {
     if (!rememberMe) {
+      try { await GoogleSignIn().signOut(); } catch (_) {}
       await FirebaseAuth.instance.signOut();
+      // Sem "Lembra-me": limpa prefs de MFA para forçar verificação no próximo login
+      await prefs.remove('mfa_verified_at');
+      await prefs.remove('mfa_uid');
     } else if (mfaTimestamp == 0 || (now - mfaTimestamp) >= thirtyDaysMs || savedUid != currentUser.uid) {
       // MFA expirou ou mudou de utilizador -> Obriga a fazer Login de novo
+      try { await GoogleSignIn().signOut(); } catch (_) {}
       await FirebaseAuth.instance.signOut();
+      await prefs.remove('mfa_verified_at');
+      await prefs.remove('mfa_uid');
     }
   }
   
@@ -128,8 +137,10 @@ class AuthGate extends StatefulWidget {
 
 class _AuthGateState extends State<AuthGate> {
   bool _isOnline = true;
-  bool _wasOffline = false; // track if we need to reload on reconnect
+  bool _wasOffline = false;
   bool _offlineBannerDismissed = false;
+  StreamSubscription<User?>? _authSub; // Ouve mudanças de auth fora do builder
+  User? _previousUser; // Rastreia utilizador anterior para detetar sign-out
 
   // Features que requerem internet
   static const _offlineFeatures = [
@@ -146,7 +157,31 @@ class _AuthGateState extends State<AuthGate> {
     _checkAndListen();
   }
 
+  @override
+  void dispose() {
+    _authSub?.cancel();
+    super.dispose();
+  }
+
+  // Limpa MFA quando utilizador termina sessão em tempo real
+  Future<void> _clearMfaOnSignOut() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('mfa_verified_at');
+      await prefs.remove('mfa_uid');
+      MFAEmailPage.clearSession(); // Reset do código estático
+    } catch (_) {}
+  }
+
   Future<void> _checkAndListen() async {
+    // Ouve mudanças de autenticação fora do StreamBuilder (evita side effects no build)
+    _authSub = FirebaseAuth.instance.userChanges().listen((user) {
+      if (_previousUser != null && user == null) {
+        _clearMfaOnSignOut(); // Utilizador fez sign-out
+      }
+      _previousUser = user;
+    });
+
     // Verificação inicial
     try {
       final result = await Connectivity().checkConnectivity();
@@ -185,14 +220,14 @@ class _AuthGateState extends State<AuthGate> {
     return Stack(
       children: [
         StreamBuilder<User?>(
-          stream: FirebaseAuth.instance.userChanges(),
+          stream: FirebaseAuth.instance.authStateChanges(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Scaffold(
                 body: Center(child: CircularProgressIndicator(color: Color(0xFF1A56DB))),
               );
             }
-            if (snapshot.hasData && snapshot.data != null) {
+            if (snapshot.data != null) {
               return _MfaGate(user: snapshot.data!);
             }
             return const LoginPage();
@@ -379,9 +414,10 @@ class _SetupGate extends StatefulWidget {
 }
 
 class _SetupGateState extends State<_SetupGate> {
-  bool _loading = true;
+  bool _loading         = true;
   bool _needsOnboarding = false;
-  bool _needsNickname = false;
+  bool _needsNickname   = false;
+  bool _requireNickname = false; // true = utilizador Google sem nickname
 
   @override
   void initState() {
@@ -391,23 +427,34 @@ class _SetupGateState extends State<_SetupGate> {
 
   Future<void> _checkSetup() async {
     try {
+      // 1. Verifica se o utilizador já tem nickname no Firestore
+      final doc = await FirebaseFirestore.instance
+          .collection('users').doc(widget.user.uid).get();
+      final nickname = doc.data()?['nickname'] as String?;
+      final hasNickname = nickname != null && nickname.trim().isNotEmpty;
+
+      // 2. Verifica se o onboarding já foi mostrado
       final showOnboarding = await OnboardingScreen.shouldShow();
+
       if (showOnboarding) {
-        if (mounted) setState(() { _loading = false; _needsOnboarding = true; });
+        // Mostra onboarding com ou sem passo de nickname
+        if (mounted) setState(() {
+          _loading = false;
+          _needsOnboarding = true;
+          _requireNickname = !hasNickname; // Google: true | registo app: false
+        });
         return;
       }
 
-      final doc = await FirebaseFirestore.instance.collection('users').doc(widget.user.uid).get();
-      final nickname = doc.data()?['nickname'] as String?;
-      
-      if (nickname == null || nickname.trim().isEmpty) {
+      // Onboarding já visto — verifica se ainda falta o nickname (edge-case)
+      if (!hasNickname) {
         if (mounted) setState(() { _loading = false; _needsNickname = true; });
         return;
       }
 
       if (mounted) setState(() { _loading = false; });
     } catch (_) {
-      if (mounted) setState(() { _loading = false; }); // Se falhar, avança (segurança)
+      if (mounted) setState(() { _loading = false; }); // Se falhar, avança
     }
   }
 
@@ -419,7 +466,7 @@ class _SetupGateState extends State<_SetupGate> {
       );
     }
     if (_needsOnboarding) {
-      return const OnboardingScreen();
+      return OnboardingScreen(requireNickname: _requireNickname);
     }
     if (_needsNickname) {
       return const NicknameScreen();
