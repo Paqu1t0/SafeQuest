@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/cupertino.dart';
 import 'dart:convert';
@@ -653,9 +654,14 @@ class _ProfilePageState extends State<ProfilePage> {
       onPressed: () async {
         final prefs = await SharedPreferences.getInstance();
         await prefs.remove('mfa_verified_at');
+        try { await GoogleSignIn().signOut(); } catch (_) {} // Limpa sessão Google
         await FirebaseAuth.instance.signOut();
         if (!context.mounted) return;
-        Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => const LoginPage()), (route) => false);
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginPage()),
+          (route) => false,
+        );
       },
       child: const Row(
         mainAxisAlignment: MainAxisAlignment.center,

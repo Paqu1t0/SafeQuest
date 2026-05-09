@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:projeto_safequest/screens/mfa_email_page.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -65,11 +67,36 @@ class _RegisterPageState extends State<RegisterPage> {
         'createdAt'   : FieldValue.serverTimestamp(),
       });
 
-      if (!mounted) return;
-      Navigator.pop(context); // Volta para o login
+      // Termina a sessão para forçar login manual (com MFA)
+      try { await GoogleSignIn().signOut(); } catch (_) {}
+      await FirebaseAuth.instance.signOut();
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✅ Conta criada! Bem-vindo ao SafeQuest!'), backgroundColor: Colors.green),
+      if (!mounted) return;
+      final nickname = _nicknameController.text.trim();
+      // Limpa toda a pilha de navegação e vai para o login
+      MFAEmailPage.clearSession(); // Garante que o próximo login envia novo código
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Text('Conta Criada! 🎉', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+          content: Text(
+            'Bem-vindo(a) ao SafeQuest, $nickname! 🚀\n\n'
+            'A tua conta foi criada com sucesso.\n'
+            'Faz o login para entrares na aventura!',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx); // fecha dialog
+                // Volta ao root (AuthGate → LoginPage), sem pilha residual
+                Navigator.of(context).popUntil((route) => route.isFirst);
+              },
+              child: const Text('Ir para o Login', style: TextStyle(fontWeight: FontWeight.bold, color: _primary)),
+            ),
+          ],
+        ),
       );
     } on FirebaseAuthException catch (e) {
       String msg = 'Erro ao criar conta.';
@@ -279,7 +306,7 @@ class _RegisterPageState extends State<RegisterPage> {
     controller: ctrl, obscureText: obscure, validator: validator, onChanged: onChanged,
     decoration: _dec(hint, Icons.lock_outline).copyWith(
       suffixIcon: IconButton(
-        icon: Icon(obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: _primary, size: 20),
+        icon: Icon(obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: _primary, size: 20),
         onPressed: toggle,
       ),
     ),

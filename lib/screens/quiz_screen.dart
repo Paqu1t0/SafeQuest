@@ -467,7 +467,7 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
           final updatedSnap = await userRef.get();
           final streak      = ((updatedSnap.data())?['streak'] ?? 0) as int;
           
-          if (streakUpdated && streak >= 2) {
+          if (streakUpdated && streak >= 1) {
             await Future.delayed(const Duration(milliseconds: 1000));
             if (mounted) StreakAnimation.show(context, streak: streak);
           }
