@@ -45,7 +45,6 @@ class _RegisterPageState extends State<RegisterPage> {
 
       await cred.user!.updateDisplayName(_nameController.text.trim());
 
-      // Guarda todos os dados no Firestore numa única operação
       await FirebaseFirestore.instance.collection('users').doc(cred.user!.uid).set({
         'name'        : _nameController.text.trim(),
         'nickname'    : _nicknameController.text.trim(),
@@ -67,13 +66,11 @@ class _RegisterPageState extends State<RegisterPage> {
         'createdAt'   : FieldValue.serverTimestamp(),
       });
 
-      // Termina a sessão para forçar login manual (com MFA)
       try { await GoogleSignIn().signOut(); } catch (_) {}
       await FirebaseAuth.instance.signOut();
 
       if (!mounted) return;
       final nickname = _nicknameController.text.trim();
-      // Limpa toda a pilha de navegação e vai para o login
       MFAEmailPage.clearSession(); // Garante que o próximo login envia novo código
       showDialog(
         context: context,
@@ -90,7 +87,6 @@ class _RegisterPageState extends State<RegisterPage> {
             TextButton(
               onPressed: () {
                 Navigator.pop(ctx); // fecha dialog
-                // Volta ao root (AuthGate → LoginPage), sem pilha residual
                 Navigator.of(context).popUntil((route) => route.isFirst);
               },
               child: const Text('Ir para o Login', style: TextStyle(fontWeight: FontWeight.bold, color: _primary)),
@@ -128,14 +124,12 @@ class _RegisterPageState extends State<RegisterPage> {
             child: Form(
               key: _formKey,
               child: Column(children: [
-                // Logo
                 Image.asset('assets/icon/icon.png', height: 180),
                 const SizedBox(height: 8),
                 const Text('SafeQuest', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: _primaryDeep)),
                 const Text('Comece a Sua Jornada Digital', style: TextStyle(fontSize: 13, color: _primary)),
                 const SizedBox(height: 28),
 
-                // Card
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
@@ -147,13 +141,11 @@ class _RegisterPageState extends State<RegisterPage> {
                     const Center(child: Text('Criar Conta', style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold, color: _primaryDeep))),
                     const SizedBox(height: 22),
 
-                    // Nome completo
                     _label('Nome Completo'),
                     _field(_nameController, 'João Silva', Icons.person_outline,
                         validator: (v) => (v == null || v.isEmpty) ? 'Insira o seu nome' : null),
                     const SizedBox(height: 14),
 
-                    // Nickname — o que aparece na app
                     _label('Nickname'),
                     _field(_nicknameController, 'Escolhe um nickname único', Icons.alternate_email_rounded,
                         validator: (v) {
@@ -168,7 +160,6 @@ class _RegisterPageState extends State<RegisterPage> {
                     ),
                     const SizedBox(height: 14),
 
-                    // Email
                     _label('Email'),
                     _field(_emailController, 'seu@email.com', Icons.email_outlined,
                         type: TextInputType.emailAddress,
@@ -179,20 +170,17 @@ class _RegisterPageState extends State<RegisterPage> {
                         }),
                     const SizedBox(height: 14),
 
-                    // Palavra-passe
                     _label('Palavra-passe'),
                     _passField(_passwordController, 'Crie uma palavra-passe', _obscurePw,
                         () => setState(() => _obscurePw = !_obscurePw),
                         validator: _validatePassword,
                         onChanged: (_) => setState(() {})),
-                    // Indicador de força em tempo real
                     if (_passwordController.text.isNotEmpty) ...[
                       const SizedBox(height: 8),
                       _buildPasswordStrength(_passwordController.text),
                     ],
                     const SizedBox(height: 14),
 
-                    // Confirmar
                     _label('Confirmar Palavra-passe'),
                     _passField(_confirmController, 'Confirme a palavra-passe', _obscureCfm,
                         () => setState(() => _obscureCfm = !_obscureCfm),
@@ -203,7 +191,6 @@ class _RegisterPageState extends State<RegisterPage> {
                         }),
                     const SizedBox(height: 24),
 
-                    // Botão
                     SizedBox(
                       width: double.infinity, height: 52,
                       child: ElevatedButton(
@@ -222,7 +209,6 @@ class _RegisterPageState extends State<RegisterPage> {
                 ),
                 const SizedBox(height: 22),
 
-                // Footer
                 Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                   const Text('Já tem conta? ', style: TextStyle(color: _primaryDeep)),
                   GestureDetector(
@@ -239,7 +225,6 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  // Validação de password moderna
   String? _validatePassword(String? v) {
     if (v == null || v.isEmpty) return 'Crie uma palavra-passe';
     if (v.length < 8)                               return 'Mínimo 8 caracteres';
@@ -248,7 +233,6 @@ class _RegisterPageState extends State<RegisterPage> {
     return null;
   }
 
-  // Indicador visual de força da password
   Widget _buildPasswordStrength(String pw) {
     final hasLen  = pw.length >= 8;
     final hasUp   = RegExp(r'[A-Z]').hasMatch(pw);

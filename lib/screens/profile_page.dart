@@ -13,9 +13,6 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'login_screen.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// AVATAR & PHOTO HELPERS (SHARED)
-// ─────────────────────────────────────────────────────────────────────────────
 
 const Map<String, String> avatarEmoji = {
   'default': '👤', 'fox': '🦊', 'cat': '🐱', 'panda': '🐼',
@@ -222,7 +219,6 @@ class _ProfilePageState extends State<ProfilePage> {
       final userDoc = FirebaseFirestore.instance.collection('users').doc(user!.uid);
       final doc = await userDoc.get();
       if (!doc.exists) {
-        // Novo utilizador: guarda a foto do Google no Firestore desde o início
         await userDoc.set({
           'uid'     : user!.uid,
           'nickname': user!.displayName?.split(" ").first ?? "Jogador",
@@ -235,7 +231,6 @@ class _ProfilePageState extends State<ProfilePage> {
           'streak'  : 0,
         });
       } else {
-        // Utilizador existente: se ainda não tem photoUrl no Firestore mas tem no Google, sincronizar
         final data = doc.data() ?? {};
         final firestorePhoto = data['photoUrl'] as String? ?? '';
         if (firestorePhoto.isEmpty && (user!.photoURL?.isNotEmpty ?? false)) {
@@ -330,7 +325,6 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // ── Popup de configurações — só sons ──────────────────────────────────────
   void _showSettings() {
     showModalBottomSheet(
       context: context,
@@ -457,7 +451,6 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // ── Mapa de avatares (igual ao avatar_store_page) ────────────────────────
   static const _avatarEmoji = {
     'default': '👤', 'fox': '🦊', 'cat': '🐱', 'panda': '🐼',
     'lion': '🦁',   'koala': '🐨', 'dragon': '🐉', 'unicorn': '🦄',
@@ -469,7 +462,6 @@ class _ProfilePageState extends State<ProfilePage> {
     'dragon': Color(0xFFDC2626), 'unicorn': Color(0xFFDB2777),
   };
 
-  // Cores dos banners (sincronizado com avatar_store_page)
   static List<Color> _getBannerColors(String bannerId) {
     const map = {
       'default' : [Color(0xFF2563EB), Color(0xFF1D4ED8)],
@@ -492,7 +484,6 @@ class _ProfilePageState extends State<ProfilePage> {
     final color = _avatarColor[avatarId] ?? const Color(0xFF1A56DB);
     final useStoreAvatar  = avatarId != 'default';
 
-    // Cores do banner
     final bannerColors = _getBannerColors(bannerId);
 
     return Stack(
@@ -528,7 +519,6 @@ class _ProfilePageState extends State<ProfilePage> {
                 const SizedBox(height: 12),
                 Text(nickname, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
                 Text(nomeReal, style: const TextStyle(color: Colors.white70)),
-                // ── Bio debaixo do nome ──────────────────────────────────
                 if (bio.isNotEmpty) ...[
                   const SizedBox(height: 6),
                   Padding(
@@ -687,7 +677,6 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // ── Gráfico de Progresso por Tema ─────────────────────────────────────────
   static const _temaColors2 = {
     'Phishing'       : Color(0xFF1A56DB),
     'Palavras-passe' : Color(0xFF7C3AED),
@@ -838,9 +827,6 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// EDIT PROFILE PAGE — com foto própria e dismiss de teclado
-// ─────────────────────────────────────────────────────────────────────────────
 class EditProfilePage extends StatefulWidget {
   final VoidCallback onPhotoTap;
   const EditProfilePage({super.key, required this.onPhotoTap});
@@ -1007,9 +993,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PRIVACY PAGE — igual ao original
-// ─────────────────────────────────────────────────────────────────────────────
 class PrivacyPage extends StatefulWidget {
   const PrivacyPage({super.key});
   @override

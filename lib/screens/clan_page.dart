@@ -18,7 +18,6 @@ class _ClanPageState extends State<ClanPage> {
   String _search     = '';
   final user         = FirebaseAuth.instance.currentUser;
 
-  // ── Filtros ───────────────────────────────────────────────────────────────
   String _sortBy      = 'points';   // 'points' | 'members' | 'name'
   int    _minMembers  = 0;
   int    _maxMembers  = 999;
@@ -60,7 +59,6 @@ class _ClanPageState extends State<ClanPage> {
             userPontos = (data['pontos'] ?? 0) as int;
           }
 
-          // Se já pertence a um clã → mostra detalhe
           if (myClanId != null && myClanId.isNotEmpty) {
             return ClanDetailPage(clanId: myClanId, embedded: true);
           }
@@ -71,16 +69,11 @@ class _ClanPageState extends State<ClanPage> {
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // LISTA
-  // ─────────────────────────────────────────────────────────────────────────
   Widget _buildClanList(int userPontos) {
     return Column(
       children: [
-        // Banner
         _buildBanner(),
 
-        // Barra pesquisa + botão filtros
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
           child: Row(
@@ -102,7 +95,6 @@ class _ClanPageState extends State<ClanPage> {
                 ),
               ),
               const SizedBox(width: 10),
-              // Botão filtros
               GestureDetector(
                 onTap: () => _showFilterSheet(context),
                 child: Container(
@@ -119,10 +111,8 @@ class _ClanPageState extends State<ClanPage> {
           ),
         ),
 
-        // Chips de filtros ativos
         if (_hasActiveFilters) _buildActiveFilterChips(),
 
-        // Lista
         Expanded(
           child: StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance.collection('clans').snapshots(),
@@ -135,21 +125,16 @@ class _ClanPageState extends State<ClanPage> {
                 return _buildEmptyState();
               }
 
-              // Só mostra clãs criados por utilizadores reais (tem campo createdBy)
-              // e não mostra o clã criado pelo próprio utilizador
               var docs = snap.data!.docs.where((d) {
                 final data      = d.data() as Map<String, dynamic>;
                 final createdBy = data['createdBy'] as String?;
-                // Filtra: deve ter createdBy e não ser o utilizador atual
                 return createdBy != null && createdBy.isNotEmpty && createdBy != user?.uid;
               }).toList();
 
-              // Aplica pesquisa
               if (_search.isNotEmpty) {
                 docs = docs.where((d) => (d['name'] as String? ?? '').toLowerCase().contains(_search)).toList();
               }
 
-              // Aplica filtros
               docs = docs.where((d) {
                 final data    = d.data() as Map<String, dynamic>;
                 final members = (data['memberIds'] as List?)?.length ?? 0;
@@ -162,7 +147,6 @@ class _ClanPageState extends State<ClanPage> {
                 return true;
               }).toList();
 
-              // Ordena
               docs.sort((a, b) {
                 final dataA = a.data() as Map<String, dynamic>;
                 final dataB = b.data() as Map<String, dynamic>;
@@ -178,7 +162,6 @@ class _ClanPageState extends State<ClanPage> {
                 }
               });
 
-              // Rank baseado na ordenação por pontos (para o badge)
               final sorted = List.of(docs)
                 ..sort((a, b) => ((b['points'] ?? 0) as num).compareTo((a['points'] ?? 0) as num));
               final rankMap = {for (int i = 0; i < sorted.length; i++) sorted[i].id: i + 1};
@@ -208,7 +191,6 @@ class _ClanPageState extends State<ClanPage> {
   bool get _hasActiveFilters =>
       _sortBy != 'points' || _minMembers > 0 || _minPoints > 0 || _onlyOpen || _maxMembers < 999;
 
-  // ── Banner ────────────────────────────────────────────────────────────────
   Widget _buildBanner() {
     return Container(
       margin: const EdgeInsets.all(16),
@@ -237,7 +219,6 @@ class _ClanPageState extends State<ClanPage> {
     );
   }
 
-  // ── Chips de filtros ativos ───────────────────────────────────────────────
   Widget _buildActiveFilterChips() {
     final chips = <Widget>[];
 
@@ -280,7 +261,6 @@ class _ClanPageState extends State<ClanPage> {
     );
   }
 
-  // ── Bottom sheet de filtros ───────────────────────────────────────────────
   void _showFilterSheet(BuildContext context) {
     String  tempSort       = _sortBy;
     int     tempMinM       = _minMembers;
@@ -305,7 +285,6 @@ class _ClanPageState extends State<ClanPage> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Título + limpar + fechar
                 Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                   const Text('Filtrar Clãs', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _primaryDeep)),
                   Row(children: [
@@ -328,7 +307,6 @@ class _ClanPageState extends State<ClanPage> {
                 ]),
                 const SizedBox(height: 16),
 
-                // Ordenar por
                 const Text('Ordenar por', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _primaryDeep)),
                 const SizedBox(height: 8),
                 Row(children: [
@@ -340,7 +318,6 @@ class _ClanPageState extends State<ClanPage> {
                 ]),
                 const SizedBox(height: 16),
 
-                // Membros — campos com setas
                 const Text('Nº de Membros', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _primaryDeep)),
                 const SizedBox(height: 8),
                 Row(children: [
@@ -350,7 +327,6 @@ class _ClanPageState extends State<ClanPage> {
                 ]),
                 const SizedBox(height: 16),
 
-                // Pontos — campos com setas
                 const Text('Pontos do Clã', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _primaryDeep)),
                 const SizedBox(height: 8),
                 Row(children: [
@@ -360,7 +336,6 @@ class _ClanPageState extends State<ClanPage> {
                 ]),
                 const SizedBox(height: 16),
 
-                // Só abertos
                 Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                   const Text('Só clãs com espaço', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: _primaryDeep)),
                   Switch(value: tempOnlyOpen, onChanged: (v) => setS(() => tempOnlyOpen = v), activeThumbColor: _primary),
@@ -392,7 +367,6 @@ class _ClanPageState extends State<ClanPage> {
     );
   }
 
-  // ── Campo com setas para cima/baixo ───────────────────────────────────────
   Widget _arrowField({required String label, required TextEditingController ctrl, required Function(String) onChanged}) {
     return Container(
       decoration: BoxDecoration(
@@ -415,7 +389,6 @@ class _ClanPageState extends State<ClanPage> {
             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: _primaryDeep),
           ),
         ),
-        // Setas cima/baixo
         Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -471,7 +444,6 @@ class _ClanPageState extends State<ClanPage> {
     );
   }
 
-  // ── Card de clã ───────────────────────────────────────────────────────────
   Widget _buildClanCard(BuildContext context, QueryDocumentSnapshot doc, int rank, int userPontos) {
     final data     = doc.data() as Map<String, dynamic>;
     final name     = data['name']       ?? 'Clã';
@@ -566,7 +538,6 @@ class _ClanPageState extends State<ClanPage> {
   }
 
   Future<void> _joinClan(BuildContext context, String clanId, String clanName) async {
-    // Busca dados completos do clã para mostrar no popup
     final clanSnap = await FirebaseFirestore.instance.collection('clans').doc(clanId).get();
     final clanData = clanSnap.data() ?? {};
 
@@ -595,7 +566,6 @@ class _ClanPageState extends State<ClanPage> {
           ),
           child: Column(mainAxisSize: MainAxisSize.min, children: [
 
-            // ── Header do clã ──────────────────────────────────────────
             Container(
               padding: const EdgeInsets.all(20),
               decoration: const BoxDecoration(
@@ -603,7 +573,6 @@ class _ClanPageState extends State<ClanPage> {
                 borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
               ),
               child: Row(children: [
-                // Ícone grande
                 Container(
                   width: 60, height: 60,
                   decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white.withOpacity(0.3), width: 2)),
@@ -619,7 +588,6 @@ class _ClanPageState extends State<ClanPage> {
               ]),
             ),
 
-            // ── Stats em grid ──────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.all(16),
               child: Row(children: [
@@ -631,10 +599,8 @@ class _ClanPageState extends State<ClanPage> {
               ]),
             ),
 
-            // Divisor
             Container(height: 1, color: Colors.white.withOpacity(0.1), margin: const EdgeInsets.symmetric(horizontal: 16)),
 
-            // ── Texto de confirmação ───────────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
               child: RichText(text: TextSpan(
@@ -647,7 +613,6 @@ class _ClanPageState extends State<ClanPage> {
               )),
             ),
 
-            // ── Botões ─────────────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
               child: Row(children: [
@@ -698,9 +663,6 @@ class _ClanPageState extends State<ClanPage> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CREATE CLAN SHEET (igual ao anterior)
-// ─────────────────────────────────────────────────────────────────────────────
 class _CreateClanSheet extends StatefulWidget {
   final List<String> clanIcons;
   final String userId;
@@ -737,7 +699,6 @@ class _CreateClanSheetState extends State<_CreateClanSheet> {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
           Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: const Color(0xFFE5E7EB), borderRadius: BorderRadius.circular(10)))),
           const SizedBox(height: 16),
-          // Header com título e X
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, crossAxisAlignment: CrossAxisAlignment.center, children: [
             const Text('Criar Clã', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: _primaryDeep)),
             GestureDetector(

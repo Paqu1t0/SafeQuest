@@ -4,12 +4,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:projeto_safequest/screens/home_page.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ONBOARDING SCREEN
-// Parâmetro requireNickname:
-//   true  → utilizador Google (sem nickname) — mostra 5ª página de escolha
-//   false → utilizador registado pela app (já tem nickname) — 4 páginas normais
-// ─────────────────────────────────────────────────────────────────────────────
 
 class OnboardingScreen extends StatefulWidget {
   final bool requireNickname;
@@ -34,7 +28,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   final PageController _pageCtrl = PageController();
   int _currentPage = 0;
 
-  // Controladores para a página do nickname (só utilizada quando requireNickname == true)
   final _nicknameCtrl = TextEditingController();
   bool _checkingNick  = false;
   String? _nickError;
@@ -77,7 +70,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     if (_currentPage < _totalPages - 1) {
       _pageCtrl.nextPage(duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
     } else {
-      // Última página: se for nickname, valida e guarda; senão termina direto
       if (_isNicknamePage) {
         _saveNicknameAndFinish();
       } else {
@@ -89,7 +81,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   Future<void> _saveNicknameAndFinish() async {
     final nick = _nicknameCtrl.text.trim();
 
-    // Validação local
     if (nick.isEmpty)        { setState(() => _nickError = 'O nickname é obrigatório'); return; }
     if (nick.length < 3)     { setState(() => _nickError = 'Mínimo 3 caracteres'); return; }
     if (nick.contains(' '))  { setState(() => _nickError = 'Sem espaços no nickname'); return; }
@@ -100,7 +91,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) { _finish(); return; }
 
-      // Verifica unicidade no Firestore
       final q = await FirebaseFirestore.instance
           .collection('users')
           .where('nickname', isEqualTo: nick)
@@ -112,7 +102,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         return;
       }
 
-      // Guarda o nickname no documento do utilizador
       await FirebaseFirestore.instance.collection('users').doc(user.uid).set(
         {'nickname': nick},
         SetOptions(merge: true),
@@ -150,15 +139,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             controller: _pageCtrl,
             onPageChanged: (i) => setState(() => _currentPage = i),
             children: [
-              // Páginas de informação
               ..._infoPages.map((p) => _buildInfoPage(p)),
 
-              // Página de nickname (só quando requireNickname == true)
               if (widget.requireNickname) _buildNicknamePage(),
             ],
           ),
 
-          // Indicadores de página
           Positioned(
             bottom: 120,
             left: 0, right: 0,
@@ -177,7 +163,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             ),
           ),
 
-          // Botão avançar / concluir
           Positioned(
             bottom: 40,
             left: 24, right: 24,
@@ -199,7 +184,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             ),
           ),
 
-          // Botão "Saltar" (só nas páginas de info, não na de nickname)
           if (!_isNicknamePage)
             Positioned(
               top: MediaQuery.of(context).padding.top + 12,
@@ -207,7 +191,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               child: TextButton(
                 onPressed: () {
                   if (widget.requireNickname) {
-                    // Vai para a página de nickname
                     _pageCtrl.animateToPage(_infoPages.length, duration: const Duration(milliseconds: 400), curve: Curves.easeInOut);
                   } else {
                     _finish();
@@ -290,7 +273,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               const Text('Este será o teu nome no leaderboard e nos clãs.', style: TextStyle(color: Colors.white70, fontSize: 14), textAlign: TextAlign.center),
               const SizedBox(height: 32),
 
-              // Campo de nickname
               Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
@@ -333,9 +315,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Modelo de página de informação
-// ─────────────────────────────────────────────────────────────────────────────
 class _OnboardingPage {
   final String emoji;
   final String title;

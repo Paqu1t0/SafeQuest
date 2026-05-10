@@ -4,9 +4,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:projeto_safequest/screens/member_profile_page.dart';
 import 'package:projeto_safequest/screens/profile_page.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// LEADERBOARD PAGE — Jogadores + Clãs
-// ─────────────────────────────────────────────────────────────────────────────
 
 class LeaderboardPage extends StatefulWidget {
   const LeaderboardPage({super.key});
@@ -53,7 +50,6 @@ class _LeaderboardPageState extends State<LeaderboardPage>
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // Header
         Container(
           color: Colors.white,
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
@@ -80,7 +76,6 @@ class _LeaderboardPageState extends State<LeaderboardPage>
             ],
           ),
         ),
-        // Tab bar
         Container(
           color: Colors.white,
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -129,7 +124,6 @@ class _LeaderboardPageState extends State<LeaderboardPage>
             ),
           ),
         ),
-        // Content
         Expanded(
           child: TabBarView(
             controller: _tabCtrl,
@@ -144,9 +138,6 @@ class _LeaderboardPageState extends State<LeaderboardPage>
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // ABA JOGADORES
-  // ─────────────────────────────────────────────────────────────────────────
   Widget _buildPlayersTab() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
@@ -213,7 +204,6 @@ class _LeaderboardPageState extends State<LeaderboardPage>
       ),
       child: Row(
         children: [
-          // Rank badge
           Container(
             width: 34, height: 34,
             decoration: BoxDecoration(
@@ -223,14 +213,12 @@ class _LeaderboardPageState extends State<LeaderboardPage>
             child: Center(child: Text('#$rank', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: rank <= 3 ? rankColor : Colors.grey))),
           ),
           const SizedBox(width: 10),
-          // Avatar
           Container(
             width: 44, height: 44,
             decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(13)),
             child: Center(child: Text(emoji, style: const TextStyle(fontSize: 22))),
           ),
           const SizedBox(width: 12),
-          // Info
           Expanded(child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -241,7 +229,6 @@ class _LeaderboardPageState extends State<LeaderboardPage>
               Text('Nível $nivel', style: const TextStyle(color: Colors.grey, fontSize: 12)),
             ],
           )),
-          // Pontos + medalha
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
             ?medal,
             Text('$pontos pts',
@@ -252,12 +239,8 @@ class _LeaderboardPageState extends State<LeaderboardPage>
     );
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // ABA CLÃS
-  // ─────────────────────────────────────────────────────────────────────────
   Widget _buildClansTab() {
     return StreamBuilder<DocumentSnapshot>(
-      // Descobre o clã do utilizador atual
       stream: FirebaseFirestore.instance.collection('users').doc(currentUser?.uid).snapshots(),
       builder: (context, userSnap) {
         String? myClanId;
@@ -290,7 +273,6 @@ class _LeaderboardPageState extends State<LeaderboardPage>
               ));
             }
 
-            // Só mostra clãs criados por utilizadores reais
             final docs = snap.data!.docs.where((d) {
               final data = d.data() as Map<String, dynamic>;
               final createdBy = data['createdBy'] as String?;
@@ -391,7 +373,6 @@ class _LeaderboardPageState extends State<LeaderboardPage>
                 Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: const Color(0xFFE5E7EB), borderRadius: BorderRadius.circular(10)))),
                 const SizedBox(height: 14),
 
-                // Header do clã
                 Container(
                   margin: const EdgeInsets.symmetric(horizontal: 16),
                   padding: const EdgeInsets.all(18),
@@ -407,7 +388,6 @@ class _LeaderboardPageState extends State<LeaderboardPage>
                   ]),
                 ),
 
-                // Stats
                 Padding(
                   padding: const EdgeInsets.all(14),
                   child: Row(children: [
@@ -432,7 +412,6 @@ class _LeaderboardPageState extends State<LeaderboardPage>
                   ]),
                 ),
 
-                // Lista de membros (só leitura — clicar abre perfil)
                 Expanded(
                   child: ListView.builder(
                     controller: scrollCtrl,
@@ -493,7 +472,6 @@ class _LeaderboardPageState extends State<LeaderboardPage>
                   ),
                 ),
 
-                // Botão de entrada — só se NÃO está em nenhum clã
                 if (!isMyClan)
                   FutureBuilder<DocumentSnapshot>(
                     future: FirebaseFirestore.instance.collection('users').doc(currentUser?.uid).get(),
@@ -602,9 +580,6 @@ class _LeaderboardPageState extends State<LeaderboardPage>
     ));
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // ABA AMIGOS
-  // ─────────────────────────────────────────────────────────────────────────
   Widget _buildFriendsTab() {
     if (currentUser == null) return const SizedBox.shrink();
 
@@ -626,7 +601,6 @@ class _LeaderboardPageState extends State<LeaderboardPage>
           ]));
         }
 
-        // Inclui o próprio utilizador + amigos
         final allUids = [currentUser!.uid, ...friends];
 
         return FutureBuilder<List<Map<String, dynamic>>>(
@@ -638,7 +612,6 @@ class _LeaderboardPageState extends State<LeaderboardPage>
             final myRank = sorted.indexWhere((u) => u['uid'] == currentUser!.uid) + 1;
 
             return Column(children: [
-              // Banner do meu rank entre amigos
               Container(
                 margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -694,7 +667,6 @@ class _LeaderboardPageState extends State<LeaderboardPage>
                           boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 2))],
                         ),
                         child: Row(children: [
-                          // Rank
                           SizedBox(width: 32, child: medal ?? Text(
                             '#$rank',
                             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14,
@@ -702,7 +674,6 @@ class _LeaderboardPageState extends State<LeaderboardPage>
                             textAlign: TextAlign.center,
                           )),
                           const SizedBox(width: 8),
-                          // Avatar
                           Container(width: 40, height: 40,
                             decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
                             child: Center(child: Text(emoji, style: const TextStyle(fontSize: 22))),
@@ -727,7 +698,6 @@ class _LeaderboardPageState extends State<LeaderboardPage>
                             Text('Nível ${((u['pontos'] as int) ~/ 250) + 1}',
                                 style: const TextStyle(color: Colors.grey, fontSize: 12)),
                           ])),
-                          // Pontos
                           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                             Text('${u['pontos']}',
                               style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16,

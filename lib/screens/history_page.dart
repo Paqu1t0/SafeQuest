@@ -72,7 +72,6 @@ class _HistoryPageState extends State<HistoryPage>
 
     if (docs.isNotEmpty) {
       totalQuizzes = docs.length;
-      // Ordena manualmente pelo campo 'date' (caso não haja índice)
       final sorted = List<QueryDocumentSnapshot>.from(docs)
         ..sort((a, b) {
           final aDate = (a.data() as Map<String, dynamic>)['date'] as Timestamp?;
@@ -125,14 +124,12 @@ class _HistoryPageState extends State<HistoryPage>
             .collection('users').doc(user?.uid).collection('quiz_results')
             .orderBy('date', descending: true).snapshots(),
         builder: (context, snapshot) {
-          // Estado de carregamento
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
               child: CircularProgressIndicator(color: Color(0xFF1A56DB)),
             );
           }
 
-          // Erro (p.ex. índice em falta no Firestore — tenta sem ordenação)
           if (snapshot.hasError) {
             return StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
@@ -175,9 +172,7 @@ class _HistoryPageState extends State<HistoryPage>
   }
 
 
-  // ── ABA ATIVIDADE ──────────────────────────────────────────────────────────
   Widget _buildActivityTab(List<Map<String, dynamic>> displayData, int total, double media, int pontos) {
-    // Aplica pesquisa + filtro por tema
     final filtered = displayData.where((d) {
       final tema = (d['theme'] ?? '').toString().toLowerCase();
       final matchesTema = _filterTema == 'Todos' || d['theme'] == _filterTema;
@@ -202,7 +197,6 @@ class _HistoryPageState extends State<HistoryPage>
           ]),
           const SizedBox(height: 20),
 
-          // ── Barra de pesquisa ───────────────────────────────────
           TextField(
             onChanged: (v) => setState(() => _searchQuery = v),
             decoration: InputDecoration(
@@ -225,7 +219,6 @@ class _HistoryPageState extends State<HistoryPage>
           ),
           const SizedBox(height: 12),
 
-          // ── Filtros por tema ─────────────────────────────────
           SizedBox(
             height: 36,
             child: ListView(
@@ -289,7 +282,6 @@ class _HistoryPageState extends State<HistoryPage>
     );
   }
 
-  // ── ABA ANÁLISE IA ─────────────────────────────────────────────────────────
   Widget _buildAITab(List<Map<String, dynamic>> data) {
 
     if (data.isEmpty) {
@@ -310,7 +302,6 @@ class _HistoryPageState extends State<HistoryPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 1. Card do Mentor
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -353,7 +344,6 @@ class _HistoryPageState extends State<HistoryPage>
             ),
           ),
 
-          // 2. Resposta da IA
           if (_aiAnalysis != null) ...[
             const SizedBox(height: 20),
             Container(
@@ -400,7 +390,6 @@ class _HistoryPageState extends State<HistoryPage>
     );
 }
 
-  // ── Renderizador Markdown simples ────────────────────────────────────────
   Widget _renderAIText(String text) {
     final lines = text.split('\n');
     final widgets = <Widget>[];
@@ -454,7 +443,6 @@ class _HistoryPageState extends State<HistoryPage>
         continue;
       }
 
-      // Bullet point
       if ((t.startsWith('\u2022 ') || t.startsWith('- ') || t.startsWith('* ')) && !t.startsWith('**')) {
         final content = t.replaceFirst(RegExp(r'^[\u2022\-\*]\s+'), '');
         widgets.add(Padding(
@@ -473,7 +461,6 @@ class _HistoryPageState extends State<HistoryPage>
         continue;
       }
 
-      // Parágrafo normal
       widgets.add(Padding(
         padding: const EdgeInsets.only(bottom: 6),
         child: _inlineText(t),
@@ -483,7 +470,6 @@ class _HistoryPageState extends State<HistoryPage>
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: widgets);
   }
 
-  // Texto inline com **bold** — sem largura fixa, texto cresce livremente
   Widget _inlineText(String text) {
     final regex = RegExp(r'\*\*(.+?)\*\*');
     final matches = regex.allMatches(text).toList();
@@ -580,7 +566,6 @@ class _HistoryPageState extends State<HistoryPage>
     final temas = ['Phishing', 'Palavras-passe', 'Redes Sociais', 'Segurança Web'];
     final buffer = StringBuffer();
 
-    // Calcula estatísticas por tema
     final temaStats = <String, Map<String, dynamic>>{};
     for (final tema in temas) {
       final themed = data.where((d) => d['theme'] == tema).toList();
@@ -590,7 +575,6 @@ class _HistoryPageState extends State<HistoryPage>
     }
 
 
-    // Recolhe perguntas erradas dos últimos 10 quizzes
     final ultimosQuizzes = data.take(10).toList();
     final perguntasErradas = <String>[];
     for (final quiz in ultimosQuizzes) {
@@ -668,7 +652,6 @@ Usa EXATAMENTE este formato:
         }
         final parts = (candidates[0] as Map<String, dynamic>)['content']['parts'] as List;
         
-        // Gemini 2.5-flash tem "thinking" parts com thought:true. Filtramos os thoughts e juntamos o texto que sobra!
         final responseParts = parts.where((p) {
           final pMap = p as Map<String, dynamic>;
           return pMap['thought'] != true && (pMap['text'] as String? ?? '').isNotEmpty;
@@ -678,7 +661,6 @@ Usa EXATAMENTE este formato:
         
         setState(() { _aiAnalysis = text.trim(); _aiLoading = false; });
       } else {
-        // Log do erro real para diagnóstico
         debugPrint('🚨 Gemini API error ${response.statusCode}: ${response.body}');
         setState(() {
           _aiAnalysis = '## ⚠️ Assistente Indisponível\n\nNão foi possível contactar o Mentor. Verifica a tua ligação e tenta novamente.';
@@ -698,7 +680,6 @@ Usa EXATAMENTE este formato:
     }
   }
 
-  // ── STAT CARD ──────────────────────────────────────────────────────────────
   Widget _statCard(String value, String label, IconData icon) {
     return Expanded(
       child: Container(
@@ -719,7 +700,6 @@ Usa EXATAMENTE este formato:
     );
   }
 
-  // ── ACTIVITY ITEM ──────────────────────────────────────────────────────────
   Widget _activityItem(BuildContext context, Map<String, dynamic> data) {
     final title    = data['theme']   ?? "Quiz Geral";
     final date     = data['dateStr'] ?? "";
@@ -732,7 +712,6 @@ Usa EXATAMENTE este formato:
     final iconData  = _classIcon(progress);
     final iconColor = _classColor(progress);
 
-    // Badge do tipo de quiz
     final typeBadge = tipoQuiz == 'tempo' ? '⏱️' : tipoQuiz == 'vf' ? '✅' : '📚';
 
     return GestureDetector(

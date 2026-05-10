@@ -1,20 +1,12 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// GLOBAL KEY para o badge de moedas no AppBar
-// Coloca este key no widget do badge: coinBadgeKey
-// ─────────────────────────────────────────────────────────────────────────────
 final GlobalKey coinBadgeKey = GlobalKey();
 
-// ─────────────────────────────────────────────────────────────────────────────
-// COIN ANIMATION — moedas voam DO centro PARA o badge no canto superior direito
-// ─────────────────────────────────────────────────────────────────────────────
 class CoinAnimation {
   static void show(BuildContext context, {required int coins}) {
     final overlay = Overlay.of(context);
 
-    // Descobre a posição do badge de moedas
     Offset target = const Offset(30, 30); // fallback canto sup. direito
     final renderBox = coinBadgeKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox != null) {
@@ -67,7 +59,6 @@ class _CoinFlyOverlayState extends State<_CoinFlyOverlay> with TickerProviderSta
         vsync: this,
         duration: Duration(milliseconds: 500 + i * 60),
       );
-      // stagger: each coin starts a bit later
       Future.delayed(Duration(milliseconds: i * 55), () {
         if (mounted) ctrl.forward();
       });
@@ -75,14 +66,12 @@ class _CoinFlyOverlayState extends State<_CoinFlyOverlay> with TickerProviderSta
     });
 
     _positions = List.generate(_count, (i) {
-      // slight random spread from center before flying to target
       final spread = Offset(
         (_rnd.nextDouble() - 0.5) * 80,
         (_rnd.nextDouble() - 0.5) * 80,
       );
       final mid = origin + spread;
 
-      // 3-stop path: origin → spread → target
       return TweenSequence<Offset>([
         TweenSequenceItem(
           tween: Tween(begin: origin, end: mid)
@@ -103,7 +92,6 @@ class _CoinFlyOverlayState extends State<_CoinFlyOverlay> with TickerProviderSta
       TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.0), weight: 20),
     ]).animate(_ctrls[i]));
 
-    // Mostra badge quando a última moeda chegar
     _ctrls.last.addStatusListener((status) {
       if (status == AnimationStatus.completed && mounted) {
         setState(() => _showBadge = true);
@@ -129,7 +117,6 @@ class _CoinFlyOverlayState extends State<_CoinFlyOverlay> with TickerProviderSta
       type: MaterialType.transparency,
       child: IgnorePointer(
         child: Stack(children: [
-        // Moedas voando
         ...List.generate(_count, (i) => AnimatedBuilder(
           animation: _ctrls[i],
           builder: (_, _) {
@@ -145,7 +132,6 @@ class _CoinFlyOverlayState extends State<_CoinFlyOverlay> with TickerProviderSta
           },
         )),
 
-        // Badge "+X" aparece no alvo quando moedas chegam
         if (_showBadge) Positioned(
           left: widget.target.dx - 44,
           top : widget.target.dy - 36,
@@ -179,9 +165,6 @@ class _CoinFlyOverlayState extends State<_CoinFlyOverlay> with TickerProviderSta
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// STREAK ANIMATION — popup central mais longo e vistoso
-// ─────────────────────────────────────────────────────────────────────────────
 class StreakAnimation {
   static void show(BuildContext context, {required int streak}) {
     if (streak < 2) return;
@@ -224,7 +207,6 @@ class _StreakOverlayState extends State<_StreakOverlay> with TickerProviderState
 
     _exitCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 400));
 
-    // Duração total: 4.5 segundos
     Future.delayed(const Duration(milliseconds: 4100), () {
       if (mounted) _exitCtrl.forward();
       Future.delayed(const Duration(milliseconds: 400), widget.onDone);
@@ -269,13 +251,10 @@ class _StreakOverlayState extends State<_StreakOverlay> with TickerProviderState
               child: Opacity(
             opacity: exitOpacity.clamp(0.0, 1.0),
             child: Stack(children: [
-              // Fundo semitransparente
               Positioned.fill(child: Container(color: Colors.black.withOpacity(0.35 * exitOpacity))),
 
-              // Partículas de chama ao redor
               ..._buildParticles(),
 
-              // Card principal
               Center(
                 child: Transform.scale(
                   scale: enterScale,
@@ -289,7 +268,6 @@ class _StreakOverlayState extends State<_StreakOverlay> with TickerProviderState
                       border: Border.all(color: _color.withOpacity(0.3), width: 2),
                     ),
                     child: Column(mainAxisSize: MainAxisSize.min, children: [
-                      // Chama pulsante
                       AnimatedBuilder(
                         animation: _flameCtrl,
                         builder: (_, _) {
@@ -306,7 +284,6 @@ class _StreakOverlayState extends State<_StreakOverlay> with TickerProviderState
                       ),
                       const SizedBox(height: 12),
 
-                      // Número de dias com animação de contador
                       TweenAnimationBuilder<int>(
                         tween: IntTween(begin: 0, end: widget.streak),
                         duration: const Duration(milliseconds: 800),
@@ -326,7 +303,6 @@ class _StreakOverlayState extends State<_StreakOverlay> with TickerProviderState
                       ),
                       const SizedBox(height: 14),
 
-                      // Badge do nível de streak
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         decoration: BoxDecoration(

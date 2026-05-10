@@ -59,7 +59,6 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  // ================= LÓGICA: LOGIN GOOGLE =================
   Future<void> _handleGoogleSignIn() async {
     try {
       setState(() => _isLoading = true);
@@ -67,8 +66,6 @@ class _LoginPageState extends State<LoginPage> {
         clientId: kIsWeb ? '434644951500-d3a8cje44ae981sei1seaola675jflcd.apps.googleusercontent.com' : null,
       );
       
-      // No Web, o signOut assíncrono antes do signIn faz com que o browser bloqueie o popup
-      // por perda de contexto do clique do utilizador (popup_closed). Só fazemos no mobile.
       if (!kIsWeb) {
         await googleSignIn.signOut(); // Força escolha de conta
       }
@@ -85,12 +82,9 @@ class _LoginPageState extends State<LoginPage> {
         idToken: googleAuth.idToken,
       );
 
-      // Persistência de sessão — no mobile o Firebase já usa LOCAL por defeito
-      // O "Lembra-me" é gerido via SharedPreferences + MFA gate
       await _saveRememberMe();
       await FirebaseAuth.instance.signInWithCredential(credential);
       if (!mounted) return;
-      // Navega explicitamente — garante funcionamento mesmo na 2ª sessão
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const AuthGate()),
         (route) => false,
@@ -104,7 +98,6 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  // ================= LÓGICA: LOGIN EMAIL =================
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
@@ -115,7 +108,6 @@ class _LoginPageState extends State<LoginPage> {
         password: _passwordController.text.trim(),
       );
       if (!mounted) return;
-      // Navega explicitamente — garante funcionamento mesmo na 2ª sessão
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const AuthGate()),
         (route) => false,
@@ -140,7 +132,6 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Removi a altura fixa (height: double.infinity) que causava o Overflow
       body: Container(
         width: double.infinity,
         decoration: const BoxDecoration(
@@ -166,7 +157,6 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     const SizedBox(height: 40),
 
-                    // CARTÃO BRANCO
                     Container(
                       padding: const EdgeInsets.all(28),
                       decoration: BoxDecoration(
@@ -200,11 +190,9 @@ class _LoginPageState extends State<LoginPage> {
                           
                           const SizedBox(height: 8),
 
-                          // LEMBRA-ME + ESQUECEU SENHA
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              // Checkbox "Lembra-me"
                               GestureDetector(
                                 onTap: () => setState(() => _rememberMe = !_rememberMe),
                                 child: Row(
@@ -234,7 +222,6 @@ class _LoginPageState extends State<LoginPage> {
                                   ],
                                 ),
                               ),
-                              // Esqueceu a senha
                               TextButton(
                                 onPressed: () {
                                   Navigator.push(
@@ -261,7 +248,6 @@ class _LoginPageState extends State<LoginPage> {
 
                           const SizedBox(height: 16),
 
-                          // BOTÃO ENTRAR
                           SizedBox(
                             width: double.infinity,
                             height: 55,
@@ -290,7 +276,6 @@ class _LoginPageState extends State<LoginPage> {
                           ),
                           const SizedBox(height: 20),
 
-                          // BOTÃO GOOGLE CORRIGIDO
                           SizedBox(
                             width: double.infinity,
                             height: 55,
@@ -300,7 +285,6 @@ class _LoginPageState extends State<LoginPage> {
                                 side: const BorderSide(color: Colors.grey),
                               ),
                               icon: Image.network(
-                                // Link atualizado e estável para a imagem do Google
                                 'https://cdn-icons-png.flaticon.com/512/300/300221.png',
                                 height: 24,
                               ),

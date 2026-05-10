@@ -13,11 +13,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 class MFAEmailPage extends StatefulWidget {
   const MFAEmailPage({super.key});
 
-  // Variáveis estáticas partilhadas entre instâncias do widget
   static DateTime? lastEmailSentTime;
   static String staticCode = '';
 
-  // Limpa a sessão MFA (chamar após signOut ou após registo)
   static void clearSession() {
     lastEmailSentTime = null;
     staticCode = '';
@@ -34,7 +32,6 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
   bool _isLoading = false;
   String _codigoGerado = ""; // Vai guardar o código real gerado pela app
 
-  // NOVO: Variáveis para o temporizador de reenvio
   Timer? _timer;
   int _remainingSeconds = 60; // 60 segundos por defeito
   bool _canResend = false;
@@ -43,7 +40,6 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
   @override
   void initState() {
     super.initState();
-    // Carrega o código anterior do estado do widget (caso exista dentro da janela de throttle)
     _codigoGerado = MFAEmailPage.staticCode;
     if (MFAEmailPage.lastEmailSentTime == null || DateTime.now().difference(MFAEmailPage.lastEmailSentTime!).inSeconds > 30) {
       MFAEmailPage.lastEmailSentTime = DateTime.now();
@@ -63,7 +59,6 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
     super.dispose();
   }
 
-  // ================= TEMPORIZADOR DE REENVIO =================
   void _startTimer() {
     _remainingSeconds = 60;
     _canResend = false;
@@ -81,7 +76,6 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
     });
   }
 
-  // ================= ENVIO REAL VIA EMAILJS (MANTEMOS A SEGURANÇA) =================
   Future<void> _enviarCodigoEmail({required bool isResend}) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null || user.email == null) return;
@@ -90,19 +84,16 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
       setState(() => _isLoading = true);
     }
 
-    // 1. Gera um código aleatório de 6 dígitos e persiste-o no estado do widget
     _codigoGerado = (Random().nextInt(900000) + 100000).toString();
     MFAEmailPage.staticCode = _codigoGerado;
 
     try {
-      // 2. Guarda na Base de Dados (Para auditoria do TFC)
       await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
         'mfa_code': _codigoGerado,
         'mfa_timestamp': FieldValue.serverTimestamp(),
         'mfa_verified': false,
       }, SetOptions(merge: true));
 
-      // 3. Resolve as chaves (protegendo contra cache antigo na Web onde a string pode vir vazia em vez de nula)
       const String serviceId  = Env.emailJsServiceId;
       const String templateId = Env.emailJsTemplateId;
       const String publicKey  = Env.emailJsPublicKey;
@@ -120,8 +111,6 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
         }
       };
 
-      // Na Web, o EmailJS REJEITA pedidos com accessToken/PrivateKey por segurança (CORS).
-      // No Mobile, alguns templates podem exigir a Private Key para funcionar.
       if (!kIsWeb) {
         payload['accessToken'] = privateKey;
       }
@@ -136,7 +125,6 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
         setState(() {
           _isLoading = false;
         });
-        // Inicia ou reinicia o temporizador após envio bem-sucedido
         _startTimer();
       } else {
         setState(() => _isLoading = false);
@@ -152,11 +140,9 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
     }
   }
 
-  // ================= VALIDAÇÃO DO CÓDIGO =================
   Future<void> _verificarEEntrar() async {
     String codigoIntroduzido = _controllers.map((c) => c.text).join();
     
-    // Verifica se os 6 campos estão preenchidos
     if (codigoIntroduzido.length != 6) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Insere o código completo de 6 dígitos.")));
       return;
@@ -168,18 +154,14 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
       try {
         final uid = FirebaseAuth.instance.currentUser?.uid;
 
-        // Marca na BD que o MFA foi validado com sucesso usando set com merge
-        // Isto previne erros caso o documento do utilizador ainda não exista
         await FirebaseFirestore.instance.collection('users').doc(uid).set({
           'mfa_verified': true,
         }, SetOptions(merge: true));
 
-        // ── Guarda sessão MFA no SharedPreferences (30 dias) ──
         final prefs = await SharedPreferences.getInstance();
         await prefs.setInt('mfa_verified_at', DateTime.now().millisecondsSinceEpoch);
         await prefs.setString('mfa_uid', uid ?? '');
 
-        // Limpa o estado após MFA bem-sucedido (próximo login envia novo código)
         MFAEmailPage.clearSession();
 
         if (!mounted) return;
@@ -199,13 +181,10 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
     }
   }
 
-  // ================= INTERFACE VISUAL =================
   @override
   Widget build(BuildContext context) {
     final userEmail = FirebaseAuth.instance.currentUser?.email ?? "utilizador@email.com";
-    // Cor de fundo azul claro
     const backgroundColor = Color(0xFFF1F7FF); 
-    // Cor azul escuro para ícones e botões
     const primaryColor = Color(0xFF1A56DB);
 
     return Scaffold(
@@ -223,7 +202,6 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
             ),
             child: Column(
                 children: [
-                  // 1. CABEÇALHO COM BOTÃO VOLTAR
                   Row(
                     children: [
                       GestureDetector(
@@ -240,7 +218,6 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
                   
                   const SizedBox(height: 30),
 
-                  // 2. LOGO SAFEQUEST E TÍTULO
                   Column(
                     children: [
                       Image.asset('assets/icon/icon.png', height: 180),
@@ -266,7 +243,6 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
                   
                   const SizedBox(height: 30),
 
-                  // 3. CARTÃO BRANCO CENTRAL (CAMPOS DE PIN E REENVIO)
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 30, horizontal: 20),
@@ -277,7 +253,6 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
                     ),
                     child: Column(
                       children: [
-                        // CAMPOS DE PIN (6 campos arredondados) — responsivos
                         LayoutBuilder(
                           builder: (context, constraints) {
                             final boxWidth = ((constraints.maxWidth - 50) / 6).clamp(36.0, 50.0);
@@ -288,7 +263,6 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
                           },
                         ),
                         const SizedBox(height: 25),
-                        // TEXTO DE REENVIO COM TEMPORIZADOR
                         AnimatedSwitcher(
                           duration: const Duration(milliseconds: 300),
                           child: _canResend 
@@ -312,7 +286,6 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
                   
                   const SizedBox(height: 20),
 
-                  // 4. CARTÕES DE INFORMAÇÃO INFERIORES
                   _buildInfoCard(
                     icon: Icons.shield_outlined,
                     title: "Segurança da sua conta",
@@ -322,7 +295,6 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
                   
                   const SizedBox(height: 10),
 
-                  // Info sobre sessão de 30 dias
                   _buildInfoCard(
                     icon: Icons.schedule_rounded,
                     title: "Sessão de 30 dias",
@@ -332,7 +304,6 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
 
                   const SizedBox(height: 30),
 
-                  // 5. INDICADOR DE CARREGAMENTO (Auto-Submit)
                   if (_isLoading)
                     const Center(child: CircularProgressIndicator(color: primaryColor))
                   else
@@ -345,7 +316,6 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
     );
   }
 
-  // WIDGET PARA OS CAMPOS DE PIN — responsivo e perfeitamente centrado
   Widget _otpBox(int index, double boxWidth) {
     return SizedBox(
       width: boxWidth,
@@ -377,7 +347,6 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
           ),
         ),
         onChanged: (value) {
-          // Lógica para lidar com "Colar" (Paste) de múltiplos dígitos
           if (value.length > 1) {
             final pastedText = value.replaceAll(RegExp(r'[^0-9]'), '');
             for (int i = 0; i < pastedText.length && (index + i) < 6; i++) {
@@ -399,9 +368,7 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
           } else if (value.isEmpty && index > 0) {
             _focusNodes[index - 1].requestFocus();
           } else if (value.isNotEmpty && index == 5) {
-            // Unfocus the keyboard automatically
             _focusNodes[index].unfocus();
-            // Automatically verify the code
             _verificarEEntrar();
           }
         },
@@ -409,7 +376,6 @@ class _MFAEmailPageState extends State<MFAEmailPage> {
     );
   }
 
-  // WIDGET PARA OS CARTÕES DE INFO
   Widget _buildInfoCard({
     required IconData icon, 
     required String title, 

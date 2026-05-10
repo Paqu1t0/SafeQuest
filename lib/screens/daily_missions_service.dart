@@ -2,11 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// DAILY MISSIONS SERVICE
-// Firestore: users/{uid}/daily_missions/{YYYY-MM-DD}
-//   { quizzesDone, perfectDone, temasDone[], moedas_claimed, date }
-// ─────────────────────────────────────────────────────────────────────────────
 
 class DailyMission {
   final String id;
@@ -26,7 +21,6 @@ class DailyMission {
   });
 }
 
-// Missões fixas diárias — top-level para ser acessível por todos os widgets
 const _missions = [
   DailyMission(id: 'quizzes3',  icon: '🎯', title: 'Triathlo do Saber',   description: 'Faz 3 quizzes hoje',             target: 3,  rewardMoedas: 80),
   DailyMission(id: 'perfect1',  icon: '⭐', title: 'Perfecionista',        description: 'Termina 1 quiz com 100%',         target: 1,  rewardMoedas: 120),
@@ -109,9 +103,6 @@ class DailyMissionsService {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// DAILY MISSIONS WIDGET — para incluir na home_page
-// ─────────────────────────────────────────────────────────────────────────────
 
 class DailyMissionsWidget extends StatefulWidget {
   static const _primary     = Color(0xFF1A56DB);
@@ -184,14 +175,12 @@ class _DailyMissionsWidgetState extends State<DailyMissionsWidget>
           ),
           child: Column(
             children: [
-              // ── Header clicável ──────────────────────────────────────────
               GestureDetector(
                 onTap: _toggle,
                 behavior: HitTestBehavior.opaque,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   child: Row(children: [
-                    // Ícone com animação de "por receber"
                     Stack(children: [
                       const Text('📋', style: TextStyle(fontSize: 20)),
                       if (claimableCount > 0) Positioned(
@@ -219,12 +208,10 @@ class _DailyMissionsWidgetState extends State<DailyMissionsWidget>
                         ),
                       ),
                     ])),
-                    // Progresso circular compacto
                     _CompactProgress(completed: completedCount, total: _missions.length),
                     const SizedBox(width: 10),
                     const _MidnightCountdown(),
                     const SizedBox(width: 6),
-                    // Seta animada
                     RotationTransition(
                       turns: _rotate,
                       child: const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.grey, size: 22),
@@ -233,7 +220,6 @@ class _DailyMissionsWidgetState extends State<DailyMissionsWidget>
                 ),
               ),
 
-              // ── Conteúdo expansível ──────────────────────────────────────
               AnimatedCrossFade(
                 firstChild: const SizedBox.shrink(),
                 secondChild: Padding(
@@ -256,7 +242,6 @@ class _DailyMissionsWidgetState extends State<DailyMissionsWidget>
   }
 }
 
-// Progresso circular mini
 class _CompactProgress extends StatelessWidget {
   final int completed;
   final int total;
@@ -310,7 +295,6 @@ class _MissionCard extends StatelessWidget {
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Row(children: [
-        // Ícone com estado
         Container(
           width: 44, height: 44,
           decoration: BoxDecoration(
@@ -321,11 +305,9 @@ class _MissionCard extends StatelessWidget {
         ),
         const SizedBox(width: 12),
 
-        // Conteúdo
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
             Expanded(child: Text(mission.title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isClaimed ? Colors.grey : const Color(0xFF1E3A8A)))),
-            // Recompensa
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
               decoration: BoxDecoration(color: _gold.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
@@ -340,7 +322,6 @@ class _MissionCard extends StatelessWidget {
           Text(mission.description, style: const TextStyle(color: Colors.grey, fontSize: 12)),
           const SizedBox(height: 8),
 
-          // Barra de progresso
           Row(children: [
             Expanded(
               child: ClipRRect(
@@ -362,7 +343,6 @@ class _MissionCard extends StatelessWidget {
           ]),
         ])),
 
-        // Botão reclamar (se completo e não reclamado)
         if (isComplete && !isClaimed) ...[
           const SizedBox(width: 10),
           GestureDetector(
@@ -383,7 +363,6 @@ class _MissionCard extends StatelessWidget {
           ),
         ],
 
-        // Tick se já reclamado
         if (isClaimed) ...[
           const SizedBox(width: 10),
           const Icon(Icons.check_circle_rounded, color: Color(0xFF16A34A), size: 24),
@@ -489,7 +468,6 @@ class _MissionCard extends StatelessWidget {
   }
 }
 
-// Countdown até meia noite
 class _MidnightCountdown extends StatefulWidget {
   const _MidnightCountdown();
   @override
@@ -503,7 +481,6 @@ class _MidnightCountdownState extends State<_MidnightCountdown> {
   void initState() {
     super.initState();
     _update();
-    // Atualiza a cada minuto
     Future.doWhile(() async {
       await Future.delayed(const Duration(minutes: 1));
       if (mounted) setState(_update);

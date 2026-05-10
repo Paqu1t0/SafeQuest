@@ -18,13 +18,7 @@ import 'package:projeto_safequest/screens/daily_missions_service.dart';
 import 'dart:convert';
 import 'dart:io';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// AVATAR HELPERS
-// ─────────────────────────────────────────────────────────────────────────────
 
-// ─────────────────────────────────────────────────────────────────────────────
-// HOME PAGE
-// ─────────────────────────────────────────────────────────────────────────────
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -50,8 +44,6 @@ class _HomePageState extends State<HomePage> {
       const HistoryPage(),
       const ProfilePage(),
     ];
-    // Regista a hora de abertura da app (usado pelas Cloud Functions
-    // para não enviar notificações a quem já entrou hoje)
     _atualizarUltimaVisita();
   }
 
@@ -96,8 +88,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // Grava no Firestore a hora em que o utilizador abriu a app e o FCM Token.
-  // As Cloud Functions verificam este valor para enviar notificações.
   Future<void> _atualizarUltimaVisita() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
@@ -111,7 +101,6 @@ class _HomePageState extends State<HomePage> {
             'fcmToken': ?token,
           }, SetOptions(merge: true));
           
-      // Opcional: Atualizar se o token mudar enquanto a app está aberta
       FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
         FirebaseFirestore.instance
             .collection('users')
@@ -119,14 +108,10 @@ class _HomePageState extends State<HomePage> {
             .set({'fcmToken': newToken}, SetOptions(merge: true));
       });
     } catch (_) {
-      // Falha silenciosa — não é crítico para o utilizador
     }
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// QUIZZES DASHBOARD
-// ─────────────────────────────────────────────────────────────────────────────
 
 class QuizzesDashboard extends StatefulWidget {
   const QuizzesDashboard({super.key});
@@ -144,11 +129,8 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
 
   late TabController _tabController;
 
-  // Cada tópico tem 3 tipos × 3 dificuldades × 3 níveis = 27 quizzes possíveis
-  // Mostramos 15 como meta razoável (3 tipos × 5 combinações)
   static const _totalQuizzesPerTopic = 15;
 
-  // Tópicos — título e ícone
   static final _topics = [
     {'name': 'Phishing',       'icon': Icons.email_outlined},
     {'name': 'Palavras-passe', 'icon': Icons.lock_outline},
@@ -156,7 +138,6 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
     {'name': 'Segurança Web',  'icon': Icons.language},
   ];
 
-  // Progresso = quizzes feitos neste tema / meta (15), NÃO a média de percentagens
   static double _calcProgress(List<QueryDocumentSnapshot> docs, String tema) {
     final count = docs.where((d) {
       final data = d.data() as Map<String, dynamic>;
@@ -165,7 +146,6 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
     return (count / _totalQuizzesPerTopic).clamp(0.0, 1.0);
   }
 
-  // Número de quizzes feitos num tema
   static int _countQuizzes(List<QueryDocumentSnapshot> docs, String tema) {
     return docs.where((d) {
       final data = d.data() as Map<String, dynamic>;
@@ -206,7 +186,6 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
       appBar: _buildAppBar(user),
       body: Column(
         children: [
-          // ── Tab bar Quizzes / Classificação ──────────────────────────────
           _buildTabBar(),
           Expanded(
             child: TabBarView(
@@ -223,7 +202,6 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
     );
   }
 
-  // ── AppBar com avatar + moedas ───────────────────────────────────────────
   PreferredSizeWidget _buildAppBar(User? user) {
     return AppBar(
       backgroundColor: Colors.white,
@@ -260,7 +238,6 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
                   Center(
                     child: SafeQuestAvatar(photoUrl: photoUrl, avatarId: avatarId, size: 16, showBorder: false),
                   ),
-                  // Lápis de edição no canto
                   Positioned(
                     bottom: 0, right: 0,
                     child: Container(
@@ -289,12 +266,10 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
           String nome = user?.displayName ?? "Utilizador";
           if (snapshot.hasData && snapshot.data!.exists) {
             final data = snapshot.data!.data() as Map<String, dynamic>?;
-            // Mostra nickname se existir, senão o primeiro nome
             nome = data?['nickname'] ?? (data?['name'] as String?)?.split(' ').first ?? nome;
           }
           return GestureDetector(
             onTap: () {
-              // Navega para a aba Perfil (índice 5)
               final homeState = context.findAncestorStateOfType<_HomePageState>();
               homeState?._goTo(5);
             },
@@ -326,7 +301,6 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
         },
       ),
       actions: [
-        // Badge de moedas — clicável para abrir loja
         StreamBuilder<DocumentSnapshot>(
           stream: FirebaseFirestore.instance
               .collection('users')
@@ -355,9 +329,7 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
             );
           },
         ),
-        // Notificações do clã
         _buildNotificationBell(context, user),
-        // Ícone da loja
         GestureDetector(
           onTap: () => Navigator.push(context,
               MaterialPageRoute(builder: (_) => AvatarStorePage())),
@@ -372,7 +344,6 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
                 color: _primary, size: 24),
           ),
         ),
-        // Ícone de amigos — azul
         GestureDetector(
           onTap: () => Navigator.push(context,
               MaterialPageRoute(builder: (_) => FriendsPage())),
@@ -392,7 +363,6 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
   }
 
 
-  // ── Tab bar ───────────────────────────────────────────────────────────────
   Widget _buildTabBar() {
     return Container(
       color: Colors.white,
@@ -437,7 +407,6 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
     );
   }
 
-  // ── Aba Quizzes ───────────────────────────────────────────────────────────
   Widget _buildQuizzesTab(User? user) {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
@@ -499,7 +468,6 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
     );
   }
 
-  // ── Dica do Dia ──────────────────────────────────────────────────────────
   static const _tips = [
     ('🔐', 'Palavras-passe', 'Usa uma frase longa em vez de uma palavra. Ex: "t@l@p3g@rom@2024!" é muito mais segura que "senha123".'),
     ('🎣', 'Phishing', 'Verifica SEMPRE o remetente de emails antes de clicar em links. Um endereço ligeiramente diferente pode ser uma armadilha.'),
@@ -530,7 +498,6 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // ── Botão para revelar/esconder a dica ───────────────────────────
         GestureDetector(
           onTap: () => setState(() => _tipVisible = !_tipVisible),
           child: Container(
@@ -570,11 +537,9 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
           ),
         ),
 
-        // ── Conteúdo da dica (colapsável) ────────────────────────────────
         AnimatedCrossFade(
           firstChild: const SizedBox.shrink(),
           secondChild: GestureDetector(
-            // Toca no conteúdo da dica para a fechar
             onTap: () => setState(() => _tipVisible = false),
             child: Container(
               margin: const EdgeInsets.only(top: 6),
@@ -603,11 +568,9 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
     );
   }
 
-  // ── Sino de notificações — só clã e batalhas ──────────────────────────────
   Widget _buildNotificationBell(BuildContext context, User? user) {
     if (user == null) return const SizedBox.shrink();
     return StreamBuilder<QuerySnapshot>(
-      // Usa o stream filtrado: só conta notificações de clã/batalhas (não as automáticas)
       stream: NotificationService.unreadStream(user.uid),
       builder: (context, snap) {
         final count = snap.hasData ? snap.data!.docs.length : 0;
@@ -639,7 +602,6 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
     );
   }
 
-  // Mapa de cores dos banners (sincronizado com avatar_store_page)
   static List<Color> _getBannerColors(String bannerId) {
     const map = <String, List<Color>>{
       'default' : [Color(0xFF2563EB), Color(0xFF1D4ED8)],
@@ -654,9 +616,7 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
     return map[bannerId] ?? map['default']!;
   }
 
-  // ── Score card ────────────────────────────────────────────────────────────
   Widget _buildMainScoreCard(int pts, double prog, int nivel, List<Color> bannerColors) {
-    // XP dentro do nível atual (cada nível = 250 pts)
     final xpInLevel    = pts % 250;
     final xpProgress   = xpInLevel / 250.0;
     final xpToNext     = 250 - xpInLevel;
@@ -676,7 +636,6 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
                 const Text('Total de Pontos', style: TextStyle(color: Colors.white70, fontSize: 14)),
                 Text('$pts', style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)),
               ]),
-              // Nível no canto direito
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
@@ -688,7 +647,6 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
             ],
           ),
           const SizedBox(height: 16),
-          // Barra de XP
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             Text('XP: $xpInLevel / 250', style: const TextStyle(color: Colors.white70, fontSize: 11)),
             Text('Faltam $xpToNext XP p/ nível ${nivel + 1}', style: const TextStyle(color: Colors.white70, fontSize: 11)),
@@ -704,7 +662,6 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
             ),
           ),
           const SizedBox(height: 14),
-          // Progresso geral
           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
             const Text('Progresso Geral', style: TextStyle(color: Colors.white)),
             Text('${(prog * 100).toInt()}%', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
@@ -798,11 +755,9 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
     );
   }
 
-  // ── AI card — encaminha para página IA (tab index 2) ──────────────────────
   Widget _buildAICard(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        // Navega para o tab da IA no bottom nav
         final homeState =
             context.findAncestorStateOfType<_HomePageState>();
         homeState?.setState(() => homeState._currentIndex = 3);
@@ -831,7 +786,6 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
     );
   }
 
-  // ── Popups de dificuldade e nível ─────────────────────────────────────────
   void _showDifficultySelector(BuildContext context, String tema) {
     showDialog(
       context: context,
@@ -850,7 +804,6 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Ícone do tema
                     Container(
                       width: 60, height: 60,
                       decoration: const BoxDecoration(color: Color(0xFFEFF6FF), shape: BoxShape.circle),
@@ -929,7 +882,6 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
     );
   }
 
-  // ── SWIPE LEVEL SELECTOR — dialog central com tipos de quiz ──────────────
   void _showSwipeLevelSelector(BuildContext context, String tema, String dificuldade, Color cor) {
     showDialog(
       context: context,
@@ -943,7 +895,6 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
     );
   }
 
-  // Mantém _buildLevelBox para compatibilidade
   Widget _buildLevelBox(BuildContext context, int level, bool isLocked, Color cor, String tema, String dificuldade) {
     return InkWell(
       borderRadius: BorderRadius.circular(16),
@@ -967,9 +918,6 @@ class _QuizzesDashboardState extends State<QuizzesDashboard>
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SWIPE LEVEL SHEET — swipe entre tipos de quiz
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _SwipeLevelSheet extends StatefulWidget {
   final String tema;
@@ -990,7 +938,6 @@ class _SwipeLevelSheetState extends State<_SwipeLevelSheet> {
   int  _currentPage   = 0;
   int? _selectedLevel;  // ← nível selecionado antes de jogar
 
-  // Definição dos 3 tipos de quiz
   static final _quizTypes = [
     {
       'type'    : QuizType.normal,
@@ -1043,7 +990,6 @@ class _SwipeLevelSheetState extends State<_SwipeLevelSheet> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Header com gradiente
               Container(
                 padding: const EdgeInsets.fromLTRB(24, 20, 24, 16),
                 decoration: BoxDecoration(
@@ -1071,12 +1017,10 @@ class _SwipeLevelSheetState extends State<_SwipeLevelSheet> {
               Padding(
                 padding: const EdgeInsets.fromLTRB(0, 16, 0, 0),
                 child: Column(children: [
-                  // Instrução
                   const Text('Desliza para escolher o tipo de quiz',
                       style: TextStyle(color: Colors.grey, fontSize: 12)),
                   const SizedBox(height: 14),
 
-                  // PageView dos tipos
                   SizedBox(
                     height: 170,
                     child: PageView.builder(
@@ -1119,7 +1063,6 @@ class _SwipeLevelSheetState extends State<_SwipeLevelSheet> {
                     ),
                   ),
 
-                  // Indicadores
                   const SizedBox(height: 10),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -1140,7 +1083,6 @@ class _SwipeLevelSheetState extends State<_SwipeLevelSheet> {
                   ),
                   const SizedBox(height: 18),
 
-                  // Níveis
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1153,7 +1095,6 @@ class _SwipeLevelSheetState extends State<_SwipeLevelSheet> {
                           final level     = i + 1;
                           final isLocked  = level > 3;
                           final isSelected = _selectedLevel == level;
-                          // Usa a cor da dificuldade escolhida para TUDO
                           final levelColor = widget.cor;
                           return GestureDetector(
                             onTap: isLocked ? null : () => setState(() => _selectedLevel = level),
@@ -1189,7 +1130,6 @@ class _SwipeLevelSheetState extends State<_SwipeLevelSheet> {
                       ),
                       const SizedBox(height: 20),
 
-                      // Botão JOGAR — grande, cor da dificuldade
                       SizedBox(
                         width: double.infinity,
                         child: ElevatedButton(

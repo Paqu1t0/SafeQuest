@@ -34,7 +34,6 @@ class NotificationService {
     await batch.commit();
   }
 
-  // Só notificações de clã, batalhas e amigos (exclui automáticas quiz_reminder)
   static const _allowedTypes = [
     'friend_added',
     'friend_request',
@@ -45,8 +44,6 @@ class NotificationService {
   ];
 
   static Stream<QuerySnapshot> stream(String uid) {
-    // Sem orderBy para não precisar de índice composto no Firestore.
-    // A ordenação é feita no widget (sort por createdAt descendente).
     return FirebaseFirestore.instance
         .collection('users').doc(uid).collection('notifications')
         .where('type', whereIn: _allowedTypes)
@@ -64,9 +61,6 @@ class NotificationService {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// NOTIFICATIONS OVERLAY — Dialog central com lista de notificações
-// ─────────────────────────────────────────────────────────────────────────────
 
 class NotificationsDialog extends StatelessWidget {
   final String uid;
@@ -98,7 +92,6 @@ class NotificationsDialog extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Header
             Container(
               padding: const EdgeInsets.fromLTRB(20, 18, 16, 14),
               decoration: const BoxDecoration(
@@ -125,7 +118,6 @@ class NotificationsDialog extends StatelessWidget {
               ]),
             ),
 
-            // Lista
             Flexible(
               child: StreamBuilder<QuerySnapshot>(
                 stream: NotificationService.stream(uid),
@@ -142,7 +134,6 @@ class NotificationsDialog extends StatelessWidget {
                   }
 
                   final rawDocs = snap.data!.docs;
-                  // Ordena no cliente por createdAt (desc) — evita índice composto Firestore
                   final docs = [...rawDocs]..sort((a, b) {
                     final aTs = (a.data() as Map<String, dynamic>)['createdAt'];
                     final bTs = (b.data() as Map<String, dynamic>)['createdAt'];
@@ -179,7 +170,6 @@ class NotificationsDialog extends StatelessWidget {
                           Dismissible(
                             key: ValueKey(doc.id),
                             direction: DismissDirection.endToStart,
-                            // Fundo vermelho com ícone de lixo ao deslizar para a esquerda
                             background: Container(
                               color: const Color(0xFFDC2626),
                               alignment: Alignment.centerRight,
@@ -195,7 +185,6 @@ class NotificationsDialog extends StatelessWidget {
                             ),
                             onDismissed: (_) => deleteDoc(),
                             child: GestureDetector(
-                              // Tap — marca como lida
                               onTap: () async {
                                 if (!read) {
                                   await FirebaseFirestore.instance
@@ -204,7 +193,6 @@ class NotificationsDialog extends StatelessWidget {
                                       .update({'read': true});
                                 }
                               },
-                              // Long press — confirma e apaga
                               onLongPress: () async {
                                 final confirm = await showDialog<bool>(
                                   context: context,
@@ -242,7 +230,6 @@ class NotificationsDialog extends StatelessWidget {
                                     const SizedBox(height: 3),
                                     Text(body, style: const TextStyle(color: Colors.grey, fontSize: 12, height: 1.4)),
                                   ])),
-                                  // Indicador visual de swipe
                                   const Padding(
                                     padding: EdgeInsets.only(left: 6, top: 12),
                                     child: Icon(Icons.swipe_left_outlined, color: Color(0xFFE2E8F0), size: 14),

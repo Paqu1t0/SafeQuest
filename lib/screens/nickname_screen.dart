@@ -29,7 +29,6 @@ class _NicknameScreenState extends State<NicknameScreen> {
         if (user != null) {
           final nickname = _nicknameController.text.trim();
           
-          // Verifica se o nickname já existe
           final query = await FirebaseFirestore.instance
               .collection('users')
               .where('nickname', isEqualTo: nickname)
@@ -46,11 +45,8 @@ class _NicknameScreenState extends State<NicknameScreen> {
             return;
           }
           
-          // Atualiza o documento do utilizador no Firestore
           await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
             'nickname': nickname,
-            // Se o utilizador veio do Google e ainda não tem o doc criado, 
-            // garantimos que o nome e email também ficam gravados.
             'name': user.displayName ?? nickname,
             'email': user.email,
             'photoUrl': user.photoURL ?? "",
@@ -58,7 +54,6 @@ class _NicknameScreenState extends State<NicknameScreen> {
           }, SetOptions(merge: true));
 
           if (mounted) {
-            // Força a recarga do AuthGate / SetupGate
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(builder: (_) => const AuthGate()),
             );
@@ -114,7 +109,6 @@ class _NicknameScreenState extends State<NicknameScreen> {
                   ),
                   const SizedBox(height: 40),
                   
-                  // Campo Nickname
                   Container(
                     decoration: BoxDecoration(
                       color: Colors.white,
@@ -149,7 +143,6 @@ class _NicknameScreenState extends State<NicknameScreen> {
                   
                   const SizedBox(height: 30),
                   
-                  // Botão Guardar
                   SizedBox(
                     width: double.infinity,
                     height: 55,

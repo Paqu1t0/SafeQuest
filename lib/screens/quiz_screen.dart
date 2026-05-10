@@ -11,14 +11,8 @@ import 'package:projeto_safequest/services/sound_service.dart';
 import 'package:projeto_safequest/screens/daily_missions_service.dart';
 import 'package:projeto_safequest/screens/coin_animation.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// TIPOS DE QUIZ
-// ─────────────────────────────────────────────────────────────────────────────
 enum QuizType { normal, tempo, vf }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MODELO
-// ─────────────────────────────────────────────────────────────────────────────
 class QuizQuestion {
   final String question;
   final List<String> options;
@@ -33,9 +27,6 @@ class QuizQuestion {
   });
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// BANCO DE PERGUNTAS — Normal + V/F por tema
-// ─────────────────────────────────────────────────────────────────────────────
 const Map<String, List<QuizQuestion>> _questionBank = {
   'Phishing': [
     QuizQuestion(question: 'Qual é o sinal mais comum de um email de phishing?', options: ['Linguagem urgente solicitando ação imediata','Formatação profissional','Ortografia e gramática corretas','Logotipo da empresa'], correctIndex: 0),
@@ -79,7 +70,6 @@ const Map<String, List<QuizQuestion>> _questionBank = {
   ],
 };
 
-// Perguntas Verdadeiro/Falso por tema
 const Map<String, List<QuizQuestion>> _vfBank = {
   'Phishing': [
     QuizQuestion(question: 'Um email com linguagem urgente é sempre legítimo.', options: ['Verdadeiro', 'Falso'], correctIndex: 1, isVF: true),
@@ -119,9 +109,6 @@ const Map<String, List<QuizQuestion>> _vfBank = {
   ],
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// QUIZ SCREEN
-// ─────────────────────────────────────────────────────────────────────────────
 
 class QuizScreen extends StatefulWidget {
   final String  tema;
@@ -152,21 +139,17 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
   bool _answered       = false;
   int  _correctAnswers = 0;
 
-  // ── Combo de acertos consecutivos ────────────────────────────────────────
   int  _combo          = 0;    // acertos consecutivos na sessão atual
   int  _maxCombo       = 0;    // melhor combo desta sessão
   bool _showCombo      = false; // animação de combo
 
-  // Temporizador geral
   int    _secondsElapsed = 0;
   Timer? _timer;
 
-  // Temporizador contra o tempo (por questão)
   int    _timeLeft      = 15; // segundos por questão
   Timer? _questionTimer;
   late AnimationController _timerBarCtrl;
 
-  // Progresso
   late AnimationController _progressController;
   late Animation<double>    _progressAnimation;
 
@@ -176,7 +159,6 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
   void initState() {
     super.initState();
 
-    // Carrega perguntas consoante o tipo
     List<QuizQuestion> bank = widget.quizType == QuizType.vf
         ? List.of(_vfBank[widget.tema] ?? _vfBank['Phishing']!)
         : List.of(_questionBank[widget.tema] ?? _questionBank['Phishing']!);
@@ -184,7 +166,6 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
     final total = bank.length;
     final maxQ = widget.quizType == QuizType.tempo ? min(7, total) : min(5, total);
 
-    // Filtra perguntas consoante a dificuldade (assumindo que as mais difíceis estão no fim da lista)
     if (widget.dificuldade == 'Iniciante') {
       bank = bank.sublist(0, min(maxQ + 1, total));
     } else if (widget.dificuldade == 'Intermédio') {
@@ -300,7 +281,6 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
     }
   }
 
-  // ── Atualiza streak de dias consecutivos ──────────────────────────────────
   Future<bool> _updateStreak(DocumentReference userRef, int percent) async {
     if (percent <= 50) return false;
     try {
@@ -313,7 +293,6 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
       final streak    = (data['streak'] ?? 0) as int;
 
       if (lastTs == null) {
-        // Primeiro quiz alguma vez
         await userRef.update({'streak': 1, 'lastQuizDate': Timestamp.fromDate(today)});
         return true;
       }
@@ -322,14 +301,11 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
       final diff      = today.difference(lastDate).inDays;
 
       if (diff == 0) {
-        // Já fez um quiz >50% hoje — não muda
         return false;
       } else if (diff == 1) {
-        // Dia consecutivo — incrementa
         await userRef.update({'streak': streak + 1, 'lastQuizDate': Timestamp.fromDate(today)});
         return true;
       } else {
-        // Perdeu a sequência — recomeça
         await userRef.update({'streak': 1, 'lastQuizDate': Timestamp.fromDate(today)});
         return true;
       }
@@ -356,8 +332,6 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
     final pointsMap    = {'Iniciante': 50, 'Intermédio': 100, 'Avançado': 200};
     final basePoints   = pointsMap[widget.dificuldade] ?? 50;
 
-    // ── Multiplicador de combo ────────────────────────────────────────────
-    // Combo 2-3: ×1.2 | 4: ×1.5 | 5+: ×2.0
     double comboMultiplier = 1.0;
     if (_maxCombo >= 5) {
       comboMultiplier = 2.0;
@@ -395,13 +369,10 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
       }
     }
 
-    // ── Verifica badges ANTES de abrir o dialog (fix: badge real em vez do combo) ──
     final newBadgeName = await BadgesService.checkAndUnlock(
       tema: widget.tema, percent: percent, tipoQuiz: tipoQuizStr,
     );
 
-    // ── Deteção de Level Up ────────────────────────────────────────────────
-    // Cada nível = 250 pontos. Lê os pontos atuais ANTES de atualizar.
     int pontosAntes = 0;
     if (user != null) {
       try {
@@ -447,7 +418,6 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
           }),
         ]);
 
-        // Pontos do clã
         final userSnap = await userRef.get();
         final userData = userSnap.data() ?? {};
         final clanId   = userData['clanId'] as String?;
@@ -456,14 +426,11 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
               .update({'points': FieldValue.increment(points)});
         }
 
-        // Streak
         final streakUpdated = await _updateStreak(userRef, percent);
 
-        // ── Animações de moedas e streak ──────────────────────────────────
         if (mounted) {
           CoinAnimation.show(context, coins: moedasGanhas);
 
-          // Streak — só no primeiro quiz do dia > 50%
           final updatedSnap = await userRef.get();
           final streak      = ((updatedSnap.data())?['streak'] ?? 0) as int;
           
@@ -473,19 +440,16 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
           }
         }
 
-        // ── Missões diárias ───────────────────────────────────────────────
         await DailyMissionsService.recordQuiz(
           userRef: userRef,
           percent: percent,
           tema: widget.tema,
           tipoQuiz: tipoQuizStr,
         );
-        // Nota: BadgesService.checkAndUnlock já foi chamado antes do dialog
       } catch (_) {}
     }
   }
 
-  // ── Cores das opções ──────────────────────────────────────────────────────
   Color _optionBg(int index) {
     if (!_answered) return Colors.white;
     if (index == _questions[_currentIndex].correctIndex) return const Color(0xFFF0FDF4);
@@ -516,14 +480,12 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
     return Container(width: 22, height: 22, decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: const Color(0xFFCBD5E1), width: 2)));
   }
 
-  // ── BUILD ─────────────────────────────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     final q        = _questions[_currentIndex];
     final isVF     = widget.quizType == QuizType.vf;
     final isTempo  = widget.quizType == QuizType.tempo;
 
-    // Badge do tipo de quiz
     final typeBadge = isTempo ? ('⏱️ Contra o Tempo') : isVF ? ('✅ Verdadeiro / Falso') : ('📚 Quiz Normal');
     final typeBgColor = isTempo ? const Color(0xFFDC2626) : isVF ? const Color(0xFF7C3AED) : _primary;
 
@@ -550,7 +512,6 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
           ],
         ),
         centerTitle: true,
-        // No modo tempo só mostra o countdown de 15s (não o timer geral)
         actions: [
           if (!isTempo)
             Padding(
@@ -561,7 +522,6 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
       ),
       body: Column(
         children: [
-          // ── Barra de progresso ────────────────────────────────────────────
           Container(
             color: Colors.white,
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
@@ -574,7 +534,6 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
                     Text('Questão ${_currentIndex + 1} de ${_questions.length}',
                         style: const TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.w500)),
                     Row(children: [
-                      // Badge de combo
                       if (_combo >= 2) AnimatedContainer(
                         duration: const Duration(milliseconds: 300),
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -589,7 +548,6 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
                         ]),
                       ),
                       if (_combo >= 2) const SizedBox(width: 8),
-                      // Tempo
                       if (!isTempo)
                         Text('${_secondsElapsed}s', style: const TextStyle(color: Color(0xFFEF4444), fontSize: 13, fontWeight: FontWeight.bold)),
                     ]),
@@ -607,7 +565,6 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
                     ),
                   ),
                 ),
-                // Countdown de 15s (só no modo tempo)
                 if (isTempo) ...[
                   const SizedBox(height: 8),
                   AnimatedBuilder(
@@ -650,14 +607,12 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
             ),
           ),
 
-          // ── Conteúdo ──────────────────────────────────────────────────────
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Pergunta
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(20),
@@ -670,9 +625,7 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
                   ),
                   const SizedBox(height: 20),
 
-                  // Opções
                   if (isVF || q.isVF)
-                    // Layout especial para V/F
                     Row(
                       children: [
                         Expanded(child: _buildVFButton(0, '✅ Verdadeiro', const Color(0xFF16A34A))),
@@ -685,12 +638,10 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
 
                   const SizedBox(height: 20),
 
-                  // Feedback
                   if (_answered) _buildFeedbackCard(q),
 
                   const SizedBox(height: 16),
 
-                  // Botão próxima
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
@@ -786,9 +737,6 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// TIMER BADGE
-// ─────────────────────────────────────────────────────────────────────────────
 class _TimerBadge extends StatelessWidget {
   final int seconds;
   const _TimerBadge({required this.seconds});

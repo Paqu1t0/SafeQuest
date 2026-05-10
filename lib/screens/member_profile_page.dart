@@ -5,9 +5,6 @@ import 'package:intl/intl.dart';
 import 'package:projeto_safequest/screens/badges_service.dart';
 import 'package:projeto_safequest/screens/notification_service.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MEMBER PROFILE PAGE — Perfil público de um membro do clã
-// ─────────────────────────────────────────────────────────────────────────────
 
 class MemberProfilePage extends StatefulWidget {
   final String uid;
@@ -36,7 +33,6 @@ class _MemberProfilePageState extends State<MemberProfilePage>
     'lion': Color(0xFFB45309), 'koala': Color(0xFF4B5563),
     'dragon': Color(0xFFDC2626), 'unicorn': Color(0xFFDB2777),
   };
-  // Cores dos banners (sincronizado com avatar_store_page)
   static List<Color> _getBannerColors(String bannerId) {
     const map = <String, List<Color>>{
       'default' : [Color(0xFF2563EB), Color(0xFF1D4ED8)],
@@ -51,7 +47,6 @@ class _MemberProfilePageState extends State<MemberProfilePage>
     return map[bannerId] ?? map['default']!;
   }
 
-  // Cores para os cards de conquista — por tema (sincronizado com recompensas_page)
   static const _themeColors = <String, Color>{
     'Phishing'      : Color(0xFF1A56DB),
     'Palavras-passe': Color(0xFF7C3AED),
@@ -110,7 +105,6 @@ class _MemberProfilePageState extends State<MemberProfilePage>
         final color        = _avatarColor[avatarId] ?? _primary;
         final bannerColors = _getBannerColors(bannerId);
 
-        // Verifica privacidade
         if (privacy == 'privado' && widget.uid != _currentUser?.uid) {
           return Scaffold(
             backgroundColor: const Color(0xFFF8FAFC),
@@ -131,7 +125,6 @@ class _MemberProfilePageState extends State<MemberProfilePage>
         return Scaffold(
           backgroundColor: const Color(0xFFF8FAFC),
           body: StreamBuilder<DocumentSnapshot>(
-            // Lê os dados do utilizador atual para saber se já são amigos
             stream: FirebaseFirestore.instance.collection('users').doc(_currentUser?.uid).snapshots(),
             builder: (context, mySnap) {
               final myData    = mySnap.hasData && mySnap.data!.exists ? mySnap.data!.data() as Map<String, dynamic>? ?? {} : {};
@@ -140,11 +133,9 @@ class _MemberProfilePageState extends State<MemberProfilePage>
               final isFriend  = myFriends.contains(widget.uid);
               final isMe      = widget.uid == _currentUser?.uid;
 
-              // Pedido que eu já enviei — verifica no doc do destinatário
               final theirRequests = List.from(data['friendRequests'] ?? []);
               final bool isSent = theirRequests.any((r) => r is Map && r['from'] == _currentUser?.uid);
               
-              // Verifica se apenas amigos podem ver
               if (privacy == 'amigos' && !isFriend && !isMe) {
                 return Scaffold(
                   backgroundColor: const Color(0xFFF8FAFC),
@@ -159,7 +150,6 @@ class _MemberProfilePageState extends State<MemberProfilePage>
                     const SizedBox(height: 8),
                     const Text('Perfil visível apenas para amigos', style: TextStyle(color: Colors.grey, fontSize: 14)),
                     const SizedBox(height: 24),
-                    // Se não enviamos pedido, mostra botão para adicionar
                     if (!isSent) ElevatedButton.icon(
                       onPressed: () => _sendFriendRequest(context, displayName),
                       style: ElevatedButton.styleFrom(
@@ -191,7 +181,6 @@ class _MemberProfilePageState extends State<MemberProfilePage>
                       onPressed: () => Navigator.pop(context),
                     ),
                     title: const Text('Voltar', style: TextStyle(color: Colors.white, fontSize: 14)),
-                    // ── Botão de amigo no canto superior direito ──────────
                     actions: [
                       Padding(
                         padding: const EdgeInsets.only(right: 12),
@@ -261,7 +250,6 @@ class _MemberProfilePageState extends State<MemberProfilePage>
                     ),
                   ), // fim SliverAppBar
 
-                  // ── Tabs ─────────────────────────────────────────────────
                   SliverToBoxAdapter(
                     child: Container(color: Colors.white, child: _buildTabBar(badges)),
                   ),
@@ -284,7 +272,6 @@ class _MemberProfilePageState extends State<MemberProfilePage>
     );
   }
 
-  // ── Adicionar amigo ───────────────────────────────────────────────────────
   Future<void> _sendFriendRequest(BuildContext context, String toName) async {
     if (_currentUser == null) return;
     final myDoc = await FirebaseFirestore.instance.collection('users').doc(_currentUser.uid).get();
@@ -297,7 +284,6 @@ class _MemberProfilePageState extends State<MemberProfilePage>
       'friendRequests': FieldValue.arrayUnion([{'from': _currentUser.uid, 'fromName': fromDisplayName, 'status': 'pending'}]),
     });
 
-    // Notificação para o destinatário
     await NotificationService.send(
       toUid: widget.uid,
       title: '👋 Novo pedido de amizade!',
@@ -345,7 +331,6 @@ class _MemberProfilePageState extends State<MemberProfilePage>
     }
   }
 
-  // ── Aceitar pedido ─────────────────────────────────────────────────────────
   Future<void> _acceptRequest(BuildContext context, String fromUid, String fromDisplayName) async {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) return;
@@ -358,12 +343,10 @@ class _MemberProfilePageState extends State<MemberProfilePage>
       final myRef = FirebaseFirestore.instance.collection('users').doc(currentUser.uid);
       final theirRef = FirebaseFirestore.instance.collection('users').doc(fromUid);
 
-      // Remove dos pedidos e adiciona aos amigos
       batch.update(myRef, {
         'friends': FieldValue.arrayUnion([fromUid]),
       });
       
-      // Filtra e remove o pedido específico
       final updatedRequests = myRequests.where((r) => r is Map && r['from'] != fromUid).toList();
       batch.update(myRef, {'friendRequests': updatedRequests});
 
@@ -373,7 +356,6 @@ class _MemberProfilePageState extends State<MemberProfilePage>
 
       await batch.commit();
 
-      // Notificação para o outro
       await NotificationService.send(
         toUid: fromUid,
         title: '👥 Pedido Aceite!',
@@ -472,7 +454,6 @@ class _MemberProfilePageState extends State<MemberProfilePage>
     }
   }
 
-  // ── Tab bar ────────────────────────────────────────────────────────────────
   Widget _buildTabBar(List<String> badges) {
     final totalBadges  = BadgesService.allBadges.length;
     final earnedBadges = badges.length;
@@ -496,7 +477,6 @@ class _MemberProfilePageState extends State<MemberProfilePage>
     );
   }
 
-  // ── Aba Estatísticas ──────────────────────────────────────────────────────
   Widget _buildStatsTab(int pontos, int streak, List<String> badges,
       int nivel, Timestamp? createdAt) {
     return FutureBuilder<QuerySnapshot>(
@@ -522,7 +502,6 @@ class _MemberProfilePageState extends State<MemberProfilePage>
           }
         }
 
-        // Usa formato simples sem locale para evitar LocaleDataException
         final membroDesde = createdAt != null
             ? DateFormat('dd/MM/yyyy').format(createdAt.toDate())
             : 'N/A';
@@ -531,7 +510,6 @@ class _MemberProfilePageState extends State<MemberProfilePage>
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
-              // Stats cards
               Row(
                 children: [
                   _statCard('$streak', 'Dias', Icons.local_fire_department,
@@ -548,7 +526,6 @@ class _MemberProfilePageState extends State<MemberProfilePage>
 
               const SizedBox(height: 20),
 
-              // Estatísticas detalhadas
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -649,20 +626,16 @@ class _MemberProfilePageState extends State<MemberProfilePage>
     );
   }
 
-  // ── Aba Conquistas ────────────────────────────────────────────────────────
   Widget _buildAchievementsTab(List<String> earnedIds) {
-    // Filtros disponíveis
     final filters = [
       'Todos', 'Phishing', 'Palavras-passe',
       'Segurança Web', 'Redes Sociais', 'Básicas'
     ];
 
-    // Só mostra as conquistas que o utilizador ganhou
     final earnedBadges = BadgesService.allBadges
         .where((b) => earnedIds.contains(b['id']))
         .toList();
 
-    // Aplica filtro
     final filtered = _badgeFilter == 'Todos'
         ? earnedBadges
         : earnedBadges.where((b) {
@@ -672,7 +645,6 @@ class _MemberProfilePageState extends State<MemberProfilePage>
 
     return Column(
       children: [
-        // Filtros horizontais
         SizedBox(
           height: 50,
           child: ListView.builder(
@@ -711,7 +683,6 @@ class _MemberProfilePageState extends State<MemberProfilePage>
         ),
         const SizedBox(height: 8),
 
-        // Grid de conquistas
         Expanded(
           child: filtered.isEmpty
               ? Center(

@@ -50,13 +50,10 @@ class _FriendsPageState extends State<FriendsPage>
     super.dispose();
   }
 
-  // ── Pesquisa de utilizadores ──────────────────────────────────────────────
   Future<void> _searchUsers(String query) async {
     if (query.trim().length < 2) { setState(() { _searchResults = []; _searching = false; }); return; }
     setState(() => _searching = true);
     try {
-      // Busca até 150 utilizadores com mais pontos para filtrar localmente
-      // Isto permite pesquisa case-insensitive (maiúsculas/minúsculas) e parcial
       final snap = await FirebaseFirestore.instance
           .collection('users')
           .orderBy('pontos', descending: true)
@@ -81,7 +78,6 @@ class _FriendsPageState extends State<FriendsPage>
     } catch (_) { setState(() => _searching = false); }
   }
 
-  // ── Enviar pedido de amizade ──────────────────────────────────────────────
   Future<void> _sendFriendRequest(String toUid, String toName) async {
     if (user == null) return;
     final myDoc = await FirebaseFirestore.instance.collection('users').doc(user!.uid).get();
@@ -90,7 +86,6 @@ class _FriendsPageState extends State<FriendsPage>
     final myName = myData['name'] as String? ?? 'Jogador';
     final fromDisplayName = myNickname.isNotEmpty ? myNickname : myName;
 
-    // Adiciona pedido no documento do destinatário
     await FirebaseFirestore.instance.collection('users').doc(toUid).update({
       'friendRequests': FieldValue.arrayUnion([{
         'from'    : user!.uid,
@@ -99,7 +94,6 @@ class _FriendsPageState extends State<FriendsPage>
       }]),
     });
 
-    // Notificação para o destinatário
     await NotificationService.send(
       toUid: toUid,
       title: '👋 Novo pedido de amizade!',
@@ -148,7 +142,6 @@ class _FriendsPageState extends State<FriendsPage>
     }
   }
 
-  // ── Aceitar pedido ────────────────────────────────────────────────────────
   Future<void> _acceptRequest(String fromUid, String fromName, List requests) async {
     if (user == null) return;
     final myDoc  = await FirebaseFirestore.instance.collection('users').doc(user!.uid).get();
@@ -166,7 +159,6 @@ class _FriendsPageState extends State<FriendsPage>
     batch.update(myRef, {'friendRequests': updatedRequests});
     await batch.commit();
 
-    // Notificações para ambos
     await NotificationService.send(
       toUid : fromUid,
       title : '👥 $myDisplayName aceitou o teu pedido!',
@@ -214,7 +206,6 @@ class _FriendsPageState extends State<FriendsPage>
     }
   }
 
-  // ── Rejeitar pedido ───────────────────────────────────────────────────────
   Future<void> _rejectRequest(String fromUid, List requests) async {
     if (user == null) return;
     final updatedRequests = requests.where((r) => r['from'] != fromUid).toList();
@@ -222,7 +213,6 @@ class _FriendsPageState extends State<FriendsPage>
         .update({'friendRequests': updatedRequests});
   }
 
-  // ── Remover amigo ─────────────────────────────────────────────────────────
   Future<void> _removeFriend(String uid) async {
     if (user == null) return;
     final batch = FirebaseFirestore.instance.batch();
@@ -251,7 +241,6 @@ class _FriendsPageState extends State<FriendsPage>
           dividerColor: const Color(0xFFE5E7EB),
           tabs: [
             const Tab(text: 'Amigos'),
-            // Pedidos com badge de contagem
             StreamBuilder<DocumentSnapshot>(
               stream: FirebaseFirestore.instance.collection('users').doc(user?.uid).snapshots(),
               builder: (_, snap) {
@@ -297,7 +286,6 @@ class _FriendsPageState extends State<FriendsPage>
     );
   }
 
-  // ── ABA AMIGOS ────────────────────────────────────────────────────────────
   Widget _buildFriendsTab(List<String> friends) {
     if (friends.isEmpty) {
       return const Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -334,7 +322,6 @@ class _FriendsPageState extends State<FriendsPage>
             return _userCard(
               uid: uid, name: displayName, pontos: pontos, nivel: nivel, avatarId: avatarId,
               trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                // Botão remover visível
                 GestureDetector(
                   onTap: () => _confirmRemove(uid, name),
                   child: Container(
@@ -357,7 +344,6 @@ class _FriendsPageState extends State<FriendsPage>
     );
   }
 
-  // ── ABA PEDIDOS ───────────────────────────────────────────────────────────
   Widget _buildRequestsTab(List requests) {
     if (requests.isEmpty) {
       return const Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -388,7 +374,6 @@ class _FriendsPageState extends State<FriendsPage>
             return _userCard(
               uid: fromUid, name: displayName, pontos: pontos, nivel: nivel, avatarId: avatarId,
               trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                // Rejeitar
                 GestureDetector(
                   onTap: () => _rejectRequest(fromUid, requests),
                   child: Container(
@@ -398,7 +383,6 @@ class _FriendsPageState extends State<FriendsPage>
                   ),
                 ),
                 const SizedBox(width: 8),
-                // Aceitar
                 GestureDetector(
                   onTap: () => _acceptRequest(fromUid, displayName, requests),
                   child: Container(
@@ -415,7 +399,6 @@ class _FriendsPageState extends State<FriendsPage>
     );
   }
 
-  // ── ABA PESQUISAR ─────────────────────────────────────────────────────────
   Widget _buildSearchTab(List<String> friends, List requests) {
     final pendingUids = requests.map((r) => (r as Map<String, dynamic>)['from'] as String).toSet();
 
@@ -483,7 +466,6 @@ class _FriendsPageState extends State<FriendsPage>
     );
   }
 
-  // ── Card de utilizador ────────────────────────────────────────────────────
   Widget _userCard({required String uid, required String name, required int pontos, required int nivel, required String avatarId, required Widget trailing}) {
     final emoji = _avatarEmoji[avatarId] ?? '👤';
     final color = _avatarColor[avatarId] ?? _primary;

@@ -94,15 +94,12 @@ class _QuizResultDialogState extends State<QuizResultDialog>
         CurvedAnimation(parent: _coinsCtrl, curve: Curves.elasticOut));
     _coinsOpacity = CurvedAnimation(parent: _coinsCtrl, curve: Curves.easeIn);
 
-    // Level Up banner
     _levelUpCtrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
     _levelUpScale   = Tween<double>(begin: 0.0, end: 1.0).animate(
         CurvedAnimation(parent: _levelUpCtrl, curve: Curves.elasticOut));
     _levelUpOpacity = CurvedAnimation(parent: _levelUpCtrl, curve: Curves.easeIn);
 
-    // Confetti principal — dispara quando a pontuação é boa
     _confettiCtrl = ConfettiController(duration: const Duration(seconds: 3));
-    // Confetti extra para Level Up
     _levelUpConfettiCtrl = ConfettiController(duration: const Duration(seconds: 4));
 
     _entryCtrl.forward().then((_) {
@@ -118,7 +115,6 @@ class _QuizResultDialogState extends State<QuizResultDialog>
           Future.delayed(const Duration(milliseconds: 600),
               () { if (mounted) _badgeCtrl.forward(); });
         }
-        // Level Up — dispara após o badge (ou logo após os coins)
         if (widget.leveledUp) {
           Future.delayed(const Duration(milliseconds: 900), () {
             if (mounted) {
@@ -159,7 +155,6 @@ class _QuizResultDialogState extends State<QuizResultDialog>
     return const Color(0xFFDC2626);
   }
 
-  // ── BUILD ──────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -187,7 +182,6 @@ class _QuizResultDialogState extends State<QuizResultDialog>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // ── Card principal ───────────────────────────────────────
                     Container(
                       decoration: BoxDecoration(
                         color: Colors.white,
@@ -209,31 +203,24 @@ class _QuizResultDialogState extends State<QuizResultDialog>
 
                     const SizedBox(height: 16),
 
-                    // ── Banner de Level Up ────────────────────────────────────
                     if (widget.leveledUp) _buildLevelUpBanner(),
                     if (widget.leveledUp) const SizedBox(height: 12),
 
-                    // ── Banner de novo emblema (badge real) ──────────────────
                     if (widget.newBadge != null) _buildBadgeBanner(),
                     if (widget.newBadge != null) const SizedBox(height: 12),
 
-                    // ── Banner de combo (se houver) ────────────────────────────
                     if (widget.comboLabel != null) _buildComboLabel(),
                     if (widget.comboLabel != null) const SizedBox(height: 12),
 
-                    // ── Botão: Partilhar no Clã ───────────────────────────────
                     _buildShareToClanButton(context),
                     const SizedBox(height: 10),
 
-                    // ── Botão: Partilhar resultado ────────────────────────────
                     _buildShareButton(),
                     const SizedBox(height: 10),
 
-                    // ── Botão: Rever com IA ───────────────────────────────────
                     if (widget.wrongQuestions.isNotEmpty) _buildReviewButton(context),
                     if (widget.wrongQuestions.isNotEmpty) const SizedBox(height: 10),
 
-                    // ── Botão: Voltar ao início ───────────────────────────────
                     _buildBackButton(context),
 
                     const SizedBox(height: 16),
@@ -242,7 +229,6 @@ class _QuizResultDialogState extends State<QuizResultDialog>
               ),
             ),
           ),
-          // ── Confetti principal ────────────────────────────────────────────
           Align(
             alignment: Alignment.topCenter,
             child: ConfettiWidget(
@@ -258,7 +244,6 @@ class _QuizResultDialogState extends State<QuizResultDialog>
               ],
             ),
           ),
-          // ── Confetti extra Level Up (dourado) ────────────────────────────
           if (widget.leveledUp)
             Align(
               alignment: Alignment.topCenter,
@@ -281,7 +266,6 @@ class _QuizResultDialogState extends State<QuizResultDialog>
   }
 
 
-  // ── HEADER COM GRADIENTE ───────────────────────────────────────────────────
 
   Widget _buildGradientHeader() {
     final List<Color> gradientColors;
@@ -387,7 +371,6 @@ class _QuizResultDialogState extends State<QuizResultDialog>
     );
   }
 
-  // ── STATS ROW ──────────────────────────────────────────────────────────────
 
   Widget _buildStatsRow() {
     return Padding(
@@ -416,7 +399,6 @@ class _QuizResultDialogState extends State<QuizResultDialog>
     );
   }
 
-  // ── BANNER LEVEL UP ──────────────────────────────────────────────────────────
 
   Widget _buildLevelUpBanner() {
     return ScaleTransition(
@@ -443,7 +425,6 @@ class _QuizResultDialogState extends State<QuizResultDialog>
           ),
           child: Row(
             children: [
-              // Ícone pulsante
               _PulseIcon(),
               const SizedBox(width: 14),
               Expanded(
@@ -479,7 +460,6 @@ class _QuizResultDialogState extends State<QuizResultDialog>
                   ],
                 ),
               ),
-              // Badge do nível
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
@@ -504,7 +484,6 @@ class _QuizResultDialogState extends State<QuizResultDialog>
     );
   }
 
-  // ── BANNER EMBLEMA (badge real) ────────────────────────────────────────────
 
   Widget _buildBadgeBanner() {
     const badgeEmoji = <String, String>{
@@ -555,7 +534,6 @@ class _QuizResultDialogState extends State<QuizResultDialog>
     );
   }
 
-  // ── BANNER COMBO ───────────────────────────────────────────────────────────
 
   Widget _buildComboLabel() {
     return Container(
@@ -573,7 +551,6 @@ class _QuizResultDialogState extends State<QuizResultDialog>
     );
   }
 
-  // ── BOTÃO REVER COM IA ─────────────────────────────────────────────────────
 
   Widget _buildReviewButton(BuildContext context) {
     final buffer = StringBuffer();
@@ -614,7 +591,6 @@ class _QuizResultDialogState extends State<QuizResultDialog>
     );
   }
 
-  // ── BOTÃO PARTILHAR NO CLÃ ────────────────────────────────────────────────
 
   Widget _buildShareToClanButton(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -633,7 +609,6 @@ class _QuizResultDialogState extends State<QuizResultDialog>
         icon: const Icon(Icons.groups_rounded, color: Color(0xFF7C3AED), size: 20),
         label: const Text('Partilhar no Clã', style: TextStyle(color: Color(0xFF7C3AED), fontSize: 15, fontWeight: FontWeight.bold)),
         onPressed: () async {
-          // 1. Lê o clanId do utilizador
           final userDoc = await FirebaseFirestore.instance
               .collection('users').doc(user.uid).get();
           final userData   = userDoc.data() ?? {};
@@ -666,7 +641,6 @@ class _QuizResultDialogState extends State<QuizResultDialog>
             return;
           }
 
-          // 2. Compila a mensagem formatada
           final medal = widget.percent == 100 ? '🥇' : widget.percent >= 70 ? '🥈' : '🥉';
           final text = '📊 $senderName partilhou um resultado:\n'
               '$medal Quiz de ${widget.tema}\n'
@@ -674,7 +648,6 @@ class _QuizResultDialogState extends State<QuizResultDialog>
               '⚡ +${widget.points} XP\n'
               '⏱️ ${widget.timeStr}';
 
-          // 3. Publica no chat do clã
           await FirebaseFirestore.instance
               .collection('clans').doc(clanId).collection('messages').add({
             'text'      : text,
@@ -701,7 +674,6 @@ class _QuizResultDialogState extends State<QuizResultDialog>
     );
   }
 
-  // ── BOTÃO PARTILHAR ────────────────────────────────────────────────────────
 
   Widget _buildShareButton() {
     return SizedBox(
@@ -730,7 +702,6 @@ class _QuizResultDialogState extends State<QuizResultDialog>
     );
   }
 
-  // ── BOTÃO VOLTAR ───────────────────────────────────────────────────────────
 
   Widget _buildBackButton(BuildContext context) {
     return SizedBox(
@@ -754,7 +725,6 @@ class _QuizResultDialogState extends State<QuizResultDialog>
     );
   }
 
-  // ── ANIMAÇÃO DE MOEDAS GANHAS + XP ────────────────────────────────────────
 
   Widget _buildCoinsAnimation() {
     final hasMoedas = widget.moedasGanhas > 0;
@@ -768,7 +738,6 @@ class _QuizResultDialogState extends State<QuizResultDialog>
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Column(
               children: [
-                // ── XP ganho ────────────────────────────────────────────────
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -786,7 +755,6 @@ class _QuizResultDialogState extends State<QuizResultDialog>
                   ]),
                 ),
                 const SizedBox(height: 10),
-                // ── Moedas ──────────────────────────────────────────────────
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                   decoration: BoxDecoration(
@@ -839,9 +807,6 @@ class _QuizResultDialogState extends State<QuizResultDialog>
   }
 } // fim de _QuizResultDialogState
 
-// ─────────────────────────────────────────────────────────────────────────────
-// COIN PARTICLE
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _CoinParticle {
   final double x;
@@ -856,9 +821,6 @@ class _CoinParticle {
         opacity = 0.4 + (seed % 3) * 0.2;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SPARKLE ICON — ícone de faísca animado no banner do emblema
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _SparkleIcon extends StatefulWidget {
   @override
@@ -895,9 +857,6 @@ class _SparkleIconState extends State<_SparkleIcon>
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PULSE ICON — ícone de estrela pulsante para o banner de Level Up
-// ─────────────────────────────────────────────────────────────────────────────
 
 class _PulseIcon extends StatefulWidget {
   @override

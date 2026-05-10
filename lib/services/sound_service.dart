@@ -2,7 +2,6 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/foundation.dart';
 
 class SoundService {
-  // Um player por tipo de som para evitar conflitos
   static final AudioPlayer _correctPlayer = AudioPlayer();
   static final AudioPlayer _wrongPlayer   = AudioPlayer();
   static final AudioPlayer _victoryPlayer = AudioPlayer();

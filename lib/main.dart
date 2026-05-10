@@ -410,7 +410,6 @@ class _SetupGateState extends State<_SetupGate> {
       final showOnboarding = await OnboardingScreen.shouldShow();
 
       if (showOnboarding) {
-        // Mostra onboarding com ou sem passo de nickname
         if (mounted) setState(() {
           _loading = false;
           _needsOnboarding = true;
@@ -419,7 +418,6 @@ class _SetupGateState extends State<_SetupGate> {
         return;
       }
 
-      // Onboarding já visto — verifica se ainda falta o nickname (edge-case)
       if (!hasNickname) {
         if (mounted) setState(() { _loading = false; _needsNickname = true; });
         return;

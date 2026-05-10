@@ -41,7 +41,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       String msg;
       switch (e.code) {
         case 'user-not-found':
-          // Por segurança, não revelamos se o email existe ou não
           _showDialog(
             '📧 Email enviado!',
             'Se este email estiver registado, receberás um link para redefinir a palavra-passe.\n\nVerifica também a pasta de Spam.',
@@ -123,7 +122,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 children: [
                   const SizedBox(height: 20),
 
-                  // Ícone
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
@@ -134,7 +132,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                   ),
                   const SizedBox(height: 20),
 
-                  // Título
                   const Text(
                     'Recuperar Senha',
                     style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: _primaryDeep),
@@ -147,7 +144,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                   ),
                   const SizedBox(height: 36),
 
-                  // Card
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
@@ -160,14 +156,12 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Label
                         const Text(
                           'Email de Registo',
                           style: TextStyle(fontWeight: FontWeight.w600, color: _primaryDeep, fontSize: 14),
                         ),
                         const SizedBox(height: 10),
 
-                        // Campo email
                         TextFormField(
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
@@ -197,7 +191,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                         ),
                         const SizedBox(height: 24),
 
-                        // Botão
                         SizedBox(
                           width: double.infinity,
                           height: 52,
@@ -223,7 +216,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Info
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(

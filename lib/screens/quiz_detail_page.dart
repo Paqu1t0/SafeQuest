@@ -1,17 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:projeto_safequest/screens/assistent_page.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// QUIZ DETAIL PAGE
-// Mostra o detalhe de um quiz realizado: perguntas certas, erradas e botão IA
-// ─────────────────────────────────────────────────────────────────────────────
 
 class QuizDetailPage extends StatelessWidget {
   final Map<String, dynamic> quizResult;
 
   const QuizDetailPage({super.key, required this.quizResult});
 
-  // ── cores ──────────────────────────────────────────────────────────────────
   static const _primary     = Color(0xFF1A56DB);
   static const _primaryDeep = Color(0xFF1E3A8A);
   static const _green       = Color(0xFF16A34A);
@@ -19,7 +14,6 @@ class QuizDetailPage extends StatelessWidget {
   static const _amber       = Color(0xFFD97706);
   static const _bgColor     = Color(0xFFF8FAFC);
 
-  // ── helpers ────────────────────────────────────────────────────────────────
 
   Color get _scoreColor {
     final p = (quizResult['percent'] ?? 0) as num;
@@ -51,7 +45,6 @@ class QuizDetailPage extends StatelessWidget {
   List<Map<String, dynamic>> get _wrongQuestions =>
       _questions.where((q) => q['isCorrect'] != true).toList();
 
-  // ─────────────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -100,18 +93,15 @@ class QuizDetailPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Cartão de resumo ──────────────────────────────────────────
             _buildSummaryCard(
                 percent, points, time, dateStr, correct, total),
 
             const SizedBox(height: 28),
 
-            // ── Botão perguntar ao assistente (só se houver erros) ────────
             if (wrongCount > 0) _buildAskAIButton(context),
 
             if (wrongCount > 0) const SizedBox(height: 28),
 
-            // ── Lista de perguntas ────────────────────────────────────────
             if (questions.isEmpty)
               _buildNoDetailCard()
             else ...[
@@ -145,7 +135,6 @@ class QuizDetailPage extends StatelessWidget {
     );
   }
 
-  // ── SUMMARY CARD ───────────────────────────────────────────────────────────
 
   Widget _buildSummaryCard(
       int percent, int points, String time, String dateStr, int correct, int total) {
@@ -162,7 +151,6 @@ class QuizDetailPage extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // Score central
           Container(
             width: 90,
             height: 90,
@@ -193,7 +181,6 @@ class QuizDetailPage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 20),
-          // Stats row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -234,12 +221,10 @@ class QuizDetailPage extends StatelessWidget {
     );
   }
 
-  // ── BOTÃO PERGUNTAR AO ASSISTENTE ─────────────────────────────────────────
 
   Widget _buildAskAIButton(BuildContext context) {
     final wrongQs = _wrongQuestions;
 
-    // Monta o prompt com as perguntas erradas
     final buffer = StringBuffer();
     buffer.writeln(
         'Olá! Acabei de fazer um quiz sobre "${quizResult['theme']}" e errei as seguintes perguntas. Podes explicar-me cada uma?');
@@ -330,7 +315,6 @@ class QuizDetailPage extends StatelessWidget {
     );
   }
 
-  // ── QUESTION CARD ─────────────────────────────────────────────────────────
 
   Widget _buildQuestionCard(
       BuildContext context, int index, Map<String, dynamic> q) {
@@ -367,7 +351,6 @@ class QuizDetailPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Cabeçalho da pergunta
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
@@ -395,7 +378,6 @@ class QuizDetailPage extends StatelessWidget {
             ),
           ),
 
-          // Opções
           Padding(
             padding: const EdgeInsets.all(14),
             child: Column(
@@ -454,7 +436,6 @@ class QuizDetailPage extends StatelessWidget {
             ),
           ),
 
-          // Botão individual "Perguntar ao IA" (só para perguntas erradas)
           if (!isCorrect)
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
@@ -465,7 +446,6 @@ class QuizDetailPage extends StatelessWidget {
     );
   }
 
-  // ── BOTÃO PEQUENO INDIVIDUAL ──────────────────────────────────────────────
 
   Widget _buildAskAISmallButton(
     BuildContext context,
@@ -520,7 +500,6 @@ class QuizDetailPage extends StatelessWidget {
     );
   }
 
-  // ── SEM DETALHE (quizzes antigos sem o campo questions) ───────────────────
 
   Widget _buildNoDetailCard() {
     return Container(
@@ -545,7 +524,6 @@ class QuizDetailPage extends StatelessWidget {
     );
   }
 
-  // ── PILL ──────────────────────────────────────────────────────────────────
 
   Widget _pill(String text, Color color) {
     return Container(

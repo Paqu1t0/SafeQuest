@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 class BadgesService {
   static const List<Map<String, dynamic>> _allBadges = [
-    // ── BÁSICOS ──────────────────────────────────────────────────────────────
     {'id': 'primeira_vitoria',   'nome': 'Primeira Vitória',      'desc': 'Complete o primeiro quiz',              'categoria': 'basica', 'icon': '🏆', 'tipo': 'total_quizzes', 'valor': 1},
     {'id': 'aprendiz_rapido',    'nome': 'Aprendiz Rápido',       'desc': 'Complete 5 quizzes',                    'categoria': 'basica', 'icon': '⚡', 'tipo': 'total_quizzes', 'valor': 5},
     {'id': 'perfeccionista',     'nome': 'Perfeccionista',        'desc': 'Obtenha 100% num quiz',                 'categoria': 'basica', 'icon': '🎯', 'tipo': 'percent_100',   'valor': 1},
@@ -15,28 +14,24 @@ class BadgesService {
     {'id': 'madrugador',         'nome': 'Madrugador',            'desc': 'Complete 50 quizzes no total',         'categoria': 'basica', 'icon': '🌟', 'tipo': 'total_quizzes', 'valor': 50},
     {'id': 'guerreiro_clan',     'nome': 'Guerreiro do Clã',      'desc': 'Vence uma batalha de quiz no clã',     'categoria': 'basica', 'icon': '⚔️', 'tipo': 'batalha_vitoria', 'valor': 1},
 
-    // ── PHISHING ─────────────────────────────────────────────────────────────
     {'id': 'iniciante_phishing',    'nome': 'Iniciante em Phishing',    'desc': 'Complete 3 quizzes de Phishing',          'categoria': 'Phishing', 'icon': '🛡️', 'tipo': 'quizzes_tema', 'tema': 'Phishing', 'valor': 3},
     {'id': 'especialista_phishing', 'nome': 'Especialista em Phishing', 'desc': 'Obtenha média ≥ 70% em Phishing',         'categoria': 'Phishing', 'icon': '🔒', 'tipo': 'media_tema',   'tema': 'Phishing', 'valor': 70},
     {'id': 'mestre_phishing',       'nome': 'Mestre Anti-Phishing',     'desc': '100% em todos os quizzes de Phishing',    'categoria': 'Phishing', 'icon': '🦅', 'tipo': 'todos_100_tema','tema': 'Phishing', 'valor': 100},
     {'id': 'caçador_phishing',      'nome': 'Caçador de Phishing',      'desc': 'Complete 8 quizzes de Phishing',          'categoria': 'Phishing', 'icon': '🎯', 'tipo': 'quizzes_tema', 'tema': 'Phishing', 'valor': 8},
     {'id': 'detetive_phishing',     'nome': 'Detetive Digital',         'desc': 'Complete quiz V/F de Phishing com 100%',  'categoria': 'Phishing', 'icon': '🔍', 'tipo': 'vf_100_tema',  'tema': 'Phishing', 'valor': 100},
 
-    // ── PALAVRAS-PASSE ────────────────────────────────────────────────────────
     {'id': 'guardiao_senhas',  'nome': 'Guardião de Senhas',       'desc': 'Complete 3 quizzes de Palavras-passe',        'categoria': 'Palavras-passe', 'icon': '🔑', 'tipo': 'quizzes_tema', 'tema': 'Palavras-passe', 'valor': 3},
     {'id': 'mestre_passwords', 'nome': 'Mestre das Palavras-passe','desc': 'Obtenha média ≥ 70% em Palavras-passe',       'categoria': 'Palavras-passe', 'icon': '🔐', 'tipo': 'media_tema',   'tema': 'Palavras-passe', 'valor': 70},
     {'id': 'criador_senhas',   'nome': 'Criador de Senhas Fortes', 'desc': '100% em todos os quizzes de senhas',         'categoria': 'Palavras-passe', 'icon': '💎', 'tipo': 'todos_100_tema','tema': 'Palavras-passe', 'valor': 100},
     {'id': 'vault_keeper',     'nome': 'Vault Keeper',             'desc': 'Complete 8 quizzes de Palavras-passe',       'categoria': 'Palavras-passe', 'icon': '🏦', 'tipo': 'quizzes_tema', 'tema': 'Palavras-passe', 'valor': 8},
     {'id': 'tempo_senhas',     'nome': 'Velocista das Senhas',     'desc': 'Complete quiz contra o tempo de Palavras-passe','categoria': 'Palavras-passe','icon': '⚡','tipo': 'tempo_tema',   'tema': 'Palavras-passe', 'valor': 1},
 
-    // ── SEGURANÇA WEB ─────────────────────────────────────────────────────────
     {'id': 'surfista_web',     'nome': 'Surfista Web',             'desc': 'Complete 3 quizzes de Segurança Web',         'categoria': 'Segurança Web', 'icon': '🌐', 'tipo': 'quizzes_tema', 'tema': 'Segurança Web', 'valor': 3},
     {'id': 'navegador_seguro', 'nome': 'Navegador Seguro',         'desc': 'Obtenha média ≥ 70% em Segurança Web',        'categoria': 'Segurança Web', 'icon': '🛡️', 'tipo': 'media_tema',   'tema': 'Segurança Web', 'valor': 70},
     {'id': 'guardiao_web',     'nome': 'Guardião da Web',          'desc': '100% em todos os quizzes de Segurança Web',  'categoria': 'Segurança Web', 'icon': '🦅', 'tipo': 'todos_100_tema','tema': 'Segurança Web', 'valor': 100},
     {'id': 'hacker_etico',     'nome': 'Hacker Ético',             'desc': 'Complete 8 quizzes de Segurança Web',        'categoria': 'Segurança Web', 'icon': '💻', 'tipo': 'quizzes_tema', 'tema': 'Segurança Web', 'valor': 8},
     {'id': 'https_hero',       'nome': 'HTTPS Hero',               'desc': 'Quiz V/F de Segurança Web com 100%',         'categoria': 'Segurança Web', 'icon': '🔒', 'tipo': 'vf_100_tema',  'tema': 'Segurança Web', 'valor': 100},
 
-    // ── REDES SOCIAIS ─────────────────────────────────────────────────────────
     {'id': 'navegador_social', 'nome': 'Navegador Social',         'desc': 'Complete 3 quizzes de Redes Sociais',        'categoria': 'Redes Sociais', 'icon': '📱', 'tipo': 'quizzes_tema', 'tema': 'Redes Sociais', 'valor': 3},
     {'id': 'influencer_seguro','nome': 'Influencer Seguro',        'desc': 'Obtenha média ≥ 70% em Redes Sociais',       'categoria': 'Redes Sociais', 'icon': '⭐', 'tipo': 'media_tema',   'tema': 'Redes Sociais', 'valor': 70},
     {'id': 'protetor_digital', 'nome': 'Protetor Digital',         'desc': '100% em todos os quizzes de Redes Sociais', 'categoria': 'Redes Sociais', 'icon': '🛡️', 'tipo': 'todos_100_tema','tema': 'Redes Sociais', 'valor': 100},
@@ -117,7 +112,6 @@ class BadgesService {
         final tema = badge['tema'] as String;
         return temaAtual == tema && tipoQuiz == 'vf' && percentAtual >= 100;
       case 'streak_100':
-        // Verifica se os últimos N quizzes foram todos 100%
         if (results.length < (valor as int)) return false;
         final last = results.reversed.take(valor).toList();
         return last.every((r) => (r['percent'] ?? 0) >= 100);

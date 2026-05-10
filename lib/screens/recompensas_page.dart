@@ -18,7 +18,6 @@ class _RecompensasPageState extends State<RecompensasPage>
   static const _primary     = Color(0xFF1A56DB);
   static const _primaryDeep = Color(0xFF1E3A8A);
 
-  // Cores para os cards conquistados (por tema)
   static const _themeColors = {
     'Phishing'      : Color(0xFF1A56DB),
     'Palavras-passe': Color(0xFF7C3AED),
@@ -85,7 +84,6 @@ class _RecompensasPageState extends State<RecompensasPage>
     );
   }
 
-  // ── HEADER ─────────────────────────────────────────────────────────────────
   Widget _headerProgresso(int ganho, int total) {
     return Container(
       margin: const EdgeInsets.all(16),
@@ -144,7 +142,6 @@ class _RecompensasPageState extends State<RecompensasPage>
     );
   }
 
-  // ── ABA BÁSICAS — grid de cards coloridos ──────────────────────────────────
   Widget _abaBasicas(Set<String> conquistados) {
     final basicBadges = BadgesService.allBadges.where((b) => b['categoria'] == 'basica').toList();
 
@@ -162,7 +159,6 @@ class _RecompensasPageState extends State<RecompensasPage>
     );
   }
 
-  // ── ABA POR TEMAS — filtros + grid ────────────────────────────────────────
   Widget _abaPorTemas(Set<String> conquistados) {
     final temas = ['Todos', 'Phishing', 'Palavras-passe', 'Segurança Web', 'Redes Sociais'];
     final filtered = BadgesService.allBadges.where((b) {
@@ -173,7 +169,6 @@ class _RecompensasPageState extends State<RecompensasPage>
 
     return Column(
       children: [
-        // Filtros horizontais
         SizedBox(
           height: 50,
           child: ListView.builder(
@@ -201,7 +196,6 @@ class _RecompensasPageState extends State<RecompensasPage>
           ),
         ),
         const SizedBox(height: 8),
-        // Grid
         Expanded(
           child: GridView.builder(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 32),
@@ -220,7 +214,6 @@ class _RecompensasPageState extends State<RecompensasPage>
     );
   }
 
-  // ── CARD DE EMBLEMA ────────────────────────────────────────────────────────
   Widget _badgeCard(Map<String, dynamic> badge, bool conquistado, String categoria) {
     final cardColor = conquistado
         ? (_themeColors[categoria] ?? _primary)
@@ -244,7 +237,6 @@ class _RecompensasPageState extends State<RecompensasPage>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Ícone num círculo translúcido
             Container(
               width: 50, height: 50,
               decoration: BoxDecoration(

@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// AVATAR STORE PAGE — Avatares + Banners com sistema de moedas
-// ─────────────────────────────────────────────────────────────────────────────
 
 class AvatarStorePage extends StatefulWidget {
   const AvatarStorePage({super.key});
@@ -22,7 +19,6 @@ class _AvatarStorePageState extends State<AvatarStorePage>
   final user = FirebaseAuth.instance.currentUser;
   late TabController _tabCtrl;
 
-  // ── Avatares ──────────────────────────────────────────────────────────────
   static const List<Map<String, dynamic>> _avatars = [
     {'id': 'default',  'name': 'Padrão',     'price': 0,   'emoji': '👤', 'color': Color(0xFF1A56DB), 'minLevel': 1},
     {'id': 'fox',      'name': 'Raposa',     'price': 0,   'emoji': '🦊', 'color': Color(0xFFEA580C), 'minLevel': 1},
@@ -34,7 +30,6 @@ class _AvatarStorePageState extends State<AvatarStorePage>
     {'id': 'unicorn',  'name': 'Unicórnio',  'price': 300, 'emoji': '🦄', 'color': Color(0xFFDB2777), 'minLevel': 10},
   ];
 
-  // ── Banners ───────────────────────────────────────────────────────────────
   static const List<Map<String, dynamic>> _banners = [
     {'id': 'default',  'name': 'Azul Padrão', 'price': 0,   'emoji': '🔵', 'colors': [Color(0xFF2563EB), Color(0xFF1D4ED8)], 'desc': 'O banner original da SafeQuest',    'minLevel': 1},
     {'id': 'sunset',   'name': 'Pôr do Sol',  'price': 150, 'emoji': '🌅', 'colors': [Color(0xFFEA580C), Color(0xFFDC2626)], 'desc': 'Tons quentes de laranja e vermelho','minLevel': 3},
@@ -85,7 +80,6 @@ class _AvatarStorePageState extends State<AvatarStorePage>
 
           return CustomScrollView(
             slivers: [
-              // ── AppBar ────────────────────────────────────────────────────
               SliverAppBar(
                 backgroundColor: Colors.white,
                 elevation: 0,
@@ -99,7 +93,6 @@ class _AvatarStorePageState extends State<AvatarStorePage>
                   Text('Personaliza o teu perfil', style: TextStyle(color: Colors.grey, fontSize: 12)),
                 ]),
                 actions: [
-                  // Badge moedas
                   GestureDetector(
                     child: Container(
                       margin: const EdgeInsets.only(right: 16),
@@ -126,7 +119,6 @@ class _AvatarStorePageState extends State<AvatarStorePage>
                 ),
               ),
 
-              // ── Banner info ───────────────────────────────────────────────
               SliverToBoxAdapter(
                 child: Container(
                   margin: const EdgeInsets.all(16),
@@ -147,12 +139,10 @@ class _AvatarStorePageState extends State<AvatarStorePage>
                 ),
               ),
 
-              // ── Conteúdo das tabs ─────────────────────────────────────────
               SliverFillRemaining(
                 child: TabBarView(
                   controller: _tabCtrl,
                   children: [
-                    // ── ABA AVATARES ─────────────────────────────────────────
                     GridView.builder(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
                       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -168,7 +158,6 @@ class _AvatarStorePageState extends State<AvatarStorePage>
                       },
                     ),
 
-                    // ── ABA BANNERS ──────────────────────────────────────────
                     GridView.builder(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
                       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -193,7 +182,6 @@ class _AvatarStorePageState extends State<AvatarStorePage>
     );
   }
 
-  // ── Card de avatar ────────────────────────────────────────────────────────
   Widget _buildAvatarCard(BuildContext context, Map<String, dynamic> av, bool isOwned, bool isEq, int moedas, List<String> owned, int userNivel) {
     final id        = av['id'] as String;
     final name      = av['name'] as String;
@@ -285,7 +273,6 @@ class _AvatarStorePageState extends State<AvatarStorePage>
     );
   }
 
-  // ── Card de banner ────────────────────────────────────────────────────────
   Widget _buildBannerCard(BuildContext context, Map<String, dynamic> bn, bool isOwned, bool isEq, int moedas, List<String> owned, int userNivel) {
     final id        = bn['id'] as String;
     final name      = bn['name'] as String;
@@ -307,7 +294,6 @@ class _AvatarStorePageState extends State<AvatarStorePage>
       child: Stack(
         children: [
           Column(children: [
-            // Preview do banner
             Container(
               height: 90,
               decoration: BoxDecoration(
@@ -322,7 +308,6 @@ class _AvatarStorePageState extends State<AvatarStorePage>
                 ),
               ])),
             ),
-            // Info
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
               child: Column(children: [
@@ -385,7 +370,6 @@ class _AvatarStorePageState extends State<AvatarStorePage>
     );
   }
 
-  // ── Comprar avatar ────────────────────────────────────────────────────────
   Future<void> _buyAvatar(BuildContext context, String id, int price, int moedas, List<String> owned) async {
     final confirm = await _confirmBuy(context, '🪙 Gastar $price moedas neste avatar?');
     if (confirm != true) return;
@@ -401,7 +385,6 @@ class _AvatarStorePageState extends State<AvatarStorePage>
     await FirebaseFirestore.instance.collection('users').doc(user?.uid).update({'avatar': id});
   }
 
-  // ── Comprar banner ────────────────────────────────────────────────────────
   Future<void> _buyBanner(BuildContext context, String id, int price, int moedas, List<String> owned) async {
     if (price == 0) {
       await FirebaseFirestore.instance.collection('users').doc(user?.uid).update({'ownedBanners': [...owned, id]});
@@ -421,7 +404,6 @@ class _AvatarStorePageState extends State<AvatarStorePage>
     await FirebaseFirestore.instance.collection('users').doc(user?.uid).update({'banner': id});
   }
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
   Future<bool?> _confirmBuy(BuildContext context, String msg) {
     return showDialog<bool>(
       context: context,

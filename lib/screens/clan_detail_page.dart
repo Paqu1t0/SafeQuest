@@ -29,7 +29,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
   final user        = FirebaseAuth.instance.currentUser;
   bool _showEmojis  = false; // ← novo
 
-  // Papéis
   static const _roleOrder = {'leader': 0, 'co-leader': 1, 'elder': 2, 'member': 3};
   static const _roleLabels = {'leader': '👑 Líder', 'co-leader': '⭐ Co-Líder', 'elder': '🔰 Ancião', 'member': '👤 Membro'};
   static const _roleColors = {
@@ -64,7 +63,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
     super.dispose();
   }
 
-  // ── Verifica o papel do utilizador atual ──────────────────────────────────
   String _getMyRole(Map<String, dynamic> data) {
     if (data['createdBy'] == user?.uid) return 'leader';
     final roles = data['roles'] as Map<String, dynamic>? ?? {};
@@ -104,7 +102,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
   Widget _buildBody(String name, String icon, num points, int members, String myRole, Map<String, dynamic> clanData) {
     return Column(
       children: [
-        // Header clicável — mostra membros ao clicar
         GestureDetector(
           onTap: () => _showClanInfoSheet(context, name, icon, points, members, myRole, clanData),
           child: Container(
@@ -121,7 +118,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
                 Text(name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
                 Text('$members membros  •  ${points.toInt()} pts', style: const TextStyle(color: Colors.white70, fontSize: 13)),
               ])),
-              // Ícone de seta + papel
               Column(children: [
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -135,7 +131,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
           ),
         ),
         const SizedBox(height: 4),
-        // Só Chat tab
         Container(
           color: Colors.white,
           child: TabBar(
@@ -154,7 +149,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
     );
   }
 
-  // ── Sheet com info do clã + membros (abre ao clicar no header) ──────────
   void _showClanInfoSheet(BuildContext context, String name, String icon, num points, int members, String myRole, Map<String, dynamic> clanData) {
     final memberIds = List<String>.from(clanData['memberIds'] ?? []);
     final maxSize   = (clanData['maxSize']   ?? 50) as int;
@@ -175,12 +169,10 @@ class _ClanDetailPageState extends State<ClanDetailPage>
             borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
           ),
           child: Column(children: [
-            // Handle
             const SizedBox(height: 12),
             Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: const Color(0xFFE5E7EB), borderRadius: BorderRadius.circular(10)))),
             const SizedBox(height: 16),
 
-            // Header do clã
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               padding: const EdgeInsets.all(18),
@@ -199,7 +191,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
               ]),
             ),
 
-            // Stats
             Padding(
               padding: const EdgeInsets.all(16),
               child: Row(children: [
@@ -211,12 +202,10 @@ class _ClanDetailPageState extends State<ClanDetailPage>
               ]),
             ),
 
-            // Lista de membros
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
               child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                 Text('Membros (${memberIds.length})', style: const TextStyle(fontWeight: FontWeight.bold, color: _primaryDeep, fontSize: 14)),
-                // Botão sair escondido aqui
                 GestureDetector(
                   onTap: () { Navigator.pop(ctx); _leaveClan(context); },
                   child: Container(
@@ -274,9 +263,7 @@ class _ClanDetailPageState extends State<ClanDetailPage>
                             ),
                           ),
                           child: Row(children: [
-                            // Rank
                             SizedBox(width: 22, child: Text('${i + 1}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: i < 3 ? _gold : Colors.grey))),
-                            // Avatar
                             Text(emoji, style: const TextStyle(fontSize: 26)),
                             const SizedBox(width: 10),
                             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -295,13 +282,11 @@ class _ClanDetailPageState extends State<ClanDetailPage>
                               ]),
                               Text('$mpontos pts', style: TextStyle(color: isCurrentUser ? _primary.withOpacity(0.7) : Colors.grey, fontSize: 11)),
                             ])),
-                            // Papel badge
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(color: roleColor.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
                               child: Text(_roleLabels[memberRole] ?? '👤', style: TextStyle(color: roleColor, fontWeight: FontWeight.bold, fontSize: 11)),
                             ),
-                            // Seta de navegação (só para outros membros) / Long press gestores
                             if (!isCurrentUser && _canManage(myRole) && memberRole != 'leader')
                               GestureDetector(
                                 onTap: () { Navigator.pop(ctx); _showMemberOptions(context, uid, mname, memberRole, myRole); },
@@ -345,7 +330,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
         final roles     = Map<String, dynamic>.from(data['roles'] ?? {});
         final createdBy = data['createdBy'] as String? ?? '';
 
-        // Ordena: líder → co-líder → ancião → membro
         memberIds.sort((a, b) {
           String roleA = a == createdBy ? 'leader' : (roles[a] ?? 'member');
           String roleB = b == createdBy ? 'leader' : (roles[b] ?? 'member');
@@ -419,7 +403,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
                   Text('$pontos pts', style: const TextStyle(color: Color(0xFF3B82F6), fontSize: 12, fontWeight: FontWeight.w600)),
                 ]),
               ])),
-              // Badge de papel
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(color: roleColor.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
@@ -436,7 +419,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
     );
   }
 
-  // ── Menu de opções do membro (líder/co-líder) ─────────────────────────────
   void _showMemberOptions(BuildContext context, String uid, String name, String memberRole, String myRole) {
     showDialog(
       context: context,
@@ -457,7 +439,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header do membro
                 Row(children: [
                   Container(
                     width: 46, height: 46,
@@ -480,7 +461,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
                 const Divider(height: 1, color: Color(0xFFF1F5F9)),
                 const SizedBox(height: 12),
 
-                // Opções
                 if (_canPromote(myRole, memberRole))
                   _dialogOption(ctx, Icons.arrow_upward_rounded, const Color(0xFF7C3AED),
                       'Promover para ${_nextRole(memberRole)}',
@@ -563,7 +543,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
     return '';
   }
 
-  // ── Envia mensagem de sistema no chat ────────────────────────────────────
   Future<void> _sendSystemMessage(String text) async {
     await FirebaseFirestore.instance
         .collection('clans').doc(widget.clanId).collection('messages').add({
@@ -584,7 +563,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
     await FirebaseFirestore.instance.collection('clans').doc(widget.clanId).update({'roles.$uid': next});
     await _sendSystemMessage('⬆️ $name foi promovido(a) para $nextLabel');
 
-    // Notificação para o utilizador promovido
     await NotificationService.send(
       toUid  : uid,
       title  : '⬆️ Foste promovido(a)!',
@@ -697,7 +675,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
 
     await _sendSystemMessage('🚫 $name foi expulso(a) do clã.');
 
-    // Notificação para o utilizador expulso
     await NotificationService.send(
       toUid  : uid,
       title  : '🚫 Foste expulso(a) do clã',
@@ -747,7 +724,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
   }
 
   Future<void> _proposeBattle(BuildContext context, String uid, String name) async {
-    // Qualquer membro pode propor batalha aberta
     final temas = ['Phishing', 'Palavras-passe', 'Redes Sociais', 'Segurança Web'];
     String? tema;
 
@@ -784,7 +760,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
     final myDoc  = await FirebaseFirestore.instance.collection('users').doc(user?.uid).get();
     final myName = (myDoc.data()?['name'] ?? 'Desafiante') as String;
 
-    // Cria a batalha
     final battleRef = FirebaseFirestore.instance.collection('clan_battles').doc();
     await battleRef.set({
       'from'      : user?.uid,
@@ -799,7 +774,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
       'createdAt' : FieldValue.serverTimestamp(),
     });
 
-    // Mensagem no chat com battleId — mostra botão de aceitar inline
     await FirebaseFirestore.instance
         .collection('clans').doc(widget.clanId).collection('messages').add({
       'text'      : '⚔️ $myName lançou um desafio sobre "$tema"!\nToca em Aceitar para entrar na batalha!',
@@ -891,10 +865,8 @@ class _ClanDetailPageState extends State<ClanDetailPage>
     batch.update(FirebaseFirestore.instance.collection('users').doc(user!.uid), {'clanId': FieldValue.delete()});
     batch.update(clanRef, {'memberIds': FieldValue.arrayRemove([user!.uid])});
 
-    // Se é líder, transfere automaticamente para o co-líder ou membro mais antigo
     if (isLeader && members.isNotEmpty) {
       String? newLeader;
-      // Prioridade: co-líder → ancião → membro
       for (final role in ['co-leader', 'elder', 'member']) {
         newLeader = members.firstWhere((m) => (roles[m] ?? 'member') == role, orElse: () => '');
         if (newLeader.isNotEmpty) break;
@@ -904,7 +876,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
       batch.update(clanRef, {'createdBy': newLeader, 'roles.$newLeader': 'leader'});
       await _sendSystemMessage('👑 Liderança transferida automaticamente para um novo líder.');
     } else if (members.isEmpty) {
-      // Clã ficou vazio — apaga-o
       batch.delete(clanRef);
     }
 
@@ -912,7 +883,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
     if (mounted) Navigator.pop(context);
   }
 
-  // ── Transferir liderança (só o líder pode) ────────────────────────────────
   Future<void> _transferLeadership(BuildContext context, String newLeaderUid, String newLeaderName) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -985,7 +955,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
     }
   }
 
-  // ── ABA CHAT ──────────────────────────────────────────────────────────────
   Widget _buildChatTab() {
     return Column(children: [
       Expanded(
@@ -1011,30 +980,23 @@ class _ClanDetailPageState extends State<ClanDetailPage>
           },
         ),
       ),
-      // Input + emojis
       AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         color: Colors.white,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // ── Emoji picker ─────────────────────────────────────────────
             if (_showEmojis) _buildEmojiPicker(),
             const Divider(height: 1, color: Color(0xFFE5E7EB)),
-            // ── Input row ────────────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 20),
               child: Row(children: [
-                // Botão emoji
                 _chatBtn('😊', _showEmojis, () => setState(() => _showEmojis = !_showEmojis)),
                 const SizedBox(width: 6),
-                // ⚔️ Propor batalha
                 _chatBtn('⚔️', false, () => _proposeBattle(context, '', '')),
                 const SizedBox(width: 6),
-                // 📣 Notificação de motivação (só líder e co-líder)
                 _chatMotivationBtn(context),
                 const SizedBox(width: 8),
-                // Campo de texto
                 Expanded(child: Container(
                   decoration: BoxDecoration(color: const Color(0xFFF8FAFC), borderRadius: BorderRadius.circular(14), border: Border.all(color: const Color(0xFFE5E7EB))),
                   child: TextField(
@@ -1050,7 +1012,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
                   ),
                 )),
                 const SizedBox(width: 8),
-                // Enviar
                 GestureDetector(
                   onTap: () { _sendMessage(); setState(() => _showEmojis = false); },
                   child: Container(width: 44, height: 44, decoration: BoxDecoration(color: _primary, borderRadius: BorderRadius.circular(12)), child: const Icon(Icons.send_rounded, color: Colors.white, size: 20)),
@@ -1079,7 +1040,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
     );
   }
 
-  // Botão de motivação — só líder/co-líder
   Widget _chatMotivationBtn(BuildContext context) {
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance.collection('clans').doc(widget.clanId).snapshots(),
@@ -1128,7 +1088,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
             const SizedBox(height: 4),
             const Text('Será enviada como notificação a todos os membros', style: TextStyle(color: Colors.grey, fontSize: 11), textAlign: TextAlign.center),
             const SizedBox(height: 16),
-            // Sugestões rápidas
             ...msgs.asMap().entries.map((e) => GestureDetector(
               onTap: () => setS(() { selectedIdx = e.key; custom = null; }),
               child: Container(
@@ -1143,7 +1102,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
               ),
             )),
             const SizedBox(height: 10),
-            // Mensagem personalizada
             TextField(
               onChanged: (v) => setS(() { custom = v.isNotEmpty ? v : null; }),
               decoration: InputDecoration(
@@ -1171,7 +1129,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
     if (result == null) return;
     final msg = result['msg'] as String;
 
-    // Envia para todos os membros como notificação
     final clanSnap = await FirebaseFirestore.instance.collection('clans').doc(widget.clanId).get();
     final members  = List<String>.from(clanSnap.data()?['memberIds'] ?? []);
     final myDoc    = await FirebaseFirestore.instance.collection('users').doc(user?.uid).get();
@@ -1188,7 +1145,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
       });
     }
 
-    // Também aparece no chat
     await _sendSystemMessage('📣 $myName: $msg');
 
     if (mounted) {
@@ -1227,9 +1183,7 @@ class _ClanDetailPageState extends State<ClanDetailPage>
     }
   }
 
-  // ── Emoji picker ──────────────────────────────────────────────────────────
   Widget _buildEmojiPicker() {
-    // Categorias de emojis
     final categories = {
       '😊 Caras'    : ['😀','😂','😅','😍','🥰','😎','🤩','😜','🤔','😢','😭','😡','🤯','🥳','🤗','😴','🫡','🤝','👏','🙏'],
       '🎮 Jogo'     : ['🏆','⚔️','🛡️','🎯','🎮','🃏','🎲','🏅','🥇','💪','🔥','⚡','💎','🚀','🌟','✨','💡','🎓','🦾','🏆'],
@@ -1244,7 +1198,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
         color: Colors.white,
         child: Column(
           children: [
-            // Tab por categoria
             TabBar(
               isScrollable: true,
               indicatorColor: _primary,
@@ -1254,7 +1207,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
               labelStyle: const TextStyle(fontSize: 12),
               tabs: categories.keys.map((k) => Tab(text: k)).toList(),
             ),
-            // Grid de emojis
             Expanded(
               child: TabBarView(
                 children: categories.values.map((emojis) {
@@ -1294,7 +1246,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
     final isSystem  = msg['isSystem']  == true;
     final isBattle  = msg['isBattle']  == true;
 
-    // ── Mensagem de batalha — card laranja com botão Aceitar ──────────────
     if (isSystem && isBattle) {
       final battleId  = msg['battleId']      as String? ?? '';
       final tema      = msg['battleTema']    as String? ?? 'Phishing';
@@ -1322,7 +1273,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
               ),
               padding: const EdgeInsets.all(16),
               child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                // Header
                 Row(children: [
                   const Text('⚔️', style: TextStyle(fontSize: 24)),
                   const SizedBox(width: 10),
@@ -1340,7 +1290,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
                   ),
                 ]),
 
-                // Scores
                 if (fromScore != null || toScore != null) ...[
                   const SizedBox(height: 12),
                   Row(children: [
@@ -1350,7 +1299,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
                   ]),
                 ],
 
-                // Resultado
                 if (done) ...[
                   const SizedBox(height: 10),
                   Container(
@@ -1364,7 +1312,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
                   ),
                 ],
 
-                // Botão — aceitar (outro membro)
                 if (!isFromMe && status == 'open') ...[
                   const SizedBox(height: 12),
                   SizedBox(width: double.infinity, child: ElevatedButton.icon(
@@ -1375,7 +1322,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
                   )),
                 ],
 
-                // Botão — desafiante joga o seu turno
                 if (isFromMe && fromScore == null) ...[
                   const SizedBox(height: 12),
                   SizedBox(width: double.infinity, child: ElevatedButton.icon(
@@ -1395,7 +1341,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
       );
     }
 
-    // ── Mensagem de sistema simples ────────────────────────────────────────
     if (isSystem) {
       final isPromotion  = text.startsWith('⬆️');
       final isDemotion   = text.startsWith('⬇️');
@@ -1404,7 +1349,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
       final isMotivation = text.startsWith('📣');
       final isBattleResult = text.contains('venceu a batalha') || text.contains('Empate na batalha');
 
-      // ── Promoção — pill verde ──────────────────────────────────────────
       if (isPromotion) {
         final label = text.replaceFirst('⬆️ ', '');
         return Padding(
@@ -1433,7 +1377,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
         );
       }
 
-      // ── Despromoção — pill vermelha ────────────────────────────────────
       if (isDemotion) {
         final label = text.replaceFirst('⬇️ ', '');
         return Padding(
@@ -1462,7 +1405,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
         );
       }
 
-      // ── Expulsão ──────────────────────────────────────────────────────
       if (isKick) {
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
@@ -1485,7 +1427,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
         );
       }
 
-      // ── Liderança ─────────────────────────────────────────────────────
       if (isLeadership) {
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
@@ -1508,7 +1449,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
         );
       }
 
-      // ── Resultado de batalha ──────────────────────────────────────────
       if (isBattleResult) {
         final isWin  = text.contains('venceu');
         final color  = isWin  ? const Color(0xFF16A34A) : const Color(0xFF0891B2);
@@ -1533,7 +1473,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
         );
       }
 
-      // ── Motivação ─────────────────────────────────────────────────────
       if (isMotivation) {
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
@@ -1559,7 +1498,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
         );
       }
 
-      // ── Mensagem de sistema genérica ─────────────────────────────────
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
         child: Container(
@@ -1572,7 +1510,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
       );
     }
 
-    // ── Mensagem normal ────────────────────────────────────────────────────
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1636,11 +1573,9 @@ class _ClanDetailPageState extends State<ClanDetailPage>
     });
   }
 
-  // ── ABA BATALHAS ──────────────────────────────────────────────────────────
   Widget _buildBattlesTab() {
     return Column(
       children: [
-        // Botão criar batalha (qualquer membro pode)
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
           child: SizedBox(
@@ -1706,11 +1641,9 @@ class _ClanDetailPageState extends State<ClanDetailPage>
     final canJoin   = isOpen && !isFrom; // outro membro pode aceitar
     final canPlay   = isFrom && fromScore == null && !isOpen;
 
-    // Para batalhas abertas — quem jogou
     final challenger = fromName;
     final opponent   = toName ?? '???';
 
-    // Vencedor
     String? winner;
     if (bothDone) {
       if (fromScore > toScore) {
@@ -1736,7 +1669,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 8, offset: const Offset(0, 2))],
       ),
       child: Column(children: [
-        // Header colorido
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
@@ -1762,7 +1694,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
         Padding(
           padding: const EdgeInsets.all(14),
           child: Column(children: [
-            // Scores (se existirem)
             if (fromScore != null || toScore != null) ...[
               Row(children: [
                 Expanded(child: _scoreBox(challenger, fromScore, winner == challenger)),
@@ -1772,7 +1703,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
               const SizedBox(height: 10),
             ],
 
-            // Vencedor
             if (winner != null) Container(
               width: double.infinity,
               padding: const EdgeInsets.all(10),
@@ -1787,7 +1717,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
               ),
             ),
 
-            // Botão aceitar batalha aberta
             if (canJoin) ...[
               const SizedBox(height: 10),
               SizedBox(
@@ -1805,7 +1734,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
               ),
             ],
 
-            // Botão jogar (se és o desafiante e ainda não jogaste)
             if (isFrom && fromScore == null) ...[
               const SizedBox(height: 10),
               SizedBox(
@@ -1828,12 +1756,10 @@ class _ClanDetailPageState extends State<ClanDetailPage>
     );
   }
 
-  // ── Aceita batalha aberta e joga de imediato ──────────────────────────────
   Future<void> _acceptAndPlay(String battleId, String tema, String fromName) async {
     final myDoc  = await FirebaseFirestore.instance.collection('users').doc(user?.uid).get();
     final myName = (myDoc.data()?['name'] ?? 'Oponente') as String;
 
-    // Regista o aceitante
     await FirebaseFirestore.instance.collection('clan_battles').doc(battleId).update({
       'to'    : user?.uid,
       'toName': myName,
@@ -1842,7 +1768,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
 
     await _sendSystemMessage('⚔️ $myName aceitou o desafio de $fromName sobre "$tema"!');
 
-    // Joga de imediato
     if (mounted) _startBattle(battleId, tema, false);
   }
 
@@ -1866,7 +1791,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
     );
   }
 
-  // ── Inicia a batalha de quiz ───────────────────────────────────────────────
   Future<void> _startBattle(String battleId, String tema, bool isFrom) async {
     final result = await Navigator.push<Map<String, dynamic>>(
       context,
@@ -1880,7 +1804,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
     await FirebaseFirestore.instance.collection('clan_battles').doc(battleId)
         .update({field: score});
 
-    // Verifica se ambos já jogaram
     final snap = await FirebaseFirestore.instance.collection('clan_battles').doc(battleId).get();
     final data  = snap.data() ?? {};
     final fromS = data['fromScore'] as int?;
@@ -1900,7 +1823,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
 
       await _sendSystemMessage(resultMsg);
     } else {
-      // Um já jogou, aguarda o outro
       final myDoc  = await FirebaseFirestore.instance.collection('users').doc(user?.uid).get();
       final myName = (myDoc.data()?['name'] ?? 'Jogador') as String;
       await _sendSystemMessage('✅ $myName completou o seu turno ($score pts). À espera do oponente...');
@@ -1908,9 +1830,6 @@ class _ClanDetailPageState extends State<ClanDetailPage>
   }
 } // fim de _ClanDetailPageState
 
-// ─────────────────────────────────────────────────────────────────────────────
-// BATTLE QUIZ SCREEN
-// ─────────────────────────────────────────────────────────────────────────────
 
 class BattleQuizScreen extends StatefulWidget {
   final String tema;
@@ -1924,7 +1843,6 @@ class _BattleQuizScreenState extends State<BattleQuizScreen> {
   static const _primary     = Color(0xFF1A56DB);
   static const _primaryDeep = Color(0xFF1E3A8A);
 
-  // 5 perguntas por tema (reutiliza o banco do quiz_screen via mapa local)
   static const Map<String, List<Map<String, dynamic>>> _bank = {
     'Phishing': [
       {'q': 'Qual é o sinal mais comum de phishing?', 'opts': ['Linguagem urgente','Formatação profissional','Logotipo real','Ortografia correta'], 'c': 0},
@@ -1990,7 +1908,6 @@ class _BattleQuizScreenState extends State<BattleQuizScreen> {
       setState(() { _idx++; _selected = null; _answered = false; });
     } else {
       final points = _correct * 20;
-      // Sem som de vitória/derrota na batalha — os sons são do quiz normal
       Navigator.pop(context, {'points': points, 'correct': _correct, 'total': _questions.length});
     }
   }
@@ -2021,7 +1938,6 @@ class _BattleQuizScreenState extends State<BattleQuizScreen> {
         ],
       ),
       body: Column(children: [
-        // Barra progresso
         LinearProgressIndicator(
           value: (_idx + 1) / _questions.length,
           backgroundColor: Colors.white24,
@@ -2032,7 +1948,6 @@ class _BattleQuizScreenState extends State<BattleQuizScreen> {
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(20),
             child: Column(children: [
-              // Score atual
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 decoration: BoxDecoration(color: const Color(0xFFEA580C).withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
@@ -2043,7 +1958,6 @@ class _BattleQuizScreenState extends State<BattleQuizScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Pergunta
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
@@ -2053,7 +1967,6 @@ class _BattleQuizScreenState extends State<BattleQuizScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Opções
               ...List.generate(opts.length, (i) {
                 Color bg  = Colors.white;
                 Color bdr = const Color(0xFFE5E7EB);
