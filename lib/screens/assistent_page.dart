@@ -8,8 +8,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:projeto_safequest/env.dart';
 
 class AssistantPage extends StatefulWidget {
-  final String? initialPrompt; // ← NOVO
-  const AssistantPage({super.key, this.initialPrompt}); // ← ATUALIZADO
+  final String? initialPrompt;
+  const AssistantPage({super.key, this.initialPrompt});
 
   @override
   State<AssistantPage> createState() => _AssistantPageState();
@@ -24,10 +24,8 @@ class _AssistantPageState extends State<AssistantPage>
   late ChatSession _chat;
   bool _isLoading = false;
   bool _aiReady = false;
-  String? _chatId; // null = nova conversa ainda não guardada
+  String? _chatId;
   final String _uid = FirebaseAuth.instance.currentUser?.uid ?? "anon";
-
-  // ─── CORES ─────────────────────────────────────────────────────────────────
   static const primary      = Color(0xFF2563EB);
   static const primaryDark  = Color(0xFF1D4ED8);
   static const bgPage       = Color(0xFFF3F4F6);
@@ -44,7 +42,6 @@ class _AssistantPageState extends State<AssistantPage>
     _setupAI();
     _checkAndLoadLastChat();
 
-    // ── NOVO: preenche o campo se vier um prompt inicial do QuizDetailPage ──
     if (widget.initialPrompt != null && widget.initialPrompt!.isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _controller.text = widget.initialPrompt!;
@@ -53,8 +50,6 @@ class _AssistantPageState extends State<AssistantPage>
   }
 
   Future<void> _checkAndLoadLastChat() async {
-    // Por defeito, começa um novo chat. Mas se o utilizador fechar e abrir a app,
-    // podíamos carregar o último aqui. Por agora, deixamos como Novo Chat.
   }
 
   Future<void> _saveMessage(Map<String, dynamic> msg) async {
@@ -85,7 +80,7 @@ class _AssistantPageState extends State<AssistantPage>
       _chatId = null;
       _isLoading = false;
     });
-    await _setupAI(); // reinicia a sessão do modelo
+    await _setupAI();
   }
 
   Future<void> _loadChat(String id) async {
@@ -116,9 +111,7 @@ class _AssistantPageState extends State<AssistantPage>
         _isLoading = false;
       });
 
-      // Reconstrói o histórico para o modelo Gemini
       final List<Content> geminiHistory = [];
-      // Re-adiciona a instrução mestra (não guardada no Firestore para não duplicar)
       final String manualSafeQuest = await rootBundle.loadString('assets/conhecimento_safequest.txt');
       geminiHistory.add(Content.text("Tu és o SafeQuest Mentor... [Base: $manualSafeQuest]"));
       geminiHistory.add(Content.model([TextPart("Entendido!")]));
@@ -155,7 +148,6 @@ class _AssistantPageState extends State<AssistantPage>
       final String manualSafeQuest =
           await rootBundle.loadString('assets/conhecimento_safequest.txt');
       
-      // Usa apenas a chave do ficheiro env.dart
       final String myKey = Env.geminiApiKey;
 
 
@@ -232,11 +224,9 @@ class _AssistantPageState extends State<AssistantPage>
     });
     _scrollToBottom();
 
-    // Guarda mensagem do utilizador
     await _saveMessage(userMsg);
 
     try {
-      // Se IA não foi inicializada, tenta novamente
       if (!_aiReady) {
         await _setupAI();
         if (!_aiReady) {
@@ -270,7 +260,6 @@ class _AssistantPageState extends State<AssistantPage>
         _scrollToBottom();
       }
       
-      // Guarda resposta da IA
       await _saveMessage(aiMsg);
     } catch (e) {
       debugPrint("🚨 ERRO AI SEND: $e");
@@ -288,11 +277,9 @@ class _AssistantPageState extends State<AssistantPage>
     }
   }
 
-  // ─── BUILD ─────────────────────────────────────────────────────────────────
-
   @override
   Widget build(BuildContext context) {
-    super.build(context); // necessário para AutomaticKeepAliveClientMixin
+    super.build(context);
     return Scaffold(
       backgroundColor: bgPage,
       body: SafeArea(
@@ -308,7 +295,6 @@ class _AssistantPageState extends State<AssistantPage>
     );
   }
 
-  // ─── HEADER ────────────────────────────────────────────────────────────────
   Widget _header(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
@@ -325,6 +311,13 @@ class _AssistantPageState extends State<AssistantPage>
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, color: textDark, size: 20),
+            onPressed: () => Navigator.pop(context),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+          ),
+          const SizedBox(width: 12),
           Stack(
             clipBehavior: Clip.none,
             children: [
@@ -459,7 +452,6 @@ class _AssistantPageState extends State<AssistantPage>
     );
   }
 
-  // ─── LISTA DE MENSAGENS ────────────────────────────────────────────────────
   Widget _messageList() {
     return ListView.builder(
       controller: _scrollController,

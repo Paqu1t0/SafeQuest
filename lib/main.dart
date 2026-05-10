@@ -31,12 +31,10 @@ Future<void> _backgroundHandler(RemoteMessage message) async {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Aqui fizeste perfeitamente bem!
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
   
-  // Envolvemos as notificações num try-catch para proteger o arranque da app
   try {
     FirebaseMessaging.onBackgroundMessage(_backgroundHandler);
     await _configurarNotificacoes();
@@ -44,7 +42,6 @@ void main() async {
     debugPrint("Aviso: Notificações não suportadas neste browser (normal no iPhone). Erro: $e");
   }
   
-  // Forçar logout se o "Lembra-me" não estiver ativo OU se passaram 30 dias do MFA
   final prefs = await SharedPreferences.getInstance();
   final rememberMe = prefs.getBool('remember_me') ?? false;
   final mfaTimestamp = prefs.getInt('mfa_verified_at') ?? 0;
@@ -58,11 +55,9 @@ void main() async {
     if (!rememberMe) {
       try { await GoogleSignIn().signOut(); } catch (_) {}
       await FirebaseAuth.instance.signOut();
-      // Sem "Lembra-me": limpa prefs de MFA para forçar verificação no próximo login
       await prefs.remove('mfa_verified_at');
       await prefs.remove('mfa_uid');
     } else if (mfaTimestamp == 0 || (now - mfaTimestamp) >= thirtyDaysMs || savedUid != currentUser.uid) {
-      // MFA expirou ou mudou de utilizador -> Obriga a fazer Login de novo
       try { await GoogleSignIn().signOut(); } catch (_) {}
       await FirebaseAuth.instance.signOut();
       await prefs.remove('mfa_verified_at');
@@ -78,22 +73,19 @@ void main() async {
 Future<void> _configurarNotificacoes() async {
   final messaging = FirebaseMessaging.instance;
   
-  // 1. Pede permissão ao utilizador
   await messaging.requestPermission(alert: true, badge: true, sound: true);
 
-  // 2. CRIA O CANAL PARA O ANDROID (Isto resolve o bloqueio do Samsung!)
   const AndroidNotificationChannel channel = AndroidNotificationChannel(
-    'safequest_channel', // TEM DE SER IGUAL AO DO MANIFEST
-    'Missões SafeQuest', // O nome que aparece nas definições do telemóvel
+    'safequest_channel',
+    'Missões SafeQuest',
     description: 'Avisos sobre quizzes e recompensas.',
-    importance: Importance.max, // Importância MÁXIMA para forçar o pop-up
+    importance: Importance.max,
   );
 
   await localNotifsPlugin
       .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
       ?.createNotificationChannel(channel);
 
-  // 3. Força a notificação a aparecer mesmo com a app aberta (Opcional, mas útil)
   await messaging.setForegroundNotificationPresentationOptions(
     alert: true,
     badge: true,
@@ -117,7 +109,6 @@ class SafeQuest extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1A56DB)),
         useMaterial3: true,
       ),
-      // ── Verifica a sessão através do AuthGate ─────────────────
       home: const AuthGate(),
       routes: {
         '/login'   : (_) => const LoginPage(),
@@ -128,7 +119,6 @@ class SafeQuest extends StatelessWidget {
   }
 }
 
-// ── AuthGate — gere sessão + MFA + aviso de internet ──────────────────────
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
   @override
@@ -139,10 +129,9 @@ class _AuthGateState extends State<AuthGate> {
   bool _isOnline = true;
   bool _wasOffline = false;
   bool _offlineBannerDismissed = false;
-  StreamSubscription<User?>? _authSub; // Ouve mudanças de auth fora do builder
-  User? _previousUser; // Rastreia utilizador anterior para detetar sign-out
+  StreamSubscription<User?>? _authSub;
+  User? _previousUser;
 
-  // Features que requerem internet
   static const _offlineFeatures = [
     ('🤖', 'Assistente IA'),
     ('💬', 'Chat do Clã'),
@@ -163,26 +152,23 @@ class _AuthGateState extends State<AuthGate> {
     super.dispose();
   }
 
-  // Limpa MFA quando utilizador termina sessão em tempo real
   Future<void> _clearMfaOnSignOut() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('mfa_verified_at');
       await prefs.remove('mfa_uid');
-      MFAEmailPage.clearSession(); // Reset do código estático
+      MFAEmailPage.clearSession();
     } catch (_) {}
   }
 
   Future<void> _checkAndListen() async {
-    // Ouve mudanças de autenticação fora do StreamBuilder (evita side effects no build)
     _authSub = FirebaseAuth.instance.userChanges().listen((user) {
       if (_previousUser != null && user == null) {
-        _clearMfaOnSignOut(); // Utilizador fez sign-out
+        _clearMfaOnSignOut();
       }
       _previousUser = user;
     });
 
-    // Verificação inicial
     try {
       final result = await Connectivity().checkConnectivity();
       final online = result.any((r) => r != ConnectivityResult.none);
@@ -191,7 +177,6 @@ class _AuthGateState extends State<AuthGate> {
       if (mounted) setState(() => _isOnline = false);
     }
 
-    // Ouve mudanças de conectividade em tempo real
     Connectivity().onConnectivityChanged.listen((results) {
       if (!mounted) return;
       final online = results.any((r) => r != ConnectivityResult.none);
@@ -206,7 +191,6 @@ class _AuthGateState extends State<AuthGate> {
           _offlineBannerDismissed = false; 
         }
       });
-      // Auto-reload: quando internet volta, recarrega a página (reseta o estado)
       if (online && wasOffline && mounted) {
         Future.delayed(const Duration(milliseconds: 800), () {
           if (mounted) setState(() => _wasOffline = false);
@@ -233,9 +217,7 @@ class _AuthGateState extends State<AuthGate> {
             return const LoginPage();
           },
         ),
-        // ── Banner de sem internet (aparece por cima de tudo) ──────────────
         if (!_isOnline && !_offlineBannerDismissed) _buildOfflineBanner(),
-        // ── Banner de internet restaurada ──────────────────────────────────
         if (_isOnline && _wasOffline) _buildOnlineBanner(),
       ],
     );
@@ -261,7 +243,6 @@ class _AuthGateState extends State<AuthGate> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Header
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: const BoxDecoration(
@@ -272,10 +253,9 @@ class _AuthGateState extends State<AuthGate> {
                     Icon(Icons.wifi_off_rounded, color: Colors.white, size: 18),
                     SizedBox(width: 8),
                     Expanded(child: Text('Sem ligação à internet', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14))),
-                    Icon(Icons.keyboard_arrow_up, color: Colors.white70, size: 16), // Dica de swipe
+                    Icon(Icons.keyboard_arrow_up, color: Colors.white70, size: 16),
                   ]),
                 ),
-                // Body
                 Padding(
                   padding: const EdgeInsets.all(14),
                   child: Column(
@@ -348,7 +328,6 @@ class _AuthGateState extends State<AuthGate> {
   }
 }
 
-// ── MfaGate — verifica se MFA é necessário ────────────────────────────────
 class _MfaGate extends StatefulWidget {
   final User user;
   const _MfaGate({required this.user});
@@ -372,17 +351,14 @@ class _MfaGateState extends State<_MfaGate> {
       final rememberMe = prefs.getBool('remember_me') ?? false;
       final mfaTimestamp = prefs.getInt('mfa_verified_at') ?? 0;
       final now = DateTime.now().millisecondsSinceEpoch;
-      final thirtyDaysMs = 30 * 24 * 60 * 60 * 1000; // 30 dias em ms
+      final thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
       final savedUid = prefs.getString('mfa_uid') ?? '';
 
-      // Só salta MFA se: MFA verificado < 30 dias + mesmo user
       if (mfaTimestamp > 0 &&
           (now - mfaTimestamp) < thirtyDaysMs &&
           savedUid == widget.user.uid) {
-        // MFA válido — skip
         if (mounted) setState(() { _loading = false; _needsMfa = false; });
       } else {
-        // MFA necessário (primeiro login, outro dispositivo, ou 30 dias expirados)
         if (mounted) setState(() { _loading = false; _needsMfa = true; });
       }
     } catch (_) {
@@ -404,7 +380,6 @@ class _MfaGateState extends State<_MfaGate> {
   }
 }
 
-// ── SetupGate — verifica Onboarding e Nickname ────────────────────────────
 class _SetupGate extends StatefulWidget {
   final User user;
   const _SetupGate({required this.user});
@@ -417,7 +392,7 @@ class _SetupGateState extends State<_SetupGate> {
   bool _loading         = true;
   bool _needsOnboarding = false;
   bool _needsNickname   = false;
-  bool _requireNickname = false; // true = utilizador Google sem nickname
+  bool _requireNickname = false;
 
   @override
   void initState() {
@@ -427,13 +402,11 @@ class _SetupGateState extends State<_SetupGate> {
 
   Future<void> _checkSetup() async {
     try {
-      // 1. Verifica se o utilizador já tem nickname no Firestore
       final doc = await FirebaseFirestore.instance
           .collection('users').doc(widget.user.uid).get();
       final nickname = doc.data()?['nickname'] as String?;
       final hasNickname = nickname != null && nickname.trim().isNotEmpty;
 
-      // 2. Verifica se o onboarding já foi mostrado
       final showOnboarding = await OnboardingScreen.shouldShow();
 
       if (showOnboarding) {
@@ -454,7 +427,7 @@ class _SetupGateState extends State<_SetupGate> {
 
       if (mounted) setState(() { _loading = false; });
     } catch (_) {
-      if (mounted) setState(() { _loading = false; }); // Se falhar, avança
+      if (mounted) setState(() { _loading = false; });
     }
   }
 
