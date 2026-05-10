@@ -654,7 +654,10 @@ class _ClanPageState extends State<ClanPage> {
     if (confirm != true || user == null) return;
     final batch = FirebaseFirestore.instance.batch();
     batch.update(FirebaseFirestore.instance.collection('users').doc(user!.uid), {'clanId': clanId});
-    batch.update(FirebaseFirestore.instance.collection('clans').doc(clanId), {'memberIds': FieldValue.arrayUnion([user!.uid])});
+    batch.update(FirebaseFirestore.instance.collection('clans').doc(clanId), {
+      'memberIds': FieldValue.arrayUnion([user!.uid]),
+      'roles.${user!.uid}': 'member',
+    });
     await batch.commit();
   }
 

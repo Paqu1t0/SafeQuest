@@ -863,7 +863,10 @@ class _ClanDetailPageState extends State<ClanDetailPage>
 
     final batch = FirebaseFirestore.instance.batch();
     batch.update(FirebaseFirestore.instance.collection('users').doc(user!.uid), {'clanId': FieldValue.delete()});
-    batch.update(clanRef, {'memberIds': FieldValue.arrayRemove([user!.uid])});
+    batch.update(clanRef, {
+      'memberIds': FieldValue.arrayRemove([user!.uid]),
+      'roles.${user!.uid}': FieldValue.delete(),
+    });
 
     if (isLeader && members.isNotEmpty) {
       String? newLeader;

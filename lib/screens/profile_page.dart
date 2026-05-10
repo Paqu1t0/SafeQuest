@@ -241,11 +241,28 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
 
-  Future<void> _deleteAccount(String email, String password) async {
+  Future<void> _deleteAccount({String? email, String? password, bool isGoogle = false}) async {
     try {
       if (user != null) {
-        AuthCredential credential = EmailAuthProvider.credential(email: email, password: password);
-        await user!.reauthenticateWithCredential(credential);
+        if (isGoogle) {
+          final GoogleSignIn googleSignIn = GoogleSignIn();
+          await googleSignIn.signOut(); // Força a escolha de conta
+          final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+          if (googleUser != null) {
+            final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+            final AuthCredential credential = GoogleAuthProvider.credential(
+              accessToken: googleAuth.accessToken,
+              idToken: googleAuth.idToken,
+            );
+            await user!.reauthenticateWithCredential(credential);
+          } else {
+            return; // O utilizador cancelou o login
+          }
+        } else {
+          AuthCredential credential = EmailAuthProvider.credential(email: email!, password: password!);
+          await user!.reauthenticateWithCredential(credential);
+        }
+
         await FirebaseFirestore.instance.collection('users').doc(user!.uid).delete();
         await user!.delete();
         if (!mounted) return;
@@ -256,12 +273,17 @@ class _ProfilePageState extends State<ProfilePage> {
       if (e.code == 'wrong-password') msg = "Palavra-passe incorreta.";
       if (e.code == 'user-not-found' || e.code == 'invalid-email') msg = "Email incorreto.";
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Ocorreu um erro ao apagar a conta."), backgroundColor: Colors.red));
     }
   }
 
   void _showDeleteConfirmation() {
+    final bool isGoogle = user?.providerData.any((p) => p.providerId == 'google.com') ?? false;
     final emailController    = TextEditingController(text: user?.email ?? "");
     final passwordController = TextEditingController();
+    final confirmTextController = TextEditingController();
+    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -278,26 +300,41 @@ class _ProfilePageState extends State<ProfilePage> {
           children: [
             const Text("Esta ação é irreversível. Todos os teus dados serão perdidos.", style: TextStyle(color: Colors.grey, fontSize: 13)),
             const SizedBox(height: 20),
-            TextField(
-              controller: emailController,
-              decoration: InputDecoration(
-                hintText: "Confirma o Email",
-                prefixIcon: const Icon(Icons.email_outlined, size: 20),
-                filled: true, fillColor: const Color(0xFFF1F5F9),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+            if (isGoogle) ...[
+              const Text("Para confirmares que és o dono desta conta, serás redirecionado para fazer login com o Google.", style: TextStyle(fontSize: 14)),
+              const SizedBox(height: 14),
+              const Text("Escreve 'apagar' abaixo para confirmar:", style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.red)),
+              const SizedBox(height: 8),
+              TextField(
+                controller: confirmTextController,
+                decoration: InputDecoration(
+                  hintText: "apagar",
+                  filled: true, fillColor: const Color(0xFFF1F5F9),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                ),
               ),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: passwordController,
-              obscureText: true,
-              decoration: InputDecoration(
-                hintText: "Palavra-passe",
-                prefixIcon: const Icon(Icons.lock_outline, size: 20),
-                filled: true, fillColor: const Color(0xFFF1F5F9),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+            ] else ...[
+              TextField(
+                controller: emailController,
+                decoration: InputDecoration(
+                  hintText: "Confirma o Email",
+                  prefixIcon: const Icon(Icons.email_outlined, size: 20),
+                  filled: true, fillColor: const Color(0xFFF1F5F9),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                ),
               ),
-            ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: passwordController,
+                obscureText: true,
+                decoration: InputDecoration(
+                  hintText: "Palavra-passe",
+                  prefixIcon: const Icon(Icons.lock_outline, size: 20),
+                  filled: true, fillColor: const Color(0xFFF1F5F9),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide.none),
+                ),
+              ),
+            ]
           ],
         ),
         actions: [
@@ -311,11 +348,20 @@ class _ProfilePageState extends State<ProfilePage> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
             onPressed: () {
-              if (emailController.text.isNotEmpty && passwordController.text.isNotEmpty) {
-                Navigator.pop(context);
-                _deleteAccount(emailController.text, passwordController.text);
+              if (isGoogle) {
+                if (confirmTextController.text.trim().toLowerCase() == 'apagar') {
+                  Navigator.pop(context);
+                  _deleteAccount(isGoogle: true);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Escreve 'apagar' para confirmares."), backgroundColor: Colors.red));
+                }
               } else {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Preenche ambos os campos."), backgroundColor: Colors.red));
+                if (emailController.text.isNotEmpty && passwordController.text.isNotEmpty) {
+                  Navigator.pop(context);
+                  _deleteAccount(email: emailController.text, password: passwordController.text);
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Preenche ambos os campos."), backgroundColor: Colors.red));
+                }
               }
             },
             child: const Text("Apagar", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
