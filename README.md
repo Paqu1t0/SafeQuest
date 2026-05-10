@@ -31,7 +31,7 @@ As funcionalidades sociais — clãs, chat de clã, batalhas de quizzes e uma ta
 *   **Sistema de Multiplicador de Combo:** ×1.2 / ×1.5 / ×2.0 para respostas corretas consecutivas.
 *   **Missões Diárias:** Com recompensas em moedas, renovadas à meia-noite.
 *   **Acompanhamento de Sequências (Streaks):** Com celebração animada no primeiro quiz diário.
-*   **Mentor IA (Gemini 2.0 Flash):** Para análise de desempenho personalizada e recomendação de quizzes.
+*   **Mentor IA (Gemini 2.5 Flash):** Para análise de desempenho personalizada e recomendação de quizzes.
 *   **Assistente IA:** Para perguntas de cibersegurança em formato livre.
 *   **Sistema de Clãs:** Com chat em tempo real, batalhas de quizzes e hierarquia de papéis (Líder, Co-Líder, Ancião, Membro).
 *   **Tabelas de Classificação:** Leaderboard de amigos em paralelo com classificações globais de jogadores e clãs.
