@@ -53,7 +53,7 @@ As funcionalidades sociais — clãs, chat de clã, batalhas de quizzes e uma ta
 | **Autenticação** | Firebase Auth (e-mail/palavra-passe + Google Sign-In) |
 | **Base de Dados** | Cloud Firestore (NoSQL, em tempo real) |
 | **Notificações Push** | Firebase Cloud Messaging (FCM) |
-| **Automação de E-mail** | Extensão Firebase — Trigger Email + Cloud Functions (Node.js) |
+| **E-mails automáticos** | Extensão Firebase - Trigger Email + Cloud Functions (Node.js) |
 | **IA / ML** | Google Gemini 2.5 Flash API |
 | **Gestão de Estado** | Provider |
 | **Armazenamento Local** | SharedPreferences |
