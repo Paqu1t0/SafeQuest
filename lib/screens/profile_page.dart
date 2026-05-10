@@ -263,6 +263,62 @@ class _ProfilePageState extends State<ProfilePage> {
           await user!.reauthenticateWithCredential(credential);
         }
 
+        // Remover utilizador do clã, se pertencer a um
+        final userDocSnap = await FirebaseFirestore.instance.collection('users').doc(user!.uid).get();
+        if (userDocSnap.exists) {
+          final userData = userDocSnap.data();
+          if (userData != null && userData.containsKey('clanId')) {
+            final clanId = userData['clanId'] as String?;
+            if (clanId != null && clanId.isNotEmpty) {
+              final clanRef = FirebaseFirestore.instance.collection('clans').doc(clanId);
+              final clanSnap = await clanRef.get();
+              if (clanSnap.exists) {
+                final clanData = clanSnap.data()!;
+                final memberIds = List<String>.from(clanData['memberIds'] ?? []);
+                
+                if (memberIds.length <= 1) {
+                  // Se for o único membro, apaga o clã
+                  await clanRef.delete();
+                } else {
+                  // Remover o utilizador do clã
+                  final updates = <String, dynamic>{
+                    'memberIds': FieldValue.arrayRemove([user!.uid]),
+                    'roles.${user!.uid}': FieldValue.delete(),
+                  };
+                  
+                  // Se for o criador/líder, transferir liderança
+                  if (clanData['createdBy'] == user!.uid) {
+                    memberIds.remove(user!.uid);
+                    final roles = Map<String, dynamic>.from(clanData['roles'] ?? {});
+                    roles.remove(user!.uid);
+                    
+                    String? newLeader;
+                    for (final mId in memberIds) {
+                      if (roles[mId] == 'co-leader') {
+                        newLeader = mId;
+                        break;
+                      }
+                    }
+                    if (newLeader == null) {
+                      for (final mId in memberIds) {
+                        if (roles[mId] == 'elder') {
+                          newLeader = mId;
+                          break;
+                        }
+                      }
+                    }
+                    newLeader ??= memberIds.first; // fallback para o primeiro membro disponível
+                    
+                    updates['createdBy'] = newLeader;
+                    updates['roles.$newLeader'] = 'leader';
+                  }
+                  await clanRef.update(updates);
+                }
+              }
+            }
+          }
+        }
+
         await FirebaseFirestore.instance.collection('users').doc(user!.uid).delete();
         await user!.delete();
         if (!mounted) return;

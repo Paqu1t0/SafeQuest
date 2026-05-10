@@ -233,13 +233,15 @@ class _ClanDetailPageState extends State<ClanDetailPage>
                     stream: FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
                     builder: (ctx3, snap) {
                       if (!snap.hasData) return const SizedBox.shrink();
-                      final data      = snap.data!.data() as Map<String,dynamic>? ?? {};
-                      final mname     = data['name']    ?? 'Jogador';
-                      final mnick     = data['nickname']?? '';
+                      final bool isGhost = !snap.data!.exists;
+                      final data      = isGhost ? <String, dynamic>{} : snap.data!.data() as Map<String,dynamic>? ?? {};
+                      final mname     = isGhost ? 'Conta Removida' : (data['name'] ?? 'Jogador');
+                      final mnick     = isGhost ? '' : (data['nickname']?? '');
                       final mpontos   = (data['pontos']  ?? 0) as int;
                       final avatarId  = data['avatar']   ?? 'default';
-                      final emoji     = _avatarEmoji[avatarId] ?? '👤';
-                      final roleColor = _roleColors[memberRole] ?? _primary;
+                      final emoji     = isGhost ? '👻' : (_avatarEmoji[avatarId] ?? '👤');
+                      final roleColor = isGhost ? Colors.grey : (_roleColors[memberRole] ?? _primary);
+                      final canManageMini = isGhost ? _canManage(myRole) : (_canManage(myRole) && memberRole != 'leader');
 
                       final isCurrentUser = uid == user?.uid;
                       return GestureDetector(
@@ -287,9 +289,9 @@ class _ClanDetailPageState extends State<ClanDetailPage>
                               decoration: BoxDecoration(color: roleColor.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
                               child: Text(_roleLabels[memberRole] ?? '👤', style: TextStyle(color: roleColor, fontWeight: FontWeight.bold, fontSize: 11)),
                             ),
-                            if (!isCurrentUser && _canManage(myRole) && memberRole != 'leader')
+                            if (!isCurrentUser && canManageMini)
                               GestureDetector(
-                                onTap: () { Navigator.pop(ctx); _showMemberOptions(context, uid, mname, memberRole, myRole); },
+                                onTap: () { Navigator.pop(ctx); _showMemberOptions(context, uid, mname, memberRole, myRole, isGhost: isGhost); },
                                 child: const Padding(padding: EdgeInsets.only(left: 8), child: Icon(Icons.more_vert_rounded, color: Colors.grey, size: 18)),
                               )
                             else if (!isCurrentUser)
@@ -353,32 +355,37 @@ class _ClanDetailPageState extends State<ClanDetailPage>
 
   Widget _buildMemberCard(String uid, String memberRole, String myRole, String createdBy) {
     final isMe       = uid == user?.uid;
-    final canManage  = _canManage(myRole) && !isMe && memberRole != 'leader';
-    final canBattle  = !isMe; // qualquer membro pode propor batalha
 
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance.collection('users').doc(uid).snapshots(),
       builder: (context, snap) {
         if (!snap.hasData) return const SizedBox.shrink();
-        final data     = snap.data!.data() as Map<String, dynamic>? ?? {};
-        final name     = data['name']    ?? 'Jogador';
+        final bool isGhost = !snap.data!.exists;
+        final data     = isGhost ? <String, dynamic>{} : snap.data!.data() as Map<String, dynamic>? ?? {};
+        final name     = isGhost ? 'Conta Removida' : (data['name'] ?? 'Jogador');
         final pontos   = (data['pontos'] ?? 0) as int;
-        final nivel    = (pontos ~/ 250) + 1;
+        final nivel    = isGhost ? 0 : (pontos ~/ 250) + 1;
         final avatarId = data['avatar']  ?? 'default';
         final streak   = (data['streak'] ?? 0) as int;
-        final emoji    = _avatarEmoji[avatarId] ?? '👤';
-        final color    = _avatarColor[avatarId] ?? _primary;
-        final roleColor = _roleColors[memberRole] ?? _primary;
+        final emoji    = isGhost ? '👻' : (_avatarEmoji[avatarId] ?? '👤');
+        final color    = isGhost ? Colors.grey : (_avatarColor[avatarId] ?? _primary);
+        final roleColor = isGhost ? Colors.grey : (_roleColors[memberRole] ?? _primary);
+
+        final canManage  = isGhost 
+            ? _canManage(myRole) 
+            : (_canManage(myRole) && !isMe && memberRole != 'leader');
+        final canBattle  = !isMe && !isGhost;
 
         return GestureDetector(
           onTap: () {
+            if (isGhost) return;
             if (isMe) {
               Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfilePage()));
             } else {
               Navigator.push(context, MaterialPageRoute(builder: (_) => MemberProfilePage(uid: uid)));
             }
           },
-          onLongPress: (canManage || canBattle) ? () => _showMemberOptions(context, uid, name, memberRole, myRole) : null,
+          onLongPress: (canManage || canBattle) ? () => _showMemberOptions(context, uid, name, memberRole, myRole, isGhost: isGhost) : null,
           child: Container(
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
@@ -419,7 +426,7 @@ class _ClanDetailPageState extends State<ClanDetailPage>
     );
   }
 
-  void _showMemberOptions(BuildContext context, String uid, String name, String memberRole, String myRole) {
+  void _showMemberOptions(BuildContext context, String uid, String name, String memberRole, String myRole, {bool isGhost = false}) {
     showDialog(
       context: context,
       barrierColor: Colors.black54,
@@ -443,16 +450,16 @@ class _ClanDetailPageState extends State<ClanDetailPage>
                   Container(
                     width: 46, height: 46,
                     decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(13)),
-                    child: const Center(child: Icon(Icons.person_rounded, color: Color(0xFF1A56DB))),
+                    child: Center(child: Icon(isGhost ? Icons.no_accounts_rounded : Icons.person_rounded, color: isGhost ? Colors.grey : const Color(0xFF1A56DB))),
                   ),
                   const SizedBox(width: 12),
                   Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(name, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A))),
+                    Text(name, style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: isGhost ? Colors.grey : const Color(0xFF1E3A8A))),
                     Container(
                       margin: const EdgeInsets.only(top: 4),
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(color: (_roleColors[memberRole] ?? _primary).withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
-                      child: Text(_roleLabels[memberRole] ?? '', style: TextStyle(color: _roleColors[memberRole] ?? _primary, fontWeight: FontWeight.bold, fontSize: 11)),
+                      decoration: BoxDecoration(color: (isGhost ? Colors.grey : (_roleColors[memberRole] ?? _primary)).withOpacity(0.1), borderRadius: BorderRadius.circular(6)),
+                      child: Text(_roleLabels[memberRole] ?? '', style: TextStyle(color: isGhost ? Colors.grey : (_roleColors[memberRole] ?? _primary), fontWeight: FontWeight.bold, fontSize: 11)),
                     ),
                   ])),
                   GestureDetector(onTap: () => Navigator.pop(ctx), child: const Icon(Icons.close_rounded, color: Colors.grey)),
@@ -461,28 +468,34 @@ class _ClanDetailPageState extends State<ClanDetailPage>
                 const Divider(height: 1, color: Color(0xFFF1F5F9)),
                 const SizedBox(height: 12),
 
-                if (_canPromote(myRole, memberRole))
+                if (isGhost && _canManage(myRole))
+                  _dialogOption(ctx, Icons.delete_forever_rounded, const Color(0xFFDC2626),
+                      'Limpar Conta Removida', 'Remove este utilizador do clã',
+                      () => _removeGhost(ctx, uid)),
+
+                if (!isGhost && _canPromote(myRole, memberRole))
                   _dialogOption(ctx, Icons.arrow_upward_rounded, const Color(0xFF7C3AED),
                       'Promover para ${_nextRole(memberRole)}',
                       memberRole == 'member' ? 'Torna-se Ancião' : 'Torna-se Co-Líder',
                       () => _promoteUser(ctx, uid, memberRole)),
 
-                if (_canDemote(myRole, memberRole))
+                if (!isGhost && _canDemote(myRole, memberRole))
                   _dialogOption(ctx, Icons.arrow_downward_rounded, const Color(0xFFD97706),
                       memberRole == 'elder' ? 'Rebaixar → Membro' : 'Rebaixar → Ancião',
                       'Reduz o papel deste membro',
                       () => _demoteUser(ctx, uid, memberRole)),
 
-                _dialogOption(ctx, Icons.sports_esports_rounded, _primary,
-                    'Propor Batalha de Quiz', 'Desafia para um quiz!',
-                    () => _proposeBattle(ctx, uid, name)),
+                if (!isGhost)
+                  _dialogOption(ctx, Icons.sports_esports_rounded, _primary,
+                      'Propor Batalha de Quiz', 'Desafia para um quiz!',
+                      () => _proposeBattle(ctx, uid, name)),
 
-                if (myRole == 'leader')
+                if (!isGhost && myRole == 'leader')
                   _dialogOption(ctx, Icons.workspace_premium_rounded, const Color(0xFFFBBF24),
                       'Transferir Liderança', 'Torna este membro o novo Líder',
                       () => _transferLeadership(ctx, uid, name)),
 
-                if (_canKick(myRole, memberRole))
+                if (!isGhost && _canKick(myRole, memberRole))
                   _dialogOption(ctx, Icons.person_remove_rounded, const Color(0xFFDC2626),
                       'Expulsar do Clã', 'Remove permanentemente',
                       () => _kickUser(ctx, uid, name)),
@@ -720,6 +733,46 @@ class _ClanDetailPageState extends State<ClanDetailPage>
           ),
         ),
       );
+    }
+  }
+
+  Future<void> _removeGhost(BuildContext context, String uid) async {
+    final clanRef = FirebaseFirestore.instance.collection('clans').doc(widget.clanId);
+    final clanSnap = await clanRef.get();
+    if (!clanSnap.exists) return;
+    
+    final clanData = clanSnap.data()!;
+    final memberIds = List<String>.from(clanData['memberIds'] ?? []);
+    
+    if (memberIds.length <= 1) {
+      await clanRef.delete();
+      return;
+    }
+    
+    final updates = <String, dynamic>{
+      'memberIds': FieldValue.arrayRemove([uid]),
+      'roles.$uid': FieldValue.delete(),
+    };
+    
+    if (clanData['createdBy'] == uid) {
+      memberIds.remove(uid);
+      final roles = Map<String, dynamic>.from(clanData['roles'] ?? {});
+      roles.remove(uid);
+      
+      String? newLeader;
+      for (final mId in memberIds) { if (roles[mId] == 'co-leader') { newLeader = mId; break; } }
+      if (newLeader == null) {
+        for (final mId in memberIds) { if (roles[mId] == 'elder') { newLeader = mId; break; } }
+      }
+      newLeader ??= memberIds.first;
+      
+      updates['createdBy'] = newLeader;
+      updates['roles.$newLeader'] = 'leader';
+    }
+    
+    await clanRef.update(updates);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Conta removida limpa do clã.', style: TextStyle(color: Colors.white)), backgroundColor: Colors.green));
     }
   }
 

@@ -282,7 +282,7 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
   }
 
   Future<bool> _updateStreak(DocumentReference userRef, int percent) async {
-    if (percent <= 50) return false;
+    if (percent < 50) return false;
     try {
       final snap = await userRef.get();
       final data = snap.data() as Map<String, dynamic>? ?? {};
@@ -362,7 +362,7 @@ class _QuizScreenState extends State<QuizScreen> with TickerProviderStateMixin {
 
     final soundEnabled = context.read<AppSettings>().soundEnabled;
     if (soundEnabled) {
-      if (percent > 50) {
+      if (percent >= 50) {
         SoundService.playVictory();
       } else {
         SoundService.playFail();

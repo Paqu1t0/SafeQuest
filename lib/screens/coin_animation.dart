@@ -167,7 +167,7 @@ class _CoinFlyOverlayState extends State<_CoinFlyOverlay> with TickerProviderSta
 
 class StreakAnimation {
   static void show(BuildContext context, {required int streak}) {
-    if (streak < 2) return;
+    if (streak < 1) return;
     final overlay = Overlay.of(context);
     late OverlayEntry entry;
     entry = OverlayEntry(builder: (_) => _StreakOverlay(
@@ -298,7 +298,7 @@ class _StreakOverlayState extends State<_StreakOverlay> with TickerProviderState
                       ),
 
                       Text(
-                        'dias consecutivos',
+                        widget.streak == 1 ? 'dia consecutivo' : 'dias consecutivos',
                         style: TextStyle(fontSize: 14, color: Colors.grey.shade600, fontWeight: FontWeight.w500, decoration: TextDecoration.none),
                       ),
                       const SizedBox(height: 14),
