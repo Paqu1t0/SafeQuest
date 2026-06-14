@@ -49,7 +49,7 @@ As funcionalidades sociais — clãs, chat de clã, batalhas de quizzes e uma ta
 | Categoria | Tecnologia |
 | :--- | :--- |
 | **Linguagem** | Dart |
-| **Framework** | Flutter 3.x |
+| **Framework** | Flutter 3.44.0 |
 | **Autenticação** | Firebase Auth (e-mail/palavra-passe + Google Sign-In) |
 | **Base de Dados** | Cloud Firestore (NoSQL, em tempo real) |
 | **Notificações Push** | Firebase Cloud Messaging (FCM) |
